@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Navigation from "@/components/Navigation";
 
 export const metadata: Metadata = {
   title: "FinEngine 2026",
@@ -26,14 +27,7 @@ export default function RootLayout({
               </p>
             </div>
             
-            {/* Навигация */}
-            <nav className="px-4 py-4 space-y-1">
-              <NavLink href="/" label="Дашборд" />
-              <NavLink href="/companies" label="Компании" />
-              <NavLink href="/transactions" label="Операции" />
-              <NavLink href="/reports" label="Отчёты" />
-              <NavLink href="/settings" label="Настройки" />
-            </nav>
+            <Navigation />
           </aside>
 
           {/* Основной контент */}
@@ -43,17 +37,5 @@ export default function RootLayout({
         </div>
       </body>
     </html>
-  );
-}
-
-// Компонент для навигационной ссылки
-function NavLink({ href, label }: { href: string; label: string }) {
-  return (
-    <a
-      href={href}
-      className="block px-4 py-2 rounded-lg text-sm font-medium text-fe-text-secondary hover:bg-gray-50 hover:text-fe-text transition-colors"
-    >
-      {label}
-    </a>
   );
 }
