@@ -7,6 +7,7 @@ export type SheetName =
   | 'Counterparties'
   | 'Transactions'
   | 'JournalEntries'
+  | 'Budgets'
   | 'ExchangeRates'
   | 'Assets'
   | 'Loans';
