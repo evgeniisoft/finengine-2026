@@ -40,18 +40,12 @@ class ApiClient {
 
   async create(sheet: SheetName, data: any): Promise<any> {
     try {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'create',
-          sheet: sheet,
-          data: data
-        })
-      });
-
+      const jsonData = JSON.stringify(data);
+      const url = `${this.baseUrl}?action=create&sheet=${sheet}&data=${encodeURIComponent(jsonData)}`;
+      
+      console.log('URL запроса:', url);
+      
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -71,19 +65,10 @@ class ApiClient {
 
   async update(sheet: SheetName, id: string, data: any): Promise<any> {
     try {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'update',
-          sheet: sheet,
-          id: id,
-          data: data
-        })
-      });
-
+      const jsonData = JSON.stringify(data);
+      const url = `${this.baseUrl}?action=update&sheet=${sheet}&id=${id}&data=${encodeURIComponent(jsonData)}`;
+      
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -103,18 +88,9 @@ class ApiClient {
 
   async delete(sheet: SheetName, id: string): Promise<boolean> {
     try {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'delete',
-          sheet: sheet,
-          id: id
-        })
-      });
-
+      const url = `${this.baseUrl}?action=delete&sheet=${sheet}&id=${id}`;
+      
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
