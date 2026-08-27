@@ -31,15 +31,20 @@ export default function ReportsPage() {
             const response = await fetch(url);
             const data = await response.json();
 
-            console.log('API Response:', data); // Для отладки
+            console.log('API Response:', data);
+            console.log('View mode:', viewMode);
+            console.log('Active tab:', activeTab);
 
-            // Нормализуем данные
             if (viewMode === 'consolidated') {
-                // Для консолидированного отчёта data - объект
                 setReports(data);
             } else {
-                // Для отчётов по компаниям data - массив
-                setReports(Array.isArray(data) ? data : [data]);
+                // Проверяем, что data — массив
+                if (Array.isArray(data)) {
+                    setReports(data);
+                } else {
+                    console.error('Ожидался массив, получен объект:', data);
+                    setReports([]);
+                }
             }
 
         } catch (error) {
@@ -70,8 +75,8 @@ export default function ReportsPage() {
                 <button
                     onClick={() => setViewMode('consolidated')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'consolidated'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                         }`}
                 >
                     Консолидированный
@@ -79,8 +84,8 @@ export default function ReportsPage() {
                 <button
                     onClick={() => setViewMode('by_company')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'by_company'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                         }`}
                 >
                     По компаниям
@@ -94,8 +99,8 @@ export default function ReportsPage() {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
                         className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${activeTab === tab.id
-                                ? 'border-blue-600 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
                     >
                         {tab.label}
@@ -120,7 +125,7 @@ export default function ReportsPage() {
                     )}
 
                     {/* Отчёты по компаниям */}
-                    {viewMode === 'by_company' && reports?.map((report: any) => (
+                    {viewMode === 'by_company' && Array.isArray(reports) && reports.map((report: any) => (
                         <CompanyReport
                             key={report.company.id}
                             report={report}
