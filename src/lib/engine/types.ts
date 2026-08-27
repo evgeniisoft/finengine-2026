@@ -1,0 +1,158 @@
+/**
+ * ============================================
+ * FinEngine 2026 - Типы данных движка
+ * ============================================
+ */
+
+// Компания
+export interface Company {
+  id: string;
+  name: string;
+  tax_system: 'OSNO' | 'USN_6' | 'USN_15';
+  currency: string;
+  is_group: boolean;
+  parent_id: string;
+}
+
+// Счёт / Статья
+export interface Account {
+  id: string;
+  code: string;
+  name: string;
+  type: 'A' | 'L' | 'E' | 'I' | 'X'; // Актив, Пассив, Капитал, Доход, Расход
+  is_cash_flow: boolean;
+  parent_id: string;
+}
+
+// Контрагент
+export interface Counterparty {
+  id: string;
+  name: string;
+  inn: string;
+  type: 'client' | 'supplier';
+  company_id: string;
+}
+
+// Операция
+export interface Transaction {
+  id: string;
+  transaction_group_id: string;
+  date: string;
+  company_id: string;
+  description: string;
+  amount: number;
+  currency: string;
+  amount_rub: number;
+  counterparty_id: string;
+  contract_id: string;
+  debit_account_id: string;
+  credit_account_id: string;
+  is_system: boolean;
+}
+
+// Проводка (для двойной записи)
+export interface JournalEntry {
+  id: string;
+  transaction_id: string;
+  date: string;
+  company_id: string;
+  account_id: string;
+  debit: number;
+  credit: number;
+  currency: string;
+  amount_rub: number;
+}
+
+// Бюджет
+export interface Budget {
+  id: string;
+  company_id: string;
+  period: string; // YYYY-MM
+  account_id: string;
+  planned_amount: number;
+  actual_amount: number;
+}
+
+// Прогноз кассовых разрывов
+export interface CashFlowForecast {
+  date: string;
+  company_id: string;
+  starting_balance: number;
+  inflows: number;
+  outflows: number;
+  ending_balance: number;
+}
+
+// Курс валюты
+export interface ExchangeRate {
+  date: string;
+  currency: string;
+  rate: number;
+}
+
+// Отчёт ДДС
+export interface CashFlowReport {
+  period_start: string;
+  period_end: string;
+  company_id: string;
+  starting_balance: number;
+  operating_inflow: number;
+  operating_outflow: number;
+  investing_inflow: number;
+  investing_outflow: number;
+  financing_inflow: number;
+  financing_outflow: number;
+  ending_balance: number;
+}
+
+// Отчёт ОПиУ
+export interface PnLReport {
+  period_start: string;
+  period_end: string;
+  company_id: string;
+  revenue: number;
+  cost_of_goods_sold: number;
+  gross_profit: number;
+  operating_expenses: number;
+  depreciation: number;
+  taxes: number;
+  net_profit: number;
+}
+
+// Баланс
+export interface BalanceSheet {
+  date: string;
+  company_id: string;
+  assets: {
+    cash: number;
+    accounts_receivable: number;
+    inventory: number;
+    fixed_assets: number;
+    total: number;
+  };
+  liabilities: {
+    accounts_payable: number;
+    loans: number;
+    total: number;
+  };
+  equity: {
+    capital: number;
+    retained_earnings: number;
+    total: number;
+  };
+}
+
+// Заказ (для юнит-экономики)
+export interface Order {
+  id: string;
+  company_id: string;
+  number: string;
+  client_id: string;
+  name: string;
+  status: 'new' | 'in_progress' | 'completed' | 'cancelled';
+  start_date: string;
+  end_date: string;
+  manager_id: string;
+  planned_revenue: number;
+  planned_costs: number;
+}
