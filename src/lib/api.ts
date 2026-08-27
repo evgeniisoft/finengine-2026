@@ -38,34 +38,20 @@ class ApiClient {
     }
   }
 
-  async getById(sheet: SheetName, id: string): Promise<any> {
-    const url = `${this.baseUrl}?action=getById&sheet=${sheet}&id=${id}`;
-    
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      
-      if (data && data.error) {
-        throw new Error(data.error);
-      }
-      
-      return data;
-    } catch (error) {
-      console.error(`Ошибка при получении записи из ${sheet}:`, error);
-      throw error;
-    }
-  }
-
   async create(sheet: SheetName, data: any): Promise<any> {
     try {
-      // Отправляем данные как GET запрос (обходим CORS для POST)
-      const jsonData = JSON.stringify(data);
-      const url = `${this.baseUrl}?action=create&sheet=${sheet}&data=${encodeURIComponent(jsonData)}`;
-      
-      const response = await fetch(url);
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'create',
+          sheet: sheet,
+          data: data
+        })
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -85,10 +71,19 @@ class ApiClient {
 
   async update(sheet: SheetName, id: string, data: any): Promise<any> {
     try {
-      const jsonData = JSON.stringify(data);
-      const url = `${this.baseUrl}?action=update&sheet=${sheet}&id=${id}&data=${encodeURIComponent(jsonData)}`;
-      
-      const response = await fetch(url);
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'update',
+          sheet: sheet,
+          id: id,
+          data: data
+        })
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -108,9 +103,18 @@ class ApiClient {
 
   async delete(sheet: SheetName, id: string): Promise<boolean> {
     try {
-      const url = `${this.baseUrl}?action=delete&sheet=${sheet}&id=${id}`;
-      
-      const response = await fetch(url);
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          sheet: sheet,
+          id: id
+        })
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
