@@ -24,7 +24,7 @@ export default function Navigation() {
             href={item.href}
             className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive
-                ? 'bg-fe-primary text-white'
+                ? 'bg-blue-50 text-fe-primary'
                 : 'text-fe-text-secondary hover:bg-gray-50 hover:text-fe-text'
             }`}
           >
