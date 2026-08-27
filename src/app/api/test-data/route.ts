@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { api } from '@/lib/api';
+
+const GAS_URL = 'https://script.google.com/macros/s/ВАШ_ID/exec';
 
 export async function POST(request: NextRequest) {
   try {
-    const created = [];
-    
     // Тестовые компании
     const companies = [
       { id: 'comp-test-1', name: 'ООО "Альфа"', tax_system: 'USN_6', currency: 'RUB', is_group: true, parent_id: '' },
@@ -12,39 +11,19 @@ export async function POST(request: NextRequest) {
       { id: 'comp-test-3', name: 'ИП Иванов', tax_system: 'USN_6', currency: 'RUB', is_group: false, parent_id: 'comp-test-1' },
     ];
     
-    for (const company of companies) {
-      await api.create('Companies', company);
-      created.push(company.id);
-    }
-    
-    // Тестовые операции за 12 месяцев
+    // Тестовые операции
     const transactions = [];
-    let txCounter = 1;
     
     for (let month = 1; month <= 12; month++) {
       const monthStr = String(month).padStart(2, '0');
       
-      // Каждая компания имеет свою динамику
       const companiesData = [
-        { 
-          id: 'comp-test-1', 
-          revenue: 1000000 + month * 100000, 
-          expenses: 600000 + month * 50000 
-        },
-        { 
-          id: 'comp-test-2', 
-          revenue: 500000 + month * 50000, 
-          expenses: 350000 + month * 30000 
-        },
-        { 
-          id: 'comp-test-3', 
-          revenue: 300000 + month * 30000, 
-          expenses: 200000 + month * 20000 
-        },
+        { id: 'comp-test-1', revenue: 1000000 + month * 100000, expenses: 600000 + month * 50000 },
+        { id: 'comp-test-2', revenue: 500000 + month * 50000, expenses: 350000 + month * 30000 },
+        { id: 'comp-test-3', revenue: 300000 + month * 30000, expenses: 200000 + month * 20000 },
       ];
       
       for (const companyData of companiesData) {
-        // Доход
         transactions.push({
           date: `2026-${monthStr}-10`,
           company_id: companyData.id,
@@ -61,7 +40,6 @@ export async function POST(request: NextRequest) {
           is_system: false
         });
         
-        // Расход
         transactions.push({
           date: `2026-${monthStr}-20`,
           company_id: companyData.id,
@@ -77,15 +55,16 @@ export async function POST(request: NextRequest) {
           transaction_group_id: '',
           is_system: false
         });
-        
-        txCounter += 2;
       }
     }
     
-    for (const transaction of transactions) {
-      await api.create('Transactions', transaction);
-      created.push(transaction.company_id);
-    }
+    // Отправляем компании одним запросом
+    const companiesUrl = `${GAS_URL}?action=batchCreate&sheet=Companies&data=${encodeURIComponent(JSON.stringify(companies))}`;
+    await fetch(companiesUrl);
+    
+    // Отправляем транзакции одним запросом
+    const transactionsUrl = `${GAS_URL}?action=batchCreate&sheet=Transactions&data=${encodeURIComponent(JSON.stringify(transactions))}`;
+    await fetch(transactionsUrl);
     
     return NextResponse.json({
       success: true,
