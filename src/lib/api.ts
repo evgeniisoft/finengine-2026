@@ -26,6 +26,12 @@ class ApiClient {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
+      
+      // Проверяем, есть ли ошибка в ответе
+      if (data && data.error) {
+        throw new Error(data.error);
+      }
+      
       return Array.isArray(data) ? data : [];
     } catch (error) {
       console.error(`Ошибка при получении данных из ${sheet}:`, error);
@@ -41,7 +47,13 @@ class ApiClient {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      return await response.json();
+      const data = await response.json();
+      
+      if (data && data.error) {
+        throw new Error(data.error);
+      }
+      
+      return data;
     } catch (error) {
       console.error(`Ошибка при получении записи из ${sheet}:`, error);
       throw error;
@@ -66,7 +78,13 @@ class ApiClient {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const result = await response.json();
+      
+      if (result && result.error) {
+        throw new Error(result.error);
+      }
+      
+      return result;
     } catch (error) {
       console.error(`Ошибка при создании записи в ${sheet}:`, error);
       throw error;
@@ -92,7 +110,13 @@ class ApiClient {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const result = await response.json();
+      
+      if (result && result.error) {
+        throw new Error(result.error);
+      }
+      
+      return result;
     } catch (error) {
       console.error(`Ошибка при обновлении записи в ${sheet}:`, error);
       throw error;
@@ -118,6 +142,11 @@ class ApiClient {
       }
 
       const result = await response.json();
+      
+      if (result && result.error) {
+        throw new Error(result.error);
+      }
+      
       return result.success || false;
     } catch (error) {
       console.error(`Ошибка при удалении записи из ${sheet}:`, error);
