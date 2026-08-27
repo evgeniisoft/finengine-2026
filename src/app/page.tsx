@@ -32,59 +32,62 @@ export default function Dashboard() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-fe-text">Дашборд</h2>
-        <p className="text-fe-text-secondary mt-1">
+        <h2 className="text-2xl font-bold" style={{ color: 'var(--color-fe-text)' }}>
+          Дашборд
+        </h2>
+        <p className="mt-1" style={{ color: 'var(--color-fe-text-secondary)' }}>
           Обзор финансового состояния холдинга
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-fe-card rounded-xl border border-gray-200 p-6">
-          <h3 className="text-sm font-medium text-fe-text-secondary">
+        <div className="rounded-xl border border-gray-200 p-6" style={{ backgroundColor: 'var(--color-fe-card)' }}>
+          <h3 className="text-sm font-medium" style={{ color: 'var(--color-fe-text-secondary)' }}>
             Компании
           </h3>
-          <p className="text-3xl font-bold text-fe-text mt-2">
+          <p className="text-3xl font-bold mt-2" style={{ color: 'var(--color-fe-text)' }}>
             {loading ? '...' : totalCompanies}
           </p>
         </div>
 
-        <div className="bg-fe-card rounded-xl border border-gray-200 p-6">
-          <h3 className="text-sm font-medium text-fe-text-secondary">
+        <div className="rounded-xl border border-gray-200 p-6" style={{ backgroundColor: 'var(--color-fe-card)' }}>
+          <h3 className="text-sm font-medium" style={{ color: 'var(--color-fe-text-secondary)' }}>
             Холдинги
           </h3>
-          <p className="text-3xl font-bold text-fe-text mt-2">
+          <p className="text-3xl font-bold mt-2" style={{ color: 'var(--color-fe-text)' }}>
             {loading ? '...' : groupCompanies}
           </p>
         </div>
 
-        <div className="bg-fe-card rounded-xl border border-gray-200 p-6">
-          <h3 className="text-sm font-medium text-fe-text-secondary">
+        <div className="rounded-xl border border-gray-200 p-6" style={{ backgroundColor: 'var(--color-fe-card)' }}>
+          <h3 className="text-sm font-medium" style={{ color: 'var(--color-fe-text-secondary)' }}>
             Валюта учёта
           </h3>
-          <p className="text-3xl font-bold text-fe-text mt-2">₽</p>
+          <p className="text-3xl font-bold mt-2" style={{ color: 'var(--color-fe-text)' }}>₽</p>
         </div>
       </div>
 
-      <div className="bg-fe-card rounded-xl border border-gray-200">
+      <div className="rounded-xl border border-gray-200" style={{ backgroundColor: 'var(--color-fe-card)' }}>
         <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-fe-text">
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--color-fe-text)' }}>
             Компании холдинга
           </h3>
         </div>
 
         {loading && (
           <div className="p-6 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-fe-primary mx-auto"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto" style={{ borderColor: 'var(--color-fe-primary)' }}></div>
           </div>
         )}
 
         {error && (
           <div className="p-6">
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-              <p className="text-red-600">{error}</p>
+            <div className="rounded-xl p-4" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA' }}>
+              <p style={{ color: 'var(--color-fe-danger)' }}>{error}</p>
               <button
                 onClick={loadData}
-                className="mt-2 text-sm text-red-700 underline"
+                className="mt-2 text-sm underline"
+                style={{ color: 'var(--color-fe-danger)' }}
               >
                 Повторить
               </button>
@@ -98,17 +101,17 @@ export default function Dashboard() {
               <div key={company.id} className="p-6 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-medium text-fe-text">
+                    <h4 className="font-medium" style={{ color: 'var(--color-fe-text)' }}>
                       {company.name}
                     </h4>
-                    <p className="text-sm text-fe-text-secondary mt-1">
+                    <p className="text-sm mt-1" style={{ color: 'var(--color-fe-text-secondary)' }}>
                       {company.tax_system === 'USN_6' && 'УСН 6%'}
                       {company.tax_system === 'USN_15' && 'УСН 15%'}
                       {company.tax_system === 'OSNO' && 'ОСНО'}
                     </p>
                   </div>
                   {company.is_group && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: '#EEF2FF', color: 'var(--color-fe-primary)' }}>
                       Холдинг
                     </span>
                   )}

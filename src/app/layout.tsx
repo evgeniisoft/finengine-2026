@@ -13,32 +13,32 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
-      <body className="bg-fe-bg min-h-screen">
+      <body className="min-h-screen" style={{ backgroundColor: 'var(--color-fe-bg)' }}>
         <div className="flex min-h-screen">
-          <aside className="w-64 bg-fe-card border-r border-gray-200 fixed h-full">
+          <aside className="w-64 border-r border-gray-200 fixed h-full" style={{ backgroundColor: 'var(--color-fe-card)' }}>
             <div className="p-6">
-              <h1 className="text-xl font-bold text-fe-text">
-                FinEngine <span className="text-fe-primary">2026</span>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--color-fe-text)' }}>
+                FinEngine <span style={{ color: 'var(--color-fe-primary)' }}>2026</span>
               </h1>
-              <p className="text-xs text-fe-text-secondary mt-1">
+              <p className="text-xs mt-1" style={{ color: 'var(--color-fe-text-secondary)' }}>
                 Управленческий учёт
               </p>
             </div>
             
             <nav className="px-4 space-y-1">
-              <a href="/" className="block px-4 py-2 rounded-lg text-sm font-medium bg-fe-primary text-white">
+              <a href="/" className="block px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ backgroundColor: 'var(--color-fe-primary)' }}>
                 📊 Дашборд
               </a>
-              <a href="/companies" className="block px-4 py-2 rounded-lg text-sm font-medium text-fe-text-secondary hover:bg-gray-50 hover:text-fe-text">
+              <a href="/companies" className="block px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50" style={{ color: 'var(--color-fe-text-secondary)' }}>
                 🏢 Компании
               </a>
-              <a href="/transactions" className="block px-4 py-2 rounded-lg text-sm font-medium text-fe-text-secondary hover:bg-gray-50 hover:text-fe-text">
+              <a href="/transactions" className="block px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50" style={{ color: 'var(--color-fe-text-secondary)' }}>
                 💰 Операции
               </a>
-              <a href="/reports" className="block px-4 py-2 rounded-lg text-sm font-medium text-fe-text-secondary hover:bg-gray-50 hover:text-fe-text">
+              <a href="/reports" className="block px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50" style={{ color: 'var(--color-fe-text-secondary)' }}>
                 📈 Отчёты
               </a>
-              <a href="/settings" className="block px-4 py-2 rounded-lg text-sm font-medium text-fe-text-secondary hover:bg-gray-50 hover:text-fe-text">
+              <a href="/settings" className="block px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50" style={{ color: 'var(--color-fe-text-secondary)' }}>
                 ⚙️ Настройки
               </a>
             </nav>
