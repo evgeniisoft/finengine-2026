@@ -12,6 +12,7 @@ export default function ReportsPage() {
     const [reports, setReports] = useState<any>(null);
     const [monthlyData, setMonthlyData] = useState<any[]>([]);
     const [showMonthly, setShowMonthly] = useState(false);
+    const [periodType, setPeriodType] = useState<'monthly' | 'weekly' | 'daily'>('monthly');
     const [isLoadingTestData, setIsLoadingTestData] = useState(false);
     const [loading, setLoading] = useState(true);
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -36,10 +37,10 @@ export default function ReportsPage() {
 
             // Если вкладка "По месяцам" — загружаем месячные данные
             if (showMonthly) {
-                const monthlyUrl = `/api/reports/monthly?period_start=${period.start}&period_end=${period.end}`;
+                const monthlyUrl = `/api/reports/monthly?period_start=${period.start}&period_end=${period.end}&period_type=${periodType}`;
                 const monthlyResponse = await fetch(monthlyUrl);
                 const monthlyData = await monthlyResponse.json();
-                setMonthlyData(Array.isArray(monthlyData) ? monthlyData : []);
+                setMonthlyData(Array.isArray(monthlyData.periods) ? monthlyData.periods : []);
                 setLoading(false);
                 return;
             }
@@ -281,6 +282,38 @@ export default function ReportsPage() {
                 >
                     По месяцам
                 </button>
+                {/* Переключатель периода (виден только когда "По месяцам" активно) */}
+                {showMonthly && (
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setPeriodType('monthly')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${periodType === 'monthly'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                }`}
+                        >
+                            Месяцы
+                        </button>
+                        <button
+                            onClick={() => setPeriodType('weekly')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${periodType === 'weekly'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                }`}
+                        >
+                            Недели
+                        </button>
+                        <button
+                            onClick={() => setPeriodType('daily')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${periodType === 'daily'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                }`}
+                        >
+                            Дни
+                        </button>
+                    </div>
+                )}
             </div>
 
             {loading ? (

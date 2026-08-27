@@ -8,61 +8,70 @@ export async function GET(request: NextRequest) {
     const companyId = url.searchParams.get('company_id');
     const periodStart = url.searchParams.get('period_start') || '2026-01-01';
     const periodEnd = url.searchParams.get('period_end') || '2026-12-31';
+    const periodType = url.searchParams.get('period_type') || 'monthly';
     
-    // Получаем данные
     const [transactions, accounts] = await Promise.all([
       api.getAll('Transactions'),
       api.getAll('Accounts')
     ]);
     
-    let monthlyData;
+    let data;
     
     if (companyId) {
-      // По одной компании
-      monthlyData = monthlyEngine.getMonthlyBreakdown(
+      data = monthlyEngine.getPeriodBreakdown(
         transactions,
         accounts,
         companyId,
         periodStart,
-        periodEnd
+        periodEnd,
+        periodType as any
       );
     } else {
-      // По всем компаниям (агрегируем)
+      // Агрегируем по всем компаниям
       const companies = await api.getAll('Companies');
       
-      const allMonthly = companies.flatMap(company => 
-        monthlyEngine.getMonthlyBreakdown(
+      const allData = companies.flatMap(company =>
+        monthlyEngine.getPeriodBreakdown(
           transactions,
           accounts,
           company.id,
           periodStart,
-          periodEnd
+          periodEnd,
+          periodType as any
         )
       );
       
-      // Агрегируем по месяцам
-      const monthsMap = new Map<string, any>();
+      // Агрегируем по периодам
+      const periodsMap = new Map<string, any>();
       
-      for (const monthly of allMonthly) {
-        if (!monthsMap.has(monthly.month)) {
-          monthsMap.set(monthly.month, { ...monthly });
+      for (const item of allData) {
+        if (!periodsMap.has(item.period)) {
+          periodsMap.set(item.period, { ...item });
         } else {
-          const existing = monthsMap.get(monthly.month)!;
-          existing.revenue += monthly.revenue;
-          existing.expenses += monthly.expenses;
-          existing.profit += monthly.profit;
-          existing.cash_in += monthly.cash_in;
-          existing.cash_out += monthly.cash_out;
-          existing.net_cash_flow += monthly.net_cash_flow;
-          existing.ending_balance += monthly.ending_balance;
+          const existing = periodsMap.get(item.period)!;
+          existing.revenue += item.revenue;
+          existing.expenses += item.expenses;
+          existing.profit += item.profit;
+          existing.cash_in += item.cash_in;
+          existing.cash_out += item.cash_out;
+          existing.net_cash_flow += item.net_cash_flow;
+          existing.ending_balance += item.ending_balance;
+          // Агрегируем детали
+          for (const accountId in item.details) {
+            existing.details[accountId] = (existing.details[accountId] || 0) + item.details[accountId];
+          }
         }
       }
       
-      monthlyData = Array.from(monthsMap.values())
-        .sort((a, b) => a.month.localeCompare(b.month));
+      data = Array.from(periodsMap.values())
+        .sort((a, b) => a.period.localeCompare(b.period));
     }
     
-    return NextResponse.json(monthlyData);
+    // Возвращаем вместе со счетами для расшифровки
+    return NextResponse.json({
+      periods: data,
+      accounts: accounts
+    });
     
   } catch (error) {
     console.error('Ошибка API:', error);
