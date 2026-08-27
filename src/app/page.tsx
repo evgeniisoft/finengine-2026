@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 
 export default function Dashboard() {
   const [companies, setCompanies] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,8 +16,12 @@ export default function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await api.getAll('Companies');
-      setCompanies(data);
+      const [companiesData, reportsData] = await Promise.all([
+        api.getAll('Companies'),
+        fetch('/api/reports').then(r => r.json())
+      ]);
+      setCompanies(companiesData);
+      setReports(reportsData);
       setError(null);
     } catch (err) {
       setError('Ошибка при загрузке данных');
@@ -26,101 +31,118 @@ export default function Dashboard() {
     }
   };
 
-  const totalCompanies = companies.length;
-  const groupCompanies = companies.filter(c => c.is_group).length;
+  // Суммарные показатели
+  const totalRevenue = reports.reduce((sum, r) => sum + (r.pnl?.revenue || 0), 0);
+  const totalExpenses = reports.reduce((sum, r) => sum + (r.pnl?.operating_expenses || 0), 0);
+  const totalProfit = totalRevenue - totalExpenses;
+  const totalCash = reports.reduce((sum, r) => sum + (r.balance?.assets?.cash || 0), 0);
 
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-2xl font-bold" style={{ color: 'var(--color-fe-text)' }}>
-          Дашборд
-        </h2>
-        <p className="mt-1" style={{ color: 'var(--color-fe-text-secondary)' }}>
-          Обзор финансового состояния холдинга
+        <h2 className="text-2xl font-bold text-gray-900">Дашборд</h2>
+        <p className="text-gray-500 mt-1">
+          Финансовое состояние холдинга
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="rounded-xl border border-gray-200 p-6" style={{ backgroundColor: 'var(--color-fe-card)' }}>
-          <h3 className="text-sm font-medium" style={{ color: 'var(--color-fe-text-secondary)' }}>
-            Компании
-          </h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: 'var(--color-fe-text)' }}>
-            {loading ? '...' : totalCompanies}
+      {/* Ключевые показатели */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-500">Выручка</h3>
+          <p className="text-2xl font-bold text-gray-900 mt-2">
+            {loading ? '...' : `${totalRevenue.toLocaleString('ru-RU')} ₽`}
           </p>
         </div>
 
-        <div className="rounded-xl border border-gray-200 p-6" style={{ backgroundColor: 'var(--color-fe-card)' }}>
-          <h3 className="text-sm font-medium" style={{ color: 'var(--color-fe-text-secondary)' }}>
-            Холдинги
-          </h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: 'var(--color-fe-text)' }}>
-            {loading ? '...' : groupCompanies}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-500">Расходы</h3>
+          <p className="text-2xl font-bold text-gray-900 mt-2">
+            {loading ? '...' : `${totalExpenses.toLocaleString('ru-RU')} ₽`}
           </p>
         </div>
 
-        <div className="rounded-xl border border-gray-200 p-6" style={{ backgroundColor: 'var(--color-fe-card)' }}>
-          <h3 className="text-sm font-medium" style={{ color: 'var(--color-fe-text-secondary)' }}>
-            Валюта учёта
-          </h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: 'var(--color-fe-text)' }}>₽</p>
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-500">Прибыль</h3>
+          <p className={`text-2xl font-bold mt-2 ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {loading ? '...' : `${totalProfit.toLocaleString('ru-RU')} ₽`}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-500">Деньги на счетах</h3>
+          <p className="text-2xl font-bold text-gray-900 mt-2">
+            {loading ? '...' : `${totalCash.toLocaleString('ru-RU')} ₽`}
+          </p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200" style={{ backgroundColor: 'var(--color-fe-card)' }}>
+      {/* Отчёты по компаниям */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold" style={{ color: 'var(--color-fe-text)' }}>
+          <h3 className="text-lg font-semibold text-gray-900">
             Компании холдинга
           </h3>
         </div>
 
-        {loading && (
+        {loading ? (
           <div className="p-6 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto" style={{ borderColor: 'var(--color-fe-primary)' }}></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           </div>
-        )}
-
-        {error && (
-          <div className="p-6">
-            <div className="rounded-xl p-4" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA' }}>
-              <p style={{ color: 'var(--color-fe-danger)' }}>{error}</p>
-              <button
-                onClick={loadData}
-                className="mt-2 text-sm underline"
-                style={{ color: 'var(--color-fe-danger)' }}
-              >
-                Повторить
-              </button>
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && (
-          <div className="divide-y divide-gray-200">
-            {companies.map((company) => (
-              <div key={company.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium" style={{ color: 'var(--color-fe-text)' }}>
-                      {company.name}
-                    </h4>
-                    <p className="text-sm mt-1" style={{ color: 'var(--color-fe-text-secondary)' }}>
-                      {company.tax_system === 'USN_6' && 'УСН 6%'}
-                      {company.tax_system === 'USN_15' && 'УСН 15%'}
-                      {company.tax_system === 'OSNO' && 'ОСНО'}
-                    </p>
-                  </div>
-                  {company.is_group && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: '#EEF2FF', color: 'var(--color-fe-primary)' }}>
-                      Холдинг
+        ) : (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                  Компания
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                  Выручка
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                  Расходы
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                  Прибыль
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                  Деньги
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {reports.map((report) => (
+                <tr key={report.company.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    {report.company.name}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {(report.pnl?.revenue || 0).toLocaleString('ru-RU')} ₽
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {(report.pnl?.operating_expenses || 0).toLocaleString('ru-RU')} ₽
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium">
+                    <span className={report.pnl?.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {(report.pnl?.net_profit || 0).toLocaleString('ru-RU')} ₽
                     </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {(report.balance?.assets?.cash || 0).toLocaleString('ru-RU')} ₽
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
+
+      {/* Ошибка */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-6">
+          <p className="text-red-600">{error}</p>
+        </div>
+      )}
     </div>
   );
 }
