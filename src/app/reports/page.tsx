@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 export default function ReportsPage() {
-    const [activeTab, setActiveTab] = useState<'pnl' | 'cashflow' | 'balance' | 'monthly'>('pnl');
+    const [activeTab, setActiveTab] = useState<'pnl' | 'cashflow' | 'balance'>('pnl');
     const [viewMode, setViewMode] = useState<'consolidated' | 'by_company'>('consolidated');
     const [period, setPeriod] = useState({
         start: '2026-01-01',
@@ -11,6 +11,7 @@ export default function ReportsPage() {
     });
     const [reports, setReports] = useState<any>(null);
     const [monthlyData, setMonthlyData] = useState<any[]>([]);
+    const [showMonthly, setShowMonthly] = useState(false);
     const [loading, setLoading] = useState(true);
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
@@ -33,7 +34,7 @@ export default function ReportsPage() {
             setLoading(true);
 
             // Если вкладка "По месяцам" — загружаем месячные данные
-            if (activeTab === 'monthly') {
+            if (showMonthly) {
                 const monthlyUrl = `/api/reports/monthly?period_start=${period.start}&period_end=${period.end}`;
                 const monthlyResponse = await fetch(monthlyUrl);
                 const monthlyData = await monthlyResponse.json();
@@ -136,7 +137,6 @@ export default function ReportsPage() {
         { id: 'pnl', label: 'ОПиУ (P&L)' },
         { id: 'cashflow', label: 'ДДС (Cash Flow)' },
         { id: 'balance', label: 'Баланс' },
-        { id: 'monthly', label: 'По месяцам' },
     ];
 
     return (
@@ -215,19 +215,35 @@ export default function ReportsPage() {
             </div>
 
             {/* Вкладки отчётов */}
-            <div className="flex gap-2 mb-6 border-b border-gray-200">
-                {tabs.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
-                        className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${activeTab === tab.id
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700'
-                            }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
+            <div className="flex items-center gap-4 mb-6 border-b border-gray-200">
+                <div className="flex gap-2">
+                    {tabs.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => {
+                                setActiveTab(tab.id as any);
+                                setShowMonthly(false);
+                            }}
+                            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${activeTab === tab.id && !showMonthly
+                                ? 'border-blue-600 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Переключатель По месяцам */}
+                <button
+                    onClick={() => setShowMonthly(!showMonthly)}
+                    className={`ml-auto px-4 py-2 rounded-lg text-sm font-medium transition-colors ${showMonthly
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                        }`}
+                >
+                    По месяцам
+                </button>
             </div>
 
             {loading ? (
@@ -236,63 +252,51 @@ export default function ReportsPage() {
                 </div>
             ) : (
                 <div className="space-y-6">
-                    {/* Вкладка "По месяцам" */}
-                    {activeTab === 'monthly' && (
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Месяц</th>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Выручка</th>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Расходы</th>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Прибыль</th>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Поступления</th>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Выбытия</th>
-                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Остаток</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {monthlyData.map((month: any) => (
-                                        <tr key={month.month} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 text-sm font-medium text-gray-900">{month.month}</td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">{month.revenue?.toLocaleString('ru-RU')} ₽</td>
-                                            <td className="px-6 py-4 text-sm text-red-600">{month.expenses?.toLocaleString('ru-RU')} ₽</td>
-                                            <td className={`px-6 py-4 text-sm font-medium ${month.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                {month.profit?.toLocaleString('ru-RU')} ₽
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-green-600">{month.cash_in?.toLocaleString('ru-RU')} ₽</td>
-                                            <td className="px-6 py-4 text-sm text-red-600">{month.cash_out?.toLocaleString('ru-RU')} ₽</td>
-                                            <td className="px-6 py-4 text-sm font-medium text-gray-900">{month.ending_balance?.toLocaleString('ru-RU')} ₽</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                       
+                    {showMonthly ? (
+                        <MonthlyTableView data={monthlyData} />
+                    ) : (
+                        <>
+                            {viewMode === 'consolidated' && reports && (
+                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                        Холдинг (консолидированный)
+                                    </h3>
 
-                            {monthlyData.length === 0 && (
-                                <div className="text-center py-12">
-                                    <p className="text-gray-500">Нет данных за выбранный период</p>
+                                    {activeTab === 'pnl' && reports.pnl && (
+                                        <PnlView data={reports.pnl} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
+                                    )}
+
+                                    {activeTab === 'cashflow' && reports.cashFlow && (
+                                        <CashFlowView data={reports.cashFlow} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
+                                    )}
+
+                                    {activeTab === 'balance' && reports.balance && (
+                                        <BalanceView data={reports.balance} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
+                                    )}
                                 </div>
                             )}
-                        </div>
-                    )}
-                    {viewMode === 'consolidated' && reports && (
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                Холдинг (консолидированный)
-                            </h3>
 
-                            {activeTab === 'pnl' && reports.pnl && (
-                                <PnlView data={reports.pnl} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
-                            )}
+                            {viewMode === 'by_company' && Array.isArray(reports) && reports.map((report: any) => (
+                                <div key={report.company.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                        {report.company.name}
+                                    </h3>
 
-                            {activeTab === 'cashflow' && reports.cashFlow && (
-                                <CashFlowView data={reports.cashFlow} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
-                            )}
+                                    {activeTab === 'pnl' && report.report && (
+                                        <PnlView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
+                                    )}
 
-                            {activeTab === 'balance' && reports.balance && (
-                                <BalanceView data={reports.balance} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
-                            )}
-                        </div>
+                                    {activeTab === 'cashflow' && report.report && (
+                                        <CashFlowView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
+                                    )}
+
+                                    {activeTab === 'balance' && report.report && (
+                                        <BalanceView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
+                                    )}
+                                </div>
+                            ))}
+                        </>
                     )}
 
                     {viewMode === 'by_company' && Array.isArray(reports) && reports.map((report: any) => (
@@ -468,6 +472,61 @@ function BalanceView({ data, expandedRow, setExpandedRow }: any) {
                     </span>
                 </div>
             </div>
+        </div>
+    );
+}
+function MonthlyTableView({ data }: { data: any[] }) {
+    if (!data || data.length === 0) {
+        return (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+                <p className="text-gray-500">Нет данных за выбранный период</p>
+            </div>
+        );
+    }
+
+    // Получаем список месяцев (колонки)
+    const months = data.map(item => item.month);
+
+    // Строки таблицы
+    const rows = [
+        { id: 'revenue', label: 'Выручка', getValue: (d: any) => d.revenue, color: 'text-gray-900' },
+        { id: 'expenses', label: 'Расходы', getValue: (d: any) => d.expenses, color: 'text-red-600' },
+        { id: 'profit', label: 'Прибыль', getValue: (d: any) => d.profit, color: 'text-green-600' },
+        { id: 'cash_in', label: 'Поступления', getValue: (d: any) => d.cash_in, color: 'text-green-600' },
+        { id: 'cash_out', label: 'Выбытия', getValue: (d: any) => d.cash_out, color: 'text-red-600' },
+        { id: 'ending_balance', label: 'Остаток', getValue: (d: any) => d.ending_balance, color: 'text-gray-900' },
+    ];
+
+    return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">
+                            Статья
+                        </th>
+                        {months.map(month => (
+                            <th key={month} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">
+                                {month}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {rows.map(row => (
+                        <tr key={row.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">
+                                {row.label}
+                            </td>
+                            {data.map((monthData) => (
+                                <td key={monthData.month} className={`px-4 py-3 text-sm text-right font-medium ${row.color}`}>
+                                    {row.getValue(monthData)?.toLocaleString('ru-RU') || 0} ₽
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }
