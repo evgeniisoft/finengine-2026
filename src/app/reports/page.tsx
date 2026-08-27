@@ -12,6 +12,7 @@ export default function ReportsPage() {
     const [reports, setReports] = useState<any>(null);
     const [monthlyData, setMonthlyData] = useState<any[]>([]);
     const [showMonthly, setShowMonthly] = useState(false);
+    const [isLoadingTestData, setIsLoadingTestData] = useState(false);
     const [loading, setLoading] = useState(true);
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
@@ -74,6 +75,32 @@ export default function ReportsPage() {
             setMonthlyData([]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadTestData = async () => {
+        if (!confirm('Загрузить тестовые данные за 2026 год?')) return;
+
+        try {
+            setIsLoadingTestData(true);
+
+            const response = await fetch('/api/test-data', {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(`Загружено операций: ${result.created}`);
+                loadReports();
+            } else {
+                alert('Ошибка: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки тестовых данных:', error);
+            alert('Ошибка загрузки тестовых данных');
+        } finally {
+            setIsLoadingTestData(false);
         }
     };
 
@@ -150,6 +177,16 @@ export default function ReportsPage() {
 
             {/* Панель фильтров */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
+                {/* Кнопка загрузки тестовых данных */}
+                <div className="mb-4">
+                    <button
+                        onClick={loadTestData}
+                        disabled={isLoadingTestData}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 cursor-pointer"
+                    >
+                        {isLoadingTestData ? 'Загрузка...' : 'Загрузить тестовые данные'}
+                    </button>
+                </div>
                 <div className="flex flex-wrap items-center gap-4">
                     {/* Пресеты периодов */}
                     <div className="flex gap-2">
@@ -252,7 +289,7 @@ export default function ReportsPage() {
                 </div>
             ) : (
                 <div className="space-y-6">
-                                       
+
                     {showMonthly ? (
                         <MonthlyTableView data={monthlyData} />
                     ) : (
