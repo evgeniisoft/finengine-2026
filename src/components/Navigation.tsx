@@ -22,10 +22,10 @@ export default function Navigation() {
           <a
             key={item.href}
             href={item.href}
-            className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
               isActive
-                ? 'bg-blue-50 text-fe-primary'
-                : 'text-fe-text-secondary hover:bg-gray-50 hover:text-fe-text'
+                ? 'bg-blue-50 text-blue-700 shadow-sm'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
             }`}
           >
             {item.label}

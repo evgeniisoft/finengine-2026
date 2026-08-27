@@ -102,8 +102,8 @@ export default function CompaniesPage() {
       {/* Заголовок */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-fe-text">Компании</h2>
-          <p className="text-fe-text-secondary mt-1">
+          <h2 className="text-2xl font-bold text-gray-900">Компании</h2>
+          <p className="text-gray-500 mt-1">
             Управление юридическими лицами холдинга
           </p>
         </div>
@@ -112,7 +112,7 @@ export default function CompaniesPage() {
             resetForm();
             setShowForm(true);
           }}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+          className="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 active:bg-blue-800 transition-all shadow-sm hover:shadow-md cursor-pointer"
         >
           + Добавить компанию
         </button>
@@ -120,33 +120,33 @@ export default function CompaniesPage() {
 
       {/* Форма создания/редактирования */}
       {showForm && (
-        <div className="bg-fe-card rounded-xl border border-gray-200 p-6 mb-6">
-          <h3 className="text-lg font-semibold text-fe-text mb-4">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-lg p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
             {editingCompany ? 'Редактировать компанию' : 'Новая компания'}
           </h3>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-fe-text mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Название
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fe-primary focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 placeholder="ООО «Ромашка»"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-fe-text mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Система налогообложения
               </label>
               <select
                 value={formData.tax_system}
                 onChange={(e) => setFormData({...formData, tax_system: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fe-primary focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 cursor-pointer"
               >
                 <option value="USN_6">УСН 6%</option>
                 <option value="USN_15">УСН 15%</option>
@@ -155,13 +155,13 @@ export default function CompaniesPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-fe-text mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Валюта учёта
               </label>
               <select
                 value={formData.currency}
                 onChange={(e) => setFormData({...formData, currency: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fe-primary focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 cursor-pointer"
               >
                 <option value="RUB">₽ Рубль</option>
                 <option value="USD">$ Доллар</option>
@@ -175,26 +175,26 @@ export default function CompaniesPage() {
                 type="checkbox"
                 checked={formData.is_group}
                 onChange={(e) => setFormData({...formData, is_group: e.target.checked})}
-                className="mr-2 h-4 w-4 text-fe-primary focus:ring-fe-primary"
+                className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
-              <label className="text-sm font-medium text-fe-text">
+              <label className="text-sm font-medium text-gray-700 cursor-pointer">
                 Головная компания холдинга
               </label>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-4">
               <button
                 onClick={editingCompany ? handleUpdate : handleCreate}
-                className="px-4 py-2 bg-fe-primary text-white rounded-lg text-sm font-medium hover:bg-fe-primary-dark transition-colors"
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 active:bg-blue-800 transition-all shadow-sm hover:shadow-md cursor-pointer"
               >
-                {editingCompany ? 'Сохранить' : 'Создать'}
+                {editingCompany ? 'Сохранить изменения' : 'Создать компанию'}
               </button>
               <button
                 onClick={() => {
                   setShowForm(false);
                   resetForm();
                 }}
-                className="px-4 py-2 border border-gray-300 text-fe-text rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 active:bg-gray-300 transition-all cursor-pointer"
               >
                 Отмена
               </button>
@@ -206,7 +206,7 @@ export default function CompaniesPage() {
       {/* Состояние загрузки */}
       {loading && (
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-fe-primary mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
         </div>
       )}
 
@@ -219,23 +219,23 @@ export default function CompaniesPage() {
 
       {/* Таблица компаний */}
       {!loading && !error && (
-        <div className="bg-fe-card rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-fe-text-secondary uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Название
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-fe-text-secondary uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   СНО
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-fe-text-secondary uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Валюта
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-fe-text-secondary uppercase">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Статус
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-fe-text-secondary uppercase">
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Действия
                 </th>
               </tr>
@@ -243,20 +243,20 @@ export default function CompaniesPage() {
             <tbody className="divide-y divide-gray-200">
               {companies.map((company) => (
                 <tr key={company.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-fe-text">
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     {company.name}
                   </td>
-                  <td className="px-6 py-4 text-sm text-fe-text-secondary">
+                  <td className="px-6 py-4 text-sm text-gray-600">
                     {company.tax_system === 'USN_6' && 'УСН 6%'}
                     {company.tax_system === 'USN_15' && 'УСН 15%'}
                     {company.tax_system === 'OSNO' && 'ОСНО'}
                   </td>
-                  <td className="px-6 py-4 text-sm text-fe-text-secondary">
+                  <td className="px-6 py-4 text-sm text-gray-600">
                     {company.currency}
                   </td>
                   <td className="px-6 py-4">
                     {company.is_group ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         Холдинг
                       </span>
                     ) : (
@@ -265,16 +265,16 @@ export default function CompaniesPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right space-x-2">
+                  <td className="px-6 py-4 text-right space-x-3">
                     <button
                       onClick={() => handleEdit(company)}
-                      className="text-fe-primary hover:text-fe-primary-dark text-sm font-medium"
+                      className="text-blue-600 hover:text-blue-800 hover:underline text-sm font-medium transition-colors cursor-pointer"
                     >
                       Изменить
                     </button>
                     <button
                       onClick={() => handleDelete(company.id)}
-                      className="text-fe-danger hover:text-red-700 text-sm font-medium"
+                      className="text-red-600 hover:text-red-800 hover:underline text-sm font-medium transition-colors cursor-pointer"
                     >
                       Удалить
                     </button>
@@ -286,7 +286,7 @@ export default function CompaniesPage() {
           
           {companies.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-fe-text-secondary">Компании не найдены</p>
+              <p className="text-gray-500">Компании не найдены</p>
             </div>
           )}
         </div>
