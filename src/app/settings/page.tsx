@@ -20,9 +20,9 @@ export default function SettingsPage() {
         database_name: '',
         user: '',
         password: '',
-        spreadsheet_id: ''
+        spreadsheet_id: '',
+        api_url: ''
     });
-
     // Форма счёта
     const [accountForm, setAccountForm] = useState({
         code: '',
@@ -59,6 +59,7 @@ export default function SettingsPage() {
 
             if (connectionForm.type === 'google_sheets') {
                 config.spreadsheet_id = connectionForm.spreadsheet_id;
+                config.api_url = connectionForm.api_url;
             } else {
                 config.host = connectionForm.host;
                 config.port = connectionForm.port;
@@ -87,7 +88,8 @@ export default function SettingsPage() {
                 database_name: '',
                 user: '',
                 password: '',
-                spreadsheet_id: ''
+                spreadsheet_id: '',
+                api_url: ''
             });
             loadData();
             alert('Подключение сохранено');
@@ -221,21 +223,39 @@ export default function SettingsPage() {
                                             </select>
                                         </div>
                                         {connectionForm.type === 'google_sheets' && (
-                                            <div className="md:col-span-2">
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    ID таблицы Google Sheets
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={connectionForm.spreadsheet_id}
-                                                    onChange={(e) => setConnectionForm({ ...connectionForm, spreadsheet_id: e.target.value })}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                                    placeholder="1a2b3c4d5e6f7g8h9i0j..."
-                                                />
-                                                <p className="text-xs text-gray-400 mt-1">
-                                                    ID можно найти в URL: docs.google.com/spreadsheets/d/ID/edit
-                                                </p>
-                                            </div>
+                                            <>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        ID таблицы Google Sheets
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={connectionForm.spreadsheet_id}
+                                                        onChange={(e) => setConnectionForm({ ...connectionForm, spreadsheet_id: e.target.value })}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                                        placeholder="1a2b3c4d5e6f7g8h9i0j..."
+                                                    />
+                                                    <p className="text-xs text-gray-400 mt-1">
+                                                        Находится в URL: docs.google.com/spreadsheets/d/ID/edit
+                                                    </p>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        URL API (Google Apps Script)
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={connectionForm.api_url}
+                                                        onChange={(e) => setConnectionForm({ ...connectionForm, api_url: e.target.value })}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                                        placeholder="https://script.google.com/macros/s/.../exec"
+                                                    />
+                                                    <p className="text-xs text-gray-400 mt-1">
+                                                        URL из деплоя Google Apps Script (Web App)
+                                                    </p>
+                                                </div>
+                                            </>
                                         )}
                                         {connectionForm.type !== 'google_sheets' && (
                                             <>
@@ -322,16 +342,28 @@ export default function SettingsPage() {
                                                     <p className="font-medium text-gray-900">{conn.name}</p>
                                                     <p className="text-sm text-gray-500">Тип: {conn.type}</p>
                                                     {conn.type === 'google_sheets' && (
-                                                        <p className="text-sm text-gray-500">
-                                                            ID: {(() => {
-                                                                try {
-                                                                    const config = JSON.parse(conn.config || '{}');
-                                                                    return config.spreadsheet_id ? config.spreadsheet_id.substring(0, 20) + '...' : 'Не указан';
-                                                                } catch {
-                                                                    return 'Не указан';
-                                                                }
-                                                            })()}
-                                                        </p>
+                                                        <>
+                                                            <p className="text-sm text-gray-500">
+                                                                ID: {(() => {
+                                                                    try {
+                                                                        const config = JSON.parse(conn.config || '{}');
+                                                                        return config.spreadsheet_id ? config.spreadsheet_id.substring(0, 20) + '...' : 'Не указан';
+                                                                    } catch {
+                                                                        return 'Не указан';
+                                                                    }
+                                                                })()}
+                                                            </p>
+                                                            <p className="text-sm text-gray-500">
+                                                                API: {(() => {
+                                                                    try {
+                                                                        const config = JSON.parse(conn.config || '{}');
+                                                                        return config.api_url ? config.api_url.substring(0, 40) + '...' : 'Не указан';
+                                                                    } catch {
+                                                                        return 'Не указан';
+                                                                    }
+                                                                })()}
+                                                            </p>
+                                                        </>
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-3">
