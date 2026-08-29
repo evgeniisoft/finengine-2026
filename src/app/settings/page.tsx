@@ -54,6 +54,17 @@ export default function SettingsPage() {
 
     const handleAddConnection = async () => {
         try {
+            // Валидация
+            if (!connectionForm.name) {
+                alert('Введите название');
+                return;
+            }
+
+            if (connectionForm.type === 'google_sheets' && !connectionForm.spreadsheet_id) {
+                alert('Введите ID таблицы');
+                return;
+            }
+
             // Формируем config
             const config: any = {};
 
@@ -68,6 +79,17 @@ export default function SettingsPage() {
                 config.password = connectionForm.password;
             }
 
+            console.log('Создаём подключение:', {
+                name: connectionForm.name,
+                type: connectionForm.type,
+                config: JSON.stringify(config),
+                is_active: false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                is_deleted: '',
+                deleted_at: ''
+            });
+
             await api.create('DatabaseConnections', {
                 name: connectionForm.name,
                 type: connectionForm.type,
@@ -79,6 +101,7 @@ export default function SettingsPage() {
                 deleted_at: ''
             });
 
+            alert('Подключение сохранено');
             setShowAddConnection(false);
             setConnectionForm({
                 name: '',
@@ -92,10 +115,9 @@ export default function SettingsPage() {
                 api_url: ''
             });
             loadData();
-            alert('Подключение сохранено');
         } catch (error) {
             console.error('Ошибка:', error);
-            alert('Ошибка при сохранении подключения');
+            alert('Ошибка при сохранении подключения: ' + (error as Error).message);
         }
     };
 
