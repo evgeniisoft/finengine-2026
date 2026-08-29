@@ -1,15 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { isAuthenticated } from '@/lib/auth';
 import { api } from '@/lib/api';
 
 export default function Dashboard() {
+  const router = useRouter();
   const [companies, setCompanies] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Проверяем сессию
+    if (!isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
     loadData();
   }, []);
 
