@@ -40,11 +40,11 @@ export default function Dashboard() {
   };
 
   // Суммарные показатели
-  const totalRevenue = reports.reduce((sum, r) => sum + (r.pnl?.revenue || 0), 0);
-  const totalExpenses = reports.reduce((sum, r) => sum + (r.pnl?.operating_expenses || 0), 0);
+  const reportsArray = Array.isArray(reports) ? reports : [];
+  const totalRevenue = reportsArray.reduce((sum, r) => sum + (r.pnl?.revenue || 0), 0);
+  const totalExpenses = reportsArray.reduce((sum, r) => sum + (r.pnl?.operating_expenses || 0), 0);
   const totalProfit = totalRevenue - totalExpenses;
-  const totalCash = reports.reduce((sum, r) => sum + (r.balance?.assets?.cash || 0), 0);
-
+  const totalCash = reportsArray.reduce((sum, r) => sum + (r.balance?.assets?.cash || 0), 0);
   return (
     <div>
       <div className="mb-8">
@@ -119,7 +119,7 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {reports.map((report) => (
+              {reportsArray.map((report) => (
                 <tr key={report.company.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     {report.company.name}
