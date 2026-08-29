@@ -14,7 +14,11 @@ export default function CompaniesPage() {
     tax_system: 'USN_6',
     currency: 'RUB',
     is_group: false,
-    parent_id: ''
+    parent_id: '',
+    inn: '',
+    kpp: '',
+    external_id: '',
+    source: 'manual'
   });
 
   useEffect(() => {
@@ -37,7 +41,22 @@ export default function CompaniesPage() {
 
   const handleCreate = async () => {
     try {
-      await api.create('Companies', formData);
+      const newCompany = {
+        name: formData.name,
+        tax_system: formData.tax_system,
+        currency: formData.currency,
+        is_group: formData.is_group,
+        parent_id: formData.parent_id,
+        inn: formData.inn,
+        kpp: formData.kpp,
+        external_id: formData.external_id,
+        source: formData.source,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        deleted_at: null
+      };
+
+      await api.create('Companies', newCompany);
       setShowForm(false);
       resetForm();
       loadCompanies();
@@ -49,7 +68,7 @@ export default function CompaniesPage() {
 
   const handleUpdate = async () => {
     if (!editingCompany) return;
-    
+
     try {
       await api.update('Companies', editingCompany.id, formData);
       setShowForm(false);
@@ -64,7 +83,7 @@ export default function CompaniesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Удалить компанию?')) return;
-    
+
     try {
       await api.delete('Companies', id);
       loadCompanies();
@@ -77,11 +96,15 @@ export default function CompaniesPage() {
   const handleEdit = (company: any) => {
     setEditingCompany(company);
     setFormData({
-      name: company.name,
-      tax_system: company.tax_system,
-      currency: company.currency,
-      is_group: company.is_group,
-      parent_id: company.parent_id || ''
+      name: company.name || '',
+      tax_system: company.tax_system || 'USN_6',
+      currency: company.currency || 'RUB',
+      is_group: company.is_group === true || company.is_group === 'true',
+      parent_id: company.parent_id || '',
+      inn: company.inn || '',
+      kpp: company.kpp || '',
+      external_id: company.external_id || '',
+      source: company.source || 'manual'
     });
     setShowForm(true);
   };
@@ -92,7 +115,11 @@ export default function CompaniesPage() {
       tax_system: 'USN_6',
       currency: 'RUB',
       is_group: false,
-      parent_id: ''
+      parent_id: '',
+      inn: '',
+      kpp: '',
+      external_id: '',
+      source: 'manual'
     });
     setEditingCompany(null);
   };
@@ -124,7 +151,7 @@ export default function CompaniesPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             {editingCompany ? 'Редактировать компанию' : 'Новая компания'}
           </h3>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -133,10 +160,63 @@ export default function CompaniesPage() {
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 placeholder="ООО «Ромашка»"
               />
+            </div>
+            {/* Новые поля */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                ИНН
+              </label>
+              <input
+                type="text"
+                value={formData.inn}
+                onChange={(e) => setFormData({ ...formData, inn: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="7701234567"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                КПП
+              </label>
+              <input
+                type="text"
+                value={formData.kpp}
+                onChange={(e) => setFormData({ ...formData, kpp: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="770101001"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Внешний ID (из 1С)
+              </label>
+              <input
+                type="text"
+                value={formData.external_id}
+                onChange={(e) => setFormData({ ...formData, external_id: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="GUID из 1С"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Источник
+              </label>
+              <select
+                value={formData.source}
+                onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="manual">Вручную</option>
+                <option value="1c">Импорт из 1С</option>
+              </select>
             </div>
 
             <div>
@@ -145,7 +225,7 @@ export default function CompaniesPage() {
               </label>
               <select
                 value={formData.tax_system}
-                onChange={(e) => setFormData({...formData, tax_system: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, tax_system: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 cursor-pointer"
               >
                 <option value="USN_6">УСН 6%</option>
@@ -160,7 +240,7 @@ export default function CompaniesPage() {
               </label>
               <select
                 value={formData.currency}
-                onChange={(e) => setFormData({...formData, currency: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 cursor-pointer"
               >
                 <option value="RUB">₽ Рубль</option>
@@ -174,7 +254,7 @@ export default function CompaniesPage() {
               <input
                 type="checkbox"
                 checked={formData.is_group}
-                onChange={(e) => setFormData({...formData, is_group: e.target.checked})}
+                onChange={(e) => setFormData({ ...formData, is_group: e.target.checked })}
                 className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
               <label className="text-sm font-medium text-gray-700 cursor-pointer">
@@ -283,7 +363,7 @@ export default function CompaniesPage() {
               ))}
             </tbody>
           </table>
-          
+
           {companies.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500">Компании не найдены</p>

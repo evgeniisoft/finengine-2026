@@ -7,11 +7,18 @@
 // Компания
 export interface Company {
   id: string;
+  external_id: string;      // ID из 1С
+  inn: string;              // ИНН
+  kpp: string;              // КПП
   name: string;
   tax_system: 'OSNO' | 'USN_6' | 'USN_15';
   currency: string;
   is_group: boolean;
   parent_id: string;
+  source: 'manual' | '1c';  // Откуда пришла запись
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // Счёт / Статья
@@ -36,6 +43,7 @@ export interface Counterparty {
 // Операция
 export interface Transaction {
   id: string;
+  external_id: string;      // ID из 1С
   transaction_group_id: string;
   date: string;
   company_id: string;
@@ -47,7 +55,11 @@ export interface Transaction {
   contract_id: string;
   debit_account_id: string;
   credit_account_id: string;
+  source: '1c' | 'manual' | 'bank';  // Источник
   is_system: boolean;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // Проводка (для двойной записи)
