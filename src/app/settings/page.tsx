@@ -19,7 +19,8 @@ export default function SettingsPage() {
         port: '',
         database_name: '',
         user: '',
-        password: ''
+        password: '',
+        spreadsheet_id: ''
     });
 
     // Форма счёта
@@ -53,11 +54,30 @@ export default function SettingsPage() {
 
     const handleAddConnection = async () => {
         try {
+            // Формируем config
+            const config: any = {};
+
+            if (connectionForm.type === 'google_sheets') {
+                config.spreadsheet_id = connectionForm.spreadsheet_id;
+            } else {
+                config.host = connectionForm.host;
+                config.port = connectionForm.port;
+                config.database_name = connectionForm.database_name;
+                config.user = connectionForm.user;
+                config.password = connectionForm.password;
+            }
+
             await api.create('DatabaseConnections', {
-                ...connectionForm,
+                name: connectionForm.name,
+                type: connectionForm.type,
+                config: JSON.stringify(config),
                 is_active: false,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                is_deleted: '',
+                deleted_at: ''
             });
+
             setShowAddConnection(false);
             setConnectionForm({
                 name: '',
@@ -66,7 +86,8 @@ export default function SettingsPage() {
                 port: '',
                 database_name: '',
                 user: '',
-                password: ''
+                password: '',
+                spreadsheet_id: ''
             });
             loadData();
             alert('Подключение сохранено');
@@ -144,8 +165,8 @@ export default function SettingsPage() {
                                     }
                                 }}
                                 className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeSection === section.id
-                                        ? 'bg-blue-50 text-blue-700'
-                                        : 'text-gray-600 hover:bg-gray-50'
+                                    ? 'bg-blue-50 text-blue-700'
+                                    : 'text-gray-600 hover:bg-gray-50'
                                     }`}
                             >
                                 {section.label}
@@ -199,7 +220,23 @@ export default function SettingsPage() {
                                                 <option value="sqlite">SQLite</option>
                                             </select>
                                         </div>
-
+                                        {connectionForm.type === 'google_sheets' && (
+                                            <div className="md:col-span-2">
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    ID таблицы Google Sheets
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={connectionForm.spreadsheet_id}
+                                                    onChange={(e) => setConnectionForm({ ...connectionForm, spreadsheet_id: e.target.value })}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                                    placeholder="1a2b3c4d5e6f7g8h9i0j..."
+                                                />
+                                                <p className="text-xs text-gray-400 mt-1">
+                                                    ID можно найти в URL: docs.google.com/spreadsheets/d/ID/edit
+                                                </p>
+                                            </div>
+                                        )}
                                         {connectionForm.type !== 'google_sheets' && (
                                             <>
                                                 <div>
@@ -276,20 +313,55 @@ export default function SettingsPage() {
                                 {connections.length === 0 ? (
                                     <p className="text-gray-500 text-sm">Нет подключений</p>
                                 ) : (
-                                    connections.map(conn => (
-                                        <div key={conn.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                                            <div>
-                                                <p className="font-medium text-gray-900">{conn.name}</p>
-                                                <p className="text-sm text-gray-500">{conn.type}</p>
+                                    connections.map(conn => {
+                                        const isActive = conn.is_active === 'true' || conn.is_active === true || conn.is_active === 'TRUE';
+
+                                        return (
+                                            <div key={conn.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                                                <div>
+                                                    <p className="font-medium text-gray-900">{conn.name}</p>
+                                                    <p className="text-sm text-gray-500">Тип: {conn.type}</p>
+                                                    {conn.type === 'google_sheets' && (
+                                                        <p className="text-sm text-gray-500">
+                                                            ID: {(() => {
+                                                                try {
+                                                                    const config = JSON.parse(conn.config || '{}');
+                                                                    return config.spreadsheet_id ? config.spreadsheet_id.substring(0, 20) + '...' : 'Не указан';
+                                                                } catch {
+                                                                    return 'Не указан';
+                                                                }
+                                                            })()}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                                                        }`}>
+                                                        {isActive ? 'Активна' : 'Неактивна'}
+                                                    </span>
+                                                    {!isActive && (
+                                                        <button
+                                                            onClick={async () => {
+                                                                // Деактивируем все подключения
+                                                                for (const c of connections) {
+                                                                    if (c.is_active === 'true' || c.is_active === true || c.is_active === 'TRUE') {
+                                                                        await api.update('DatabaseConnections', c.id, { ...c, is_active: 'false' });
+                                                                    }
+                                                                }
+                                                                // Активируем выбранное
+                                                                await api.update('DatabaseConnections', conn.id, { ...conn, is_active: 'true' });
+                                                                loadData();
+                                                                alert('Подключение активировано');
+                                                            }}
+                                                            className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 cursor-pointer"
+                                                        >
+                                                            Сделать активной
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${conn.is_active === 'true' || conn.is_active === true
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-gray-100 text-gray-600'
-                                                }`}>
-                                                {conn.is_active === 'true' || conn.is_active === true ? 'Активна' : 'Неактивна'}
-                                            </span>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>
