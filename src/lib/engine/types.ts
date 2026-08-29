@@ -248,3 +248,29 @@ export interface ImportResult {
   skipped: number;
   errors: string[];
 }
+
+// Типы импортируемых данных
+export type ImportTargetType = 'transactions' | 'companies' | 'counterparties' | 'accounts';
+
+// Целевые поля для маппинга
+export interface TargetField {
+  value: string;
+  label: string;
+  required: boolean;
+  transform?: 'parse_date' | 'parse_float' | 'parse_int' | 'uppercase' | 'none';
+}
+
+// Обновлённый маппинг
+export interface DataMapping {
+  id: string;
+  source_id: string;
+  name: string;
+  target_type: ImportTargetType;
+  mappings: string; // JSON: {"source_field": "target_field"}
+  defaults: string; // JSON: {"currency": "RUB"}
+  transforms: string; // JSON: {"amount": "parse_float", "date": "parse_date"}
+  created_at: string;
+  updated_at: string;
+  is_deleted: string;
+  deleted_at: string;
+}
