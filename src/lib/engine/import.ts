@@ -23,7 +23,7 @@ export interface ImportResult {
 }
 
 export class ImportEngine {
-  
+
   /**
    * Импорт из CSV
    */
@@ -33,16 +33,16 @@ export class ImportEngine {
     companyId: string,
     accounts: Account[]
   ): ImportResult {
-    
+
     const errors: string[] = [];
     const transactions: Transaction[] = [];
     let imported = 0;
     let skipped = 0;
-    
+
     try {
       // Парсим CSV
       const rows = this.parseCSV(csvContent);
-      
+
       if (rows.length < 2) {
         return {
           success: false,
@@ -52,17 +52,17 @@ export class ImportEngine {
           transactions: []
         };
       }
-      
+
       // Первая строка — заголовки
       const headers = rows[0];
-      
+
       // Проверяем, что все колонки из маппинга есть в файле
       for (const map of mapping) {
         if (!headers.includes(map.sourceColumn)) {
           errors.push(`Колонка "${map.sourceColumn}" не найдена в файле`);
         }
       }
-      
+
       if (errors.length > 0) {
         return {
           success: false,
@@ -72,19 +72,19 @@ export class ImportEngine {
           transactions: []
         };
       }
-      
+
       // Обрабатываем каждую строку
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const rawData: any = {};
-        
+
         // Применяем маппинг
         for (const map of mapping) {
           const columnIndex = headers.indexOf(map.sourceColumn);
           const value = row[columnIndex] || '';
           rawData[map.targetField] = map.transform ? map.transform(value) : value;
         }
-        
+
         // Валидация
         const validationError = this.validateTransaction(rawData);
         if (validationError) {
@@ -92,18 +92,18 @@ export class ImportEngine {
           errors.push(`Строка ${i + 1}: ${validationError}`);
           continue;
         }
-        
+
         // Создаём транзакцию
         const transaction = this.createTransactionFromImport(
           rawData,
           companyId,
           accounts
         );
-        
+
         transactions.push(transaction);
         imported++;
       }
-      
+
       return {
         success: imported > 0,
         imported,
@@ -111,7 +111,7 @@ export class ImportEngine {
         errors,
         transactions
       };
-      
+
     } catch (error) {
       return {
         success: false,
@@ -122,7 +122,7 @@ export class ImportEngine {
       };
     }
   }
-  
+
   /**
    * Импорт из Excel (через CSV)
    * Для Excel нужна конвертация в CSV на клиенте
@@ -133,15 +133,15 @@ export class ImportEngine {
     companyId: string,
     accounts: Account[]
   ): ImportResult {
-    
+
     // Конвертируем rows в CSV формат
-    const csvContent = rows.map(row => 
+    const csvContent = rows.map(row =>
       row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')
     ).join('\n');
-    
+
     return this.importCSV(csvContent, mapping, companyId, accounts);
   }
-  
+
   /**
    * Импорт из 1С (CSV экспорт)
    * 1С может экспортировать в CSV. Используем специальный маппинг.
@@ -151,7 +151,7 @@ export class ImportEngine {
     companyId: string,
     accounts: Account[]
   ): ImportResult {
-    
+
     // Стандартный маппинг для 1С
     const mapping: ImportMapping[] = [
       { sourceColumn: 'Дата', targetField: 'date' },
@@ -162,10 +162,10 @@ export class ImportEngine {
       { sourceColumn: 'Содержание', targetField: 'description' },
       { sourceColumn: 'Контрагент', targetField: 'counterparty' }
     ];
-    
+
     return this.importCSV(csvContent, mapping, companyId, accounts);
   }
-  
+
   /**
    * Парсинг CSV
    */
@@ -174,11 +174,11 @@ export class ImportEngine {
     let currentRow: string[] = [];
     let currentCell = '';
     let inQuotes = false;
-    
+
     for (let i = 0; i < content.length; i++) {
       const char = content[i];
       const nextChar = content[i + 1];
-      
+
       if (char === '"' && inQuotes && nextChar === '"') {
         currentCell += '"';
         i++;
@@ -203,27 +203,27 @@ export class ImportEngine {
         currentCell += char;
       }
     }
-    
+
     // Последняя строка
     if (currentCell || currentRow.length > 0) {
       currentRow.push(currentCell);
       rows.push(currentRow);
     }
-    
+
     // Фильтруем пустые строки
     return rows.filter(row => row.some(cell => cell.trim() !== ''));
   }
-  
+
   /**
    * Валидация импортированной транзакции
    */
   private validateTransaction(data: any): string | null {
-    
+
     if (!data.date) return 'Отсутствует дата';
     if (!data.amount || isNaN(data.amount)) return 'Некорректная сумма';
     if (data.amount <= 0) return 'Сумма должна быть больше 0';
     if (!data.description) return 'Отсутствует описание';
-    
+
     // Проверка формата даты
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(data.date)) {
@@ -235,10 +235,10 @@ export class ImportEngine {
         return 'Некорректный формат даты (ожидается YYYY-MM-DD)';
       }
     }
-    
+
     return null;
   }
-  
+
   /**
    * Создание транзакции из импортированных данных
    */
@@ -247,11 +247,11 @@ export class ImportEngine {
     companyId: string,
     accounts: Account[]
   ): Transaction {
-    
+
     // Маппинг счетов
     const debitAccount = this.mapAccount(data.debit_account || 'acc-bank-001', accounts);
     const creditAccount = this.mapAccount(data.credit_account || 'acc-bank-001', accounts);
-    
+
     return {
       id: this.generateId(),
       transaction_group_id: this.generateId(),
@@ -260,20 +260,25 @@ export class ImportEngine {
       description: data.description || 'Импортированная операция',
       amount: data.amount,
       currency: data.currency || 'RUB',
-      amount_rub: data.amount, // Пока 1:1, потом курс
+      amount_rub: data.amount,
       counterparty_id: data.counterparty || '',
       contract_id: '',
       debit_account_id: debitAccount,
       credit_account_id: creditAccount,
-      is_system: false
+      is_system: false,
+      external_id: data.external_id || '',  // ← ДОБАВЬ
+      source: '1c',                          // ← ДОБАВЬ
+      deleted_at: null,                      // ← ДОБАВЬ
+      created_at: new Date().toISOString(),  // ← ДОБАВЬ
+      updated_at: new Date().toISOString()   // ← ДОБАВЬ
     };
   }
-  
+
   /**
    * Маппинг счетов из 1С в наши счета
    */
   private mapAccount(sourceAccount: string, accounts: Account[]): string {
-    
+
     // Маппинг стандартных счетов 1С
     const accountMapping: { [key: string]: string } = {
       '51': 'acc-bank-001',    // Расчётный счёт
@@ -291,26 +296,26 @@ export class ImportEngine {
       '10': 'acc-inventory',   // Материалы
       '41': 'acc-inventory',   // Товары
     };
-    
+
     // Прямой маппинг
     if (accountMapping[sourceAccount]) {
       return accountMapping[sourceAccount];
     }
-    
+
     // Поиск по коду
     const account = accounts.find(a => a.code === sourceAccount);
     if (account) return account.id;
-    
+
     // Поиск по имени (частичное совпадение)
-    const accountByName = accounts.find(a => 
+    const accountByName = accounts.find(a =>
       a.name.toLowerCase().includes(sourceAccount.toLowerCase())
     );
     if (accountByName) return accountByName.id;
-    
+
     // По умолчанию — банк
     return 'acc-bank-001';
   }
-  
+
   private generateId(): string {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = Math.random() * 16 | 0;
