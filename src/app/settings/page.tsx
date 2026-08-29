@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, setActiveApiUrl } from '@/lib/api';
 
 export default function SettingsPage() {
     const [activeSection, setActiveSection] = useState<string>('database');
@@ -33,6 +33,7 @@ export default function SettingsPage() {
 
     useEffect(() => {
         loadData();
+        loadActiveApiUrl();
     }, [activeSection]);
 
     const loadData = async () => {
@@ -49,6 +50,25 @@ export default function SettingsPage() {
             console.error('Ошибка загрузки:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadActiveApiUrl = async () => {
+        try {
+            const data = await api.getAll('DatabaseConnections');
+            const active = data.find((c: any) =>
+                c.is_active === 'true' || c.is_active === true || c.is_active === 'TRUE'
+            );
+
+            if (active) {
+                const config = JSON.parse(active.config || '{}');
+                if (config.api_url) {
+                    setActiveApiUrl(config.api_url);
+                    console.log('URL API восстановлен из активного подключения');
+                }
+            }
+        } catch (e) {
+            console.error('Ошибка восстановления URL:', e);
         }
     };
 
@@ -362,16 +382,37 @@ export default function SettingsPage() {
                                                     {!isActive && (
                                                         <button
                                                             onClick={async () => {
-                                                                // Деактивируем все подключения
-                                                                for (const c of connections) {
-                                                                    if (c.is_active === 'true' || c.is_active === true || c.is_active === 'TRUE') {
-                                                                        await api.update('DatabaseConnections', c.id, { ...c, is_active: 'false' });
+                                                                try {
+                                                                    // Деактивируем все
+                                                                    for (const c of connections) {
+                                                                        if (c.is_active === 'true' || c.is_active === true || c.is_active === 'TRUE') {
+                                                                            await api.update('DatabaseConnections', c.id, { ...c, is_active: 'false' });
+                                                                        }
                                                                     }
+
+                                                                    // Активируем выбранное
+                                                                    await api.update('DatabaseConnections', conn.id, { ...conn, is_active: 'true' });
+
+                                                                    // Устанавливаем URL API из config
+                                                                    try {
+                                                                        const config = JSON.parse(conn.config || '{}');
+                                                                        if (config.api_url) {
+                                                                            setActiveApiUrl(config.api_url);
+                                                                            console.log('API URL установлен из подключения:', config.api_url);
+                                                                        } else {
+                                                                            alert('В подключении не указан URL API');
+                                                                        }
+                                                                    } catch (e) {
+                                                                        console.error('Ошибка парсинга config:', e);
+                                                                        alert('Ошибка: не удалось прочитать URL API');
+                                                                    }
+
+                                                                    loadData();
+                                                                    alert('Подключение активировано');
+                                                                } catch (error) {
+                                                                    console.error('Ошибка активации:', error);
+                                                                    alert('Ошибка при активации подключения');
                                                                 }
-                                                                // Активируем выбранное
-                                                                await api.update('DatabaseConnections', conn.id, { ...conn, is_active: 'true' });
-                                                                loadData();
-                                                                alert('Подключение активировано');
                                                             }}
                                                             className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 cursor-pointer"
                                                         >
