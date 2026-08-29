@@ -15,7 +15,8 @@ export default function TransactionsPage() {
     amount: '',
     currency: 'RUB',
     type: 'income',
-    company_id: ''
+    company_id: '',
+    source: 'manual'
   });
 
   useEffect(() => {
@@ -54,12 +55,12 @@ export default function TransactionsPage() {
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, ''); // Убираем всё кроме цифр
     if (value === '') {
-      setFormData({...formData, amount: ''});
+      setFormData({ ...formData, amount: '' });
       return;
     }
     const num = parseInt(value);
     if (num > 999999999) return; // Максимум 999 999 999
-    setFormData({...formData, amount: num.toString()});
+    setFormData({ ...formData, amount: num.toString() });
   };
 
   // Отображение суммы с разрядами в инпуте
@@ -95,20 +96,25 @@ export default function TransactionsPage() {
         amount: parseFloat(formData.amount),
         currency: formData.currency,
         type: formData.type,
-        debit_account_id: formData.type === 'income' ? 'acc-bank-001' : 'acc-exp-001',
-        credit_account_id: formData.type === 'income' ? 'acc-rev-001' : 'acc-bank-001',
-        amount_rub: parseFloat(formData.amount), // Пока курс 1:1
+        debit_account_id: formData.type === 'income' ? 'acc-bank-001' : 'acc-out-other',
+        credit_account_id: formData.type === 'income' ? 'acc-in-revenue' : 'acc-bank-001',
+        amount_rub: parseFloat(formData.amount),
         counterparty_id: '',
         contract_id: '',
         transaction_group_id: '',
-        is_system: false
+        is_system: false,
+        external_id: '',
+        source: formData.source,
+        deleted_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       console.log('Создаем операцию:', newTransaction);
 
       const result = await api.create('Transactions', newTransaction);
       console.log('Результат:', result);
-      
+
       setShowForm(false);
       resetForm();
       loadData();
@@ -125,7 +131,8 @@ export default function TransactionsPage() {
       amount: '',
       currency: 'RUB',
       type: 'income',
-      company_id: ''
+      company_id: '',
+      source: 'manual'
     });
   };
 
@@ -154,7 +161,7 @@ export default function TransactionsPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Новая операция
           </h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -162,7 +169,7 @@ export default function TransactionsPage() {
               </label>
               <select
                 value={formData.company_id}
-                onChange={(e) => setFormData({...formData, company_id: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 cursor-pointer"
               >
                 <option value="">-- Выберите компанию --</option>
@@ -181,7 +188,7 @@ export default function TransactionsPage() {
               <input
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({...formData, date: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               />
             </div>
@@ -192,7 +199,7 @@ export default function TransactionsPage() {
               </label>
               <select
                 value={formData.type}
-                onChange={(e) => setFormData({...formData, type: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 cursor-pointer"
               >
                 <option value="income">Доход</option>
@@ -223,7 +230,7 @@ export default function TransactionsPage() {
               </label>
               <select
                 value={formData.currency}
-                onChange={(e) => setFormData({...formData, currency: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 cursor-pointer"
               >
                 <option value="RUB">₽ Рубль</option>
@@ -240,7 +247,7 @@ export default function TransactionsPage() {
               <input
                 type="text"
                 value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 placeholder="Например: Оплата по счёту №123 от 01.01.2026"
               />
@@ -319,11 +326,10 @@ export default function TransactionsPage() {
                       {formatAmount(transaction.amount)} {transaction.currency}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        transaction.type === 'income'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${transaction.type === 'income'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}>
                         {transaction.type === 'income' ? 'Доход' : 'Расход'}
                       </span>
                     </td>
@@ -332,7 +338,7 @@ export default function TransactionsPage() {
               })}
             </tbody>
           </table>
-          
+
           {transactions.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500">Операции не найдены</p>
