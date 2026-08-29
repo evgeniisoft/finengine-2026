@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, setActiveApiUrl } from '@/lib/api';
+import { api } from '@/lib/api';
 
 export default function SettingsPage() {
     const [activeSection, setActiveSection] = useState<string>('database');
@@ -63,7 +63,7 @@ export default function SettingsPage() {
             if (active) {
                 const config = JSON.parse(active.config || '{}');
                 if (config.api_url) {
-                    setActiveApiUrl(config.api_url);
+                    await api.setApiUrl(config.api_url);
                     console.log('URL API восстановлен из активного подключения');
                 }
             }
@@ -393,25 +393,22 @@ export default function SettingsPage() {
                                                                     // Активируем выбранное
                                                                     await api.update('DatabaseConnections', conn.id, { ...conn, is_active: 'true' });
 
-                                                                    // Устанавливаем URL API из config
+                                                                    // Устанавливаем URL API
                                                                     try {
                                                                         const config = JSON.parse(conn.config || '{}');
                                                                         if (config.api_url) {
-                                                                            setActiveApiUrl(config.api_url);
-                                                                            console.log('API URL установлен из подключения:', config.api_url);
-                                                                        } else {
-                                                                            alert('В подключении не указан URL API');
+                                                                            await api.setApiUrl(config.api_url);
+                                                                            console.log('URL API установлен:', config.api_url);
                                                                         }
                                                                     } catch (e) {
                                                                         console.error('Ошибка парсинга config:', e);
-                                                                        alert('Ошибка: не удалось прочитать URL API');
                                                                     }
 
                                                                     loadData();
                                                                     alert('Подключение активировано');
                                                                 } catch (error) {
                                                                     console.error('Ошибка активации:', error);
-                                                                    alert('Ошибка при активации подключения');
+                                                                    alert('Ошибка при активации');
                                                                 }
                                                             }}
                                                             className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 cursor-pointer"
