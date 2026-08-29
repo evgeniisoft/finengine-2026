@@ -10,7 +10,11 @@ export type SheetName =
   | 'Budgets'
   | 'ExchangeRates'
   | 'Assets'
-  | 'Loans';
+  | 'Loans'
+  | 'DatabaseConnections'
+  | 'AuditLog'
+  | 'Users'
+  | 'Notifications';
 
 class ApiClient {
   private baseUrl: string;
@@ -111,7 +115,7 @@ class ApiClient {
       throw error;
     }
   }
-  
+
   async delete(sheet: SheetName, id: string): Promise<boolean> {
     try {
       const url = `${this.baseUrl}?action=delete&sheet=${sheet}&id=${id}`;

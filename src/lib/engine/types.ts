@@ -156,3 +156,47 @@ export interface Order {
   planned_revenue: number;
   planned_costs: number;
 }
+// Подключение к базе данных
+export interface DatabaseConnection {
+  id: string;
+  name: string;
+  type: 'postgresql' | 'mysql' | 'sqlite' | 'google_sheets';
+  host: string;
+  port: number;
+  database_name: string;
+  user: string;
+  password: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+// Пользователь
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'owner' | 'admin' | 'manager' | 'viewer';
+  company_id: string;
+  created_at: string;
+}
+
+// Запись аудита
+export interface AuditLogEntry {
+  id: string;
+  user_id: string;
+  action: 'create' | 'update' | 'delete' | 'import' | 'login';
+  entity: string;
+  entity_id: string;
+  changes: string;
+  timestamp: string;
+}
+
+// Уведомление
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: 'cash_gap' | 'limit_warning' | 'debt_overdue' | 'sync_complete';
+  message: string;
+  is_read: boolean;
+  timestamp: string;
+}
