@@ -14,7 +14,9 @@ export type SheetName =
   | 'DatabaseConnections'
   | 'AuditLog'
   | 'Users'
-  | 'Notifications';
+  | 'Notifications'
+  | 'DataSources'
+  | 'DataMappings';
 
 class ApiClient {
   private baseUrl: string;

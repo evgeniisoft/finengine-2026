@@ -212,3 +212,39 @@ export interface Notification {
   is_read: boolean;
   timestamp: string;
 }
+
+// Источник данных
+export interface DataSource {
+  id: string;
+  name: string;
+  type: '1c' | 'excel' | 'csv' | 'sql' | 'api' | 'bank';
+  config: string; // JSON строка с параметрами
+  company_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  is_deleted: string;
+  deleted_at: string;
+}
+
+// Маппинг полей
+export interface DataMapping {
+  id: string;
+  source_id: string;
+  name: string;
+  mappings: string; // JSON строка: {"source_field": "target_field"}
+  defaults: string; // JSON строка: {"currency": "RUB", "company_id": "..."}
+  created_at: string;
+  updated_at: string;
+  is_deleted: string;
+  deleted_at: string;
+}
+
+// Результат импорта
+export interface ImportResult {
+  success: boolean;
+  total_rows: number;
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
