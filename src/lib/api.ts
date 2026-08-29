@@ -1,10 +1,4 @@
-/**
- * ============================================
- * FinEngine 2026 - API Client
- * ============================================
- * Все запросы идут через /api/data (Next.js API Route).
- * Нет прямых запросов к GAS — нет CORS проблем.
- */
+import { getSession } from './auth';
 
 export type SheetName = 
   | 'Settings'
@@ -27,10 +21,20 @@ export type SheetName =
 class ApiClient {
   private baseUrl = '/api/data';
 
+  private getHeaders(): HeadersInit {
+    const session = getSession();
+    return {
+      'Content-Type': 'application/json',
+      'X-DB-URL': session?.dbUrl || ''
+    };
+  }
+
   async getAll(sheet: SheetName): Promise<any[]> {
     try {
       const url = `${this.baseUrl}?action=getAll&sheet=${sheet}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: this.getHeaders()
+      });
       const data = await response.json();
       
       if (data && data.error) {
@@ -46,8 +50,10 @@ class ApiClient {
 
   async getById(sheet: SheetName, id: string): Promise<any> {
     try {
-      const url = `${this.baseUrl}?action=getById&sheet=${sheet}&id=${id}`;
-      const response = await fetch(url);
+      const url = `${this.baseUrl}?action=getById&sheet=${sheet}&id=${encodeURIComponent(id)}`;
+      const response = await fetch(url, {
+        headers: this.getHeaders()
+      });
       const data = await response.json();
       
       if (data && data.error) {
@@ -65,7 +71,7 @@ class ApiClient {
     try {
       const response = await fetch(this.baseUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify({ action: 'create', sheet, data })
       });
 
@@ -86,7 +92,7 @@ class ApiClient {
     try {
       const response = await fetch(this.baseUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify({ action: 'update', sheet, id, data })
       });
 
@@ -105,8 +111,10 @@ class ApiClient {
 
   async delete(sheet: SheetName, id: string): Promise<boolean> {
     try {
-      const url = `${this.baseUrl}?action=delete&sheet=${sheet}&id=${id}`;
-      const response = await fetch(url);
+      const url = `${this.baseUrl}?action=delete&sheet=${sheet}&id=${encodeURIComponent(id)}`;
+      const response = await fetch(url, {
+        headers: this.getHeaders()
+      });
       const result = await response.json();
       
       if (result && result.error) {
@@ -124,7 +132,7 @@ class ApiClient {
     try {
       const response = await fetch(this.baseUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders(),
         body: JSON.stringify({ action: 'batchCreate', sheet, data: dataArray })
       });
 
@@ -138,36 +146,6 @@ class ApiClient {
     } catch (error) {
       console.error(`Ошибка при массовом создании в ${sheet}:`, error);
       throw error;
-    }
-  }
-
-  // Установка URL API
-  async setApiUrl(url: string): Promise<void> {
-    try {
-      await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'set_url', url })
-      });
-    } catch (error) {
-      console.error('Ошибка при установке URL:', error);
-      throw error;
-    }
-  }
-
-  // Получение текущего URL
-  async getApiUrl(): Promise<string> {
-    try {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get_url' })
-      });
-      const data = await response.json();
-      return data.url || '';
-    } catch (error) {
-      console.error('Ошибка при получении URL:', error);
-      return '';
     }
   }
 }

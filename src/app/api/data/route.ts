@@ -1,19 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-/**
- * ============================================
- * FinEngine 2026 - Единая точка входа для данных
- * ============================================
- * Все запросы из React идут через этот API Route.
- * Здесь решается, какая база данных используется.
- */
-
-// Активный URL GAS (устанавливается через интерфейс)
-let activeGasUrl: string = '';
-
-/**
- * GET запросы: getAll, getById, delete
- */
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
@@ -22,15 +8,17 @@ export async function GET(request: NextRequest) {
     const id = url.searchParams.get('id');
     const data = url.searchParams.get('data');
     
-    if (!activeGasUrl) {
+    // Получаем URL из заголовка
+    const dbUrl = request.headers.get('X-DB-URL') || '';
+    
+    if (!dbUrl) {
       return NextResponse.json(
-        { error: 'URL API не настроен. Укажите его в Настройках → База данных.' },
+        { error: 'URL базы данных не указан. Войдите заново.' },
         { status: 400 }
       );
     }
     
-    // Формируем URL для GAS
-    let gasUrl = `${activeGasUrl}?action=${action}&sheet=${sheet}`;
+    let gasUrl = `${dbUrl}?action=${action}&sheet=${sheet}`;
     if (id) gasUrl += `&id=${encodeURIComponent(id)}`;
     if (data) gasUrl += `&data=${data}`;
     
@@ -43,47 +31,29 @@ export async function GET(request: NextRequest) {
     
   } catch (error) {
     console.error('Ошибка API GET:', error);
-    return NextResponse.json(
-      { error: 'Внутренняя ошибка сервера' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 });
   }
 }
 
-/**
- * POST запросы: create, update, batchCreate, set_url
- */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const action = body.action;
+    const sheet = body.sheet;
+    const data = body.data;
+    const id = body.id;
     
-    // Специальное действие: установка URL
-    if (action === 'set_url') {
-      activeGasUrl = body.url;
-      console.log('URL API установлен:', activeGasUrl);
-      return NextResponse.json({ success: true, url: activeGasUrl });
-    }
+    const dbUrl = request.headers.get('X-DB-URL') || '';
     
-    // Специальное действие: получение текущего URL
-    if (action === 'get_url') {
-      return NextResponse.json({ url: activeGasUrl });
-    }
-    
-    if (!activeGasUrl) {
+    if (!dbUrl) {
       return NextResponse.json(
-        { error: 'URL API не настроен. Укажите его в Настройках → База данных.' },
+        { error: 'URL базы данных не указан. Войдите заново.' },
         { status: 400 }
       );
     }
     
-    // Формируем запрос к GAS
-    const sheet = body.sheet;
-    const data = body.data;
-    
-    let gasUrl = `${activeGasUrl}?action=${action}&sheet=${sheet}`;
-    
-    if (body.id) gasUrl += `&id=${encodeURIComponent(body.id)}`;
+    let gasUrl = `${dbUrl}?action=${action}&sheet=${sheet}`;
+    if (id) gasUrl += `&id=${encodeURIComponent(id)}`;
     if (data) gasUrl += `&data=${encodeURIComponent(JSON.stringify(data))}`;
     
     console.log('POST к GAS:', gasUrl);
@@ -95,9 +65,6 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error('Ошибка API POST:', error);
-    return NextResponse.json(
-      { error: 'Внутренняя ошибка сервера' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 });
   }
 }

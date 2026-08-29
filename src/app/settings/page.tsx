@@ -63,7 +63,6 @@ export default function SettingsPage() {
             if (active) {
                 const config = JSON.parse(active.config || '{}');
                 if (config.api_url) {
-                    await api.setApiUrl(config.api_url);
                     console.log('URL API восстановлен из активного подключения');
                 }
             }
@@ -397,7 +396,6 @@ export default function SettingsPage() {
                                                                     try {
                                                                         const config = JSON.parse(conn.config || '{}');
                                                                         if (config.api_url) {
-                                                                            await api.setApiUrl(config.api_url);
                                                                             console.log('URL API установлен:', config.api_url);
                                                                         }
                                                                     } catch (e) {

@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Храним URL временно (для тестового входа)
-let tempDbUrl = '';
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -16,23 +13,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Введите email и пароль' }, { status: 400 });
     }
     
-    // Сохраняем URL для последующих запросов
-    tempDbUrl = dbUrl;
-    
     // Запрашиваем пользователей из базы
     const gasUrl = `${dbUrl}?action=getAll&sheet=Users`;
-    console.log('Запрос к GAS:', gasUrl);
+    console.log('Запрос пользователей:', gasUrl);
     
     const response = await fetch(gasUrl);
     const users = await response.json();
     
-    console.log('Пользователи:', users);
-    
     if (!Array.isArray(users)) {
-      return NextResponse.json({ error: 'Не удалось получить пользователей. Проверьте URL.' }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'Не удалось получить пользователей. Проверьте URL базы данных.' 
+      }, { status: 500 });
     }
     
-    // Ищем пользователя
     const user = users.find(u => 
       String(u.email).toLowerCase() === String(email).toLowerCase() && 
       (u.is_active === 'true' || u.is_active === true || u.is_active === 'TRUE')
@@ -42,13 +35,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Пользователь не найден или неактивен' }, { status: 401 });
     }
     
-    // Проверяем пароль
     const userHash = String(user.password_hash || user.password || '');
-    console.log('Хеш в базе:', userHash);
-    console.log('Хеш из формы:', passwordHash);
     
     if (userHash !== passwordHash) {
       return NextResponse.json({ error: 'Неверный пароль' }, { status: 401 });
+    }
+    
+    // Записываем в AuditLog
+    try {
+      const auditData = {
+        user_id: user.id,
+        user_email: user.email,
+        action: 'login',
+        entity: '',
+        entity_id: '',
+        changes: '',
+        timestamp: new Date().toISOString()
+      };
+      const auditUrl = `${dbUrl}?action=create&sheet=AuditLog&data=${encodeURIComponent(JSON.stringify(auditData))}`;
+      await fetch(auditUrl);
+      console.log('Вход записан в AuditLog');
+    } catch (e) {
+      console.error('Ошибка записи в AuditLog:', e);
     }
     
     return NextResponse.json({

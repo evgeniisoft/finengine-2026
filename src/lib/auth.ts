@@ -38,6 +38,7 @@ export function saveSession(session: Session): void {
  * Получение сессии
  */
 export function getSession(): Session | null {
+  if (typeof window === 'undefined') return null;
   const data = localStorage.getItem(SESSION_KEY);
   if (!data) return null;
   try {
@@ -45,6 +46,14 @@ export function getSession(): Session | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Получение URL базы данных из сессии
+ */
+export function getDbUrl(): string {
+  const session = getSession();
+  return session?.dbUrl || '';
 }
 
 /**
