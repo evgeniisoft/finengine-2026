@@ -307,10 +307,10 @@ export default function ReportsPage() {
                 <div className="space-y-6">
                     {/* === ПО МЕСЯЦАМ === */}
                     {showMonthly && (activeTab === 'pnl' || activeTab === 'cashflow' || activeTab === 'balance') && (
-                        <MonthlyTableView
+                        <HorizontalReportView
                             data={monthlyData}
                             type={activeTab}
-                            accounts={accounts}
+                            periodType={periodType}
                             onDrilldown={loadDrilldown}
                             drilldownData={drilldownData}
                             drilldownLoading={drilldownLoading}
@@ -547,7 +547,16 @@ function BalanceView({ data }: any) {
     );
 }
 
-function MonthlyTableView({ data, type, accounts, onDrilldown, drilldownData, drilldownLoading, activeDrilldown }: any) {
+function HorizontalReportView({
+    data,
+    type,
+    periodType,
+    onDrilldown,
+    drilldownData,
+    drilldownLoading,
+    activeDrilldown
+}: any) {
+
     if (!data || data.length === 0) {
         return (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
@@ -556,22 +565,31 @@ function MonthlyTableView({ data, type, accounts, onDrilldown, drilldownData, dr
         );
     }
 
+    // Получаем список периодов (колонки)
     const periods = data.map((d: any) => d.period || d.month).filter(Boolean);
 
+    // Определяем строки в зависимости от типа отчёта
     const getRows = () => {
         switch (type) {
             case 'pnl':
                 return [
-                    { id: 'revenue', label: 'Выручка', getValue: (d: any) => d.revenue, color: 'text-gray-900' },
-                    { id: 'expenses', label: 'Расходы', getValue: (d: any) => d.expenses, color: 'text-red-600' },
-                    { id: 'profit', label: 'Прибыль', getValue: (d: any) => d.profit, color: 'text-green-600' },
+                    { id: 'revenue', label: 'Выручка', getValue: (d: any) => d.revenue, color: 'text-gray-900', bold: false },
+                    { id: 'expenses', label: 'Расходы', getValue: (d: any) => d.expenses, color: 'text-red-600', bold: false },
+                    { id: 'profit', label: 'Прибыль', getValue: (d: any) => d.profit, color: 'text-green-600', bold: true },
                 ];
             case 'cashflow':
                 return [
-                    { id: 'cash_in', label: 'Поступления', getValue: (d: any) => d.cash_in, color: 'text-green-600' },
-                    { id: 'cash_out', label: 'Выбытия', getValue: (d: any) => d.cash_out, color: 'text-red-600' },
-                    { id: 'net', label: 'Нетто', getValue: (d: any) => d.net_cash_flow, color: 'text-gray-900' },
-                    { id: 'balance', label: 'Остаток', getValue: (d: any) => d.ending_balance, color: 'text-gray-900' },
+                    { id: 'cash_in', label: 'Поступления', getValue: (d: any) => d.cash_in, color: 'text-green-600', bold: false },
+                    { id: 'cash_out', label: 'Выбытия', getValue: (d: any) => d.cash_out, color: 'text-red-600', bold: false },
+                    { id: 'net', label: 'Нетто', getValue: (d: any) => d.net_cash_flow, color: 'text-gray-900', bold: false },
+                    { id: 'balance', label: 'Остаток', getValue: (d: any) => d.ending_balance, color: 'text-gray-900', bold: true },
+                ];
+            case 'balance':
+                return [
+                    { id: 'cash', label: 'Деньги', getValue: (d: any) => d.cash || d.ending_balance, color: 'text-gray-900', bold: false },
+                    { id: 'ar', label: 'Дебиторка', getValue: (d: any) => d.accounts_receivable || 0, color: 'text-gray-900', bold: false },
+                    { id: 'ap', label: 'Кредиторка', getValue: (d: any) => d.accounts_payable || 0, color: 'text-red-600', bold: false },
+                    { id: 'total', label: 'Итого', getValue: (d: any) => d.total || d.ending_balance, color: 'text-gray-900', bold: true },
                 ];
             default:
                 return [];
@@ -582,41 +600,59 @@ function MonthlyTableView({ data, type, accounts, onDrilldown, drilldownData, dr
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">Статья</th>
-                        {periods.map((p: string) => (
-                            <th key={p} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{p}</th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                    {rows.map((row: any) => (
-                        <tr key={row.id} className="hover:bg-gray-50 cursor-pointer"
-                            onClick={() => onDrilldown && onDrilldown(row.id)}>
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">{row.label}</td>
-                            {data.map((d: any) => (
-                                <td key={d.period || d.month} className={`px-4 py-3 text-sm text-right font-medium ${row.color}`}>
-                                    {row.getValue(d)?.toLocaleString('ru-RU') || 0} ₽
-                                </td>
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50 z-10">
+                                Статья
+                            </th>
+                            {periods.map((p: string) => (
+                                <th key={p} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">
+                                    {p}
+                                </th>
                             ))}
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                        {rows.map((row: any) => (
+                            <tr
+                                key={row.id}
+                                className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                onClick={() => onDrilldown && onDrilldown(row.id)}
+                            >
+                                <td className={`px-4 py-3 text-sm sticky left-0 bg-white z-10 ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                                    {row.label}
+                                </td>
+                                {data.map((d: any) => (
+                                    <td key={d.period || d.month} className={`px-4 py-3 text-sm text-right whitespace-nowrap ${row.bold ? 'font-bold' : 'font-medium'} ${row.color}`}>
+                                        {row.getValue(d)?.toLocaleString('ru-RU') || 0} ₽
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
 
-            {activeDrilldown && drilldownData.length > 0 && (
+            {/* Drill-down */}
+            {activeDrilldown && (
                 <div className="p-4 bg-gray-50 border-t">
                     <h4 className="font-medium text-gray-900 mb-2">Детализация</h4>
-                    <div className="space-y-1 max-h-60 overflow-auto">
-                        {drilldownData.slice(0, 20).map((op: any) => (
-                            <div key={op.id} className="flex justify-between text-sm">
-                                <span className="text-gray-600">{op.date} — {op.description}</span>
-                                <span className="font-medium">{parseFloat(op.amount)?.toLocaleString('ru-RU')} ₽</span>
-                            </div>
-                        ))}
-                    </div>
+                    {drilldownLoading ? (
+                        <p className="text-sm text-gray-500">Загрузка...</p>
+                    ) : drilldownData.length > 0 ? (
+                        <div className="space-y-1 max-h-60 overflow-auto">
+                            {drilldownData.slice(0, 20).map((op: any) => (
+                                <div key={op.id} className="flex justify-between text-sm">
+                                    <span className="text-gray-600">{op.date} — {op.description}</span>
+                                    <span className="font-medium">{parseFloat(op.amount)?.toLocaleString('ru-RU')} ₽</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-500">Нет операций</p>
+                    )}
                 </div>
             )}
         </div>
