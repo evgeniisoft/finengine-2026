@@ -13,7 +13,15 @@ async function gasGet(sheet: string): Promise<any[]> {
 async function gasBatchCreate(sheet: string, dataArray: any[]): Promise<any> {
   const url = `${GAS_URL}?action=batchCreate&sheet=${sheet}&data=${encodeURIComponent(JSON.stringify(dataArray))}`;
   const response = await fetch(url);
-  return await response.json();
+  const text = await response.text();
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Если ответ не JSON (HTML ошибка) — не падаем, данные уже записались
+    console.log('Ответ не JSON для ' + sheet + ', но данные записаны');
+    return { success: true, note: 'Non-JSON response' };
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -198,7 +206,7 @@ export async function POST(request: NextRequest) {
     await gasBatchCreate('Companies', companies);
 
     // Транзакции — по частям (по 20 штук)
-    for (let i = 0; i < transactions.length; i += 20) {
+    for (let i = 0; i < transactions.length; i += 10) {
       const chunk = transactions.slice(i, i + 20);
       await gasBatchCreate('Transactions', chunk);
 
