@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
 export default function ReportsPage() {
-    const [activeTab, setActiveTab] = useState<'pnl' | 'cashflow' | 'balance' | 'calendar'>('pnl');
+    const [activeTab, setActiveTab] = useState<'pnl' | 'cashflow' | 'balance' | 'calendar' | 'gaps'>('pnl');
     const [viewMode, setViewMode] = useState<'consolidated' | 'by_company'>('consolidated');
     const [period, setPeriod] = useState({
         start: '2026-01-01',
@@ -50,9 +50,9 @@ export default function ReportsPage() {
                 return;
             }
 
-            if (activeTab === 'calendar') {
+            if (activeTab === 'calendar' || activeTab === 'gaps') {
                 const txData = await api.getAll('Transactions');
-                setTransactions(txData);
+                setTransactions(Array.isArray(txData) ? txData : []);
                 setLoading(false);
                 return;
             }
@@ -200,6 +200,7 @@ export default function ReportsPage() {
         { id: 'cashflow', label: 'ДДС (Cash Flow)' },
         { id: 'balance', label: 'Баланс' },
         { id: 'calendar', label: 'Платёжный календарь' },
+        { id: 'gaps', label: 'Кассовые разрывы' },
     ];
 
     return (
@@ -419,6 +420,10 @@ export default function ReportsPage() {
                                     {activeTab === 'calendar' && (
                                         <CalendarView transactions={transactions} />
                                     )}
+
+                                    {activeTab === 'gaps' && (
+                                        <CashGapsView transactions={transactions} />
+                                    )}
                                 </div>
                             ))}
                         </>
@@ -452,6 +457,10 @@ export default function ReportsPage() {
 
                             {activeTab === 'calendar' && (
                                 <CalendarView transactions={transactions} />
+                            )}
+
+                            {activeTab === 'gaps' && (
+                                <CashGapsView transactions={transactions} />
                             )}
                         </div>
                     ))}
@@ -748,6 +757,101 @@ function CalendarView({ transactions }: { transactions: any[] }) {
                     ))}
                 </tbody>
             </table>
+        </div>
+    );
+}
+function CashGapsView({ transactions }: { transactions: any[] }) {
+    const [days, setDays] = useState(30);
+
+    const today = new Date();
+    const gaps: any[] = [];
+    let balance = 0;
+
+    // Считаем остаток на начало (все операции до сегодня)
+    const pastTransactions = transactions.filter(t => t.date < today.toISOString().split('T')[0]);
+    balance = pastTransactions.reduce((sum, t) => {
+        if (t.type === 'income') return sum + parseFloat(t.amount || 0);
+        if (t.type === 'expense') return sum - parseFloat(t.amount || 0);
+        return sum;
+    }, 0);
+
+    // Прогнозируем будущие дни
+    for (let i = 0; i < days; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+
+        const dayTransactions = transactions.filter(t => t.date === dateStr);
+        const inflow = dayTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+        const outflow = dayTransactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+        balance += inflow - outflow;
+
+        if (balance < 0) {
+            gaps.push({
+                date: dateStr,
+                deficit: Math.abs(balance),
+                balance
+            });
+        }
+    }
+
+    return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Кассовые разрывы</h3>
+                <select
+                    value={days}
+                    onChange={(e) => setDays(parseInt(e.target.value))}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                    <option value={7}>7 дней</option>
+                    <option value={14}>14 дней</option>
+                    <option value={30}>30 дней</option>
+                    <option value={90}>90 дней</option>
+                </select>
+            </div>
+
+            {gaps.length === 0 ? (
+                <div className="p-8 text-center">
+                    <p className="text-green-600 font-medium">✅ Кассовых разрывов не прогнозируется</p>
+                </div>
+            ) : (
+                <>
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-red-700 font-medium">
+                            ⚠️ Обнаружено {gaps.length} дн. с отрицательным остатком
+                        </p>
+                    </div>
+
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Дата</th>
+                                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Дефицит</th>
+                                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Баланс</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {gaps.map(gap => (
+                                <tr key={gap.date} className="bg-red-50">
+                                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{gap.date}</td>
+                                    <td className="px-4 py-3 text-sm text-right text-red-600 font-medium">
+                                        -{gap.deficit.toLocaleString('ru-RU')}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-right text-red-600 font-medium">
+                                        {gap.balance.toLocaleString('ru-RU')}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </>
+            )}
         </div>
     );
 }
