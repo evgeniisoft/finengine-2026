@@ -41,10 +41,10 @@ export default function Dashboard() {
 
   // Суммарные показатели
   const reportsArray = Array.isArray(reports) ? reports : [];
-  const totalRevenue = reportsArray.reduce((sum, r) => sum + (r.pnl?.revenue || 0), 0);
-  const totalExpenses = reportsArray.reduce((sum, r) => sum + (r.pnl?.operating_expenses || 0), 0);
+  const totalRevenue = reportsArray.reduce((sum, r) => sum + (r.report?.revenue || 0), 0);
+  const totalExpenses = reportsArray.reduce((sum, r) => sum + (r.report?.operating_expenses || 0), 0);
   const totalProfit = totalRevenue - totalExpenses;
-  const totalCash = reportsArray.reduce((sum, r) => sum + (r.balance?.assets?.cash || 0), 0);
+  const totalCash = reportsArray.reduce((sum, r) => sum + (r.report?.assets?.cash || 0), 0);
   return (
     <div>
       <div className="mb-8">
@@ -125,18 +125,18 @@ export default function Dashboard() {
                     {report.company.name}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {(report.pnl?.revenue || 0).toLocaleString('ru-RU')} ₽
+                    {(report.report?.revenue || 0).toLocaleString('ru-RU')} ₽
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {(report.pnl?.operating_expenses || 0).toLocaleString('ru-RU')} ₽
+                    {(report.report?.operating_expenses || 0).toLocaleString('ru-RU')} ₽
                   </td>
                   <td className="px-6 py-4 text-sm font-medium">
-                    <span className={report.pnl?.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {(report.pnl?.net_profit || 0).toLocaleString('ru-RU')} ₽
+                    <span className={report.report?.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {(report.report?.net_profit || 0).toLocaleString('ru-RU')} ₽
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {(report.balance?.assets?.cash || 0).toLocaleString('ru-RU')} ₽
+                    {(report.report?.assets?.cash || 0).toLocaleString('ru-RU')} ₽
                   </td>
                 </tr>
               ))}
