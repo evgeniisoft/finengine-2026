@@ -24,21 +24,21 @@ export async function POST(request: NextRequest) {
       { id: 'comp-test-2', name: 'ООО "Бета"', tax_system: 'USN_15', currency: 'RUB', is_group: false, parent_id: 'comp-test-1', inn: '7707654321', kpp: '770101002', external_id: '', source: 'manual', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), deleted_at: null },
       { id: 'comp-test-3', name: 'ИП Иванов', tax_system: 'USN_6', currency: 'RUB', is_group: false, parent_id: 'comp-test-1', inn: '7701112233', kpp: '', external_id: '', source: 'manual', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), deleted_at: null },
     ];
-    
+
     // Тестовые операции
     const transactions = [];
     const today = new Date();
-    
+
     // Прошедшие месяцы
     const months = ['01', '02', '03', '04', '05', '06', '07', '08'];
-    
+
     for (const month of months) {
       const companiesData = [
         { id: 'comp-test-1', revenue: 1000000 + parseInt(month) * 100000, expenses: 600000 + parseInt(month) * 50000 },
         { id: 'comp-test-2', revenue: 500000 + parseInt(month) * 50000, expenses: 350000 + parseInt(month) * 30000 },
         { id: 'comp-test-3', revenue: 300000 + parseInt(month) * 30000, expenses: 200000 + parseInt(month) * 20000 },
       ];
-      
+
       for (const companyData of companiesData) {
         // Доход
         transactions.push({
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
-        
+
         // Зарплата
         transactions.push({
           date: `2026-${month}-15`,
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
-        
+
         // Аренда
         transactions.push({
           date: `2026-${month}-20`,
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
-        
+
         // Маркетинг
         transactions.push({
           date: `2026-${month}-25`,
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
         });
       }
     }
-    
+
     // Будущие операции для кассовых разрывов
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
-    
+
     const in3days = new Date(today);
     in3days.setDate(in3days.getDate() + 3);
     transactions.push({
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
-    
+
     const in7days = new Date(today);
     in7days.setDate(in7days.getDate() + 7);
     transactions.push({
@@ -199,18 +199,25 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
-    
+
     // Массовое создание
+    // Компании — одним батчем
     await gasBatchCreate('Companies', companies);
-    await gasBatchCreate('Transactions', transactions);
-    
+
+    // Транзакции — по частям (по 20 штук)
+    for (let i = 0; i < transactions.length; i += 20) {
+      const chunk = transactions.slice(i, i + 20);
+      await gasBatchCreate('Transactions', chunk);
+      console.log(`Загружено ${i + chunk.length} из ${transactions.length}`);
+    }
+
     return NextResponse.json({
       success: true,
       companies: companies.length,
       transactions: transactions.length,
       message: 'Тестовые данные загружены'
     });
-    
+
   } catch (error) {
     console.error('Ошибка:', error);
     return NextResponse.json(
