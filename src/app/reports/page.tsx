@@ -436,43 +436,7 @@ export default function ReportsPage() {
                         </>
                     )}
 
-                    {viewMode === 'by_company' && Array.isArray(reports) && reports.filter((report: any, index: number, self: any[]) =>
-                        self.findIndex(r => r.company?.id === report.company?.id) === index
-                    ).map((report: any) => (
-                        <div key={report.company.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                {report.company.name}
-                            </h3>
-
-                            {activeTab === 'pnl' && report.report && (
-                                <PnlView
-                                    data={report.report}
-                                    expandedRow={expandedRow}
-                                    setExpandedRow={setExpandedRow}
-                                    onDrilldown={loadDrilldown}
-                                    drilldownData={drilldownData}
-                                    drilldownLoading={drilldownLoading}
-                                    activeDrilldown={activeDrilldown}
-                                />
-                            )}
-
-                            {activeTab === 'cashflow' && report.report && (
-                                <CashFlowView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
-                            )}
-
-                            {activeTab === 'balance' && report.report && (
-                                <BalanceView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
-                            )}
-
-                            {activeTab === 'calendar' && (
-                                <CalendarView transactions={transactions} />
-                            )}
-
-                            {activeTab === 'gaps' && (
-                                <CashGapsView transactions={transactions} />
-                            )}
-                        </div>
-                    ))}
+                    
                 </div>
             )}
         </div>
