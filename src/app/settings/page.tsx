@@ -171,12 +171,12 @@ export default function SettingsPage() {
     const sections = [
         { id: 'database', label: 'База данных' },
         { id: 'accounts', label: 'Счета' },
+        { id: 'balances', label: 'Начальные остатки' },
         { id: 'sources', label: 'Источники данных' },
         { id: 'mappings', label: 'Маппинги' },
         { id: 'taxes', label: 'Налоги' },
         { id: 'users', label: 'Пользователи' },
         { id: 'notifications', label: 'Уведомления' },
-        { id: 'balances', label: 'Начальные остатки' },
     ];
 
     return (
@@ -200,11 +200,10 @@ export default function SettingsPage() {
                                         window.location.href = '/settings/sources';
                                     } else if (section.id === 'mappings') {
                                         window.location.href = '/settings/mappings';
+                                    } else if (section.id === 'balances') {
+                                        window.location.href = '/settings/balances';
                                     } else {
                                         setActiveSection(section.id);
-                                    }
-                                    if (section.id === 'balances') {
-                                        window.location.href = '/settings/balances';
                                     }
                                 }}
                                 className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeSection === section.id
