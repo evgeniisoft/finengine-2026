@@ -9,11 +9,11 @@ export default function Dashboard() {
   const router = useRouter();
   const [companies, setCompanies] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
+  const [balanceData, setBalanceData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Проверяем сессию
     if (!isAuthenticated()) {
       router.push('/login');
       return;
@@ -24,12 +24,15 @@ export default function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [companiesData, reportsData] = await Promise.all([
+      const [companiesData, reportsData, balanceResponse] = await Promise.all([
         api.getAll('Companies'),
-        fetch('/api/reports').then(r => r.json())
+        fetch('/api/reports?type=pnl&period_start=2026-01-01&period_end=2026-12-31').then(r => r.json()),
+        fetch('/api/reports?type=balance').then(r => r.json())
       ]);
+      
       setCompanies(companiesData);
-      setReports(reportsData);
+      setReports(Array.isArray(reportsData) ? reportsData : []);
+      setBalanceData(Array.isArray(balanceResponse) ? balanceResponse : []);
       setError(null);
     } catch (err) {
       setError('Ошибка при загрузке данных');
@@ -41,10 +44,13 @@ export default function Dashboard() {
 
   // Суммарные показатели
   const reportsArray = Array.isArray(reports) ? reports : [];
+  const balanceArray = Array.isArray(balanceData) ? balanceData : [];
+  
   const totalRevenue = reportsArray.reduce((sum, r) => sum + (r.report?.revenue || 0), 0);
   const totalExpenses = reportsArray.reduce((sum, r) => sum + (r.report?.operating_expenses || 0), 0);
   const totalProfit = totalRevenue - totalExpenses;
-  const totalCash = reportsArray.reduce((sum, r) => sum + (r.report?.assets?.cash || 0), 0);
+  const totalCash = balanceArray.reduce((sum, r) => sum + (r.report?.assets?.cash || 0), 0);
+
   return (
     <div>
       <div className="mb-8">
@@ -119,27 +125,30 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {reportsArray.map((report) => (
-                <tr key={report.company.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {report.company.name}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {(report.report?.revenue || 0).toLocaleString('ru-RU')} ₽
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {(report.report?.operating_expenses || 0).toLocaleString('ru-RU')} ₽
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium">
-                    <span className={report.report?.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {(report.report?.net_profit || 0).toLocaleString('ru-RU')} ₽
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {(report.report?.assets?.cash || 0).toLocaleString('ru-RU')} ₽
-                  </td>
-                </tr>
-              ))}
+              {reportsArray.map((report) => {
+                const balance = balanceArray.find(b => b.company?.id === report.company?.id);
+                return (
+                  <tr key={report.company.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                      {report.company.name}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {(report.report?.revenue || 0).toLocaleString('ru-RU')} ₽
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {(report.report?.operating_expenses || 0).toLocaleString('ru-RU')} ₽
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium">
+                      <span className={report.report?.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {(report.report?.net_profit || 0).toLocaleString('ru-RU')} ₽
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {(balance?.report?.assets?.cash || 0).toLocaleString('ru-RU')} ₽
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
