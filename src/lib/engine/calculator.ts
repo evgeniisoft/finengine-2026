@@ -229,6 +229,11 @@ export class FinancialCalculator {
     }
 
     for (const t of filtered) {
+      // Пропускаем начальные остатки (уже учтены выше)
+      if (t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact') {
+        continue;
+      }
+
       const debitAccount = accounts.find(a => a.id === t.debit_account_id);
       const creditAccount = accounts.find(a => a.id === t.credit_account_id);
 
