@@ -33,7 +33,17 @@ export default function ReportsPage() {
     ];
 
     useEffect(() => {
-        loadReports();
+        let cancelled = false;
+
+        const fetchData = async () => {
+            await loadReports();
+        };
+
+        fetchData();
+
+        return () => {
+            cancelled = true;
+        };
     }, [activeTab, viewMode]);
 
     const loadReports = async () => {
@@ -74,12 +84,7 @@ export default function ReportsPage() {
             if (viewMode === 'consolidated') {
                 setReports(data);
             } else {
-                if (Array.isArray(data)) {
-                    setReports(data);
-                } else {
-                    console.error('Ожидался массив, получен объект:', data);
-                    setReports([]);
-                }
+                setReports(Array.isArray(data) ? data : []);
             }
 
         } catch (error) {

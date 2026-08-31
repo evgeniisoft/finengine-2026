@@ -15,13 +15,13 @@ import {
 } from './types';
 
 export class FinancialCalculator {
-  
+
   /**
    * Создание проводок из операции (двойная запись)
    */
   createJournalEntries(transaction: Transaction): JournalEntry[] {
     const entries: JournalEntry[] = [];
-    
+
     // Дебетовая проводка
     entries.push({
       id: this.generateId(),
@@ -34,7 +34,7 @@ export class FinancialCalculator {
       currency: transaction.currency,
       amount_rub: transaction.amount_rub
     });
-    
+
     // Кредитовая проводка
     entries.push({
       id: this.generateId(),
@@ -47,10 +47,10 @@ export class FinancialCalculator {
       currency: transaction.currency,
       amount_rub: transaction.amount_rub
     });
-    
+
     return entries;
   }
-  
+
   /**
    * Расчёт ДДС (Cash Flow)
    */
@@ -61,21 +61,21 @@ export class FinancialCalculator {
     periodStart: string,
     periodEnd: string
   ): CashFlowReport {
-    
+
     // Фильтруем операции по компании и периоду
-    const filtered = transactions.filter(t => 
+    const filtered = transactions.filter(t =>
       t.company_id === companyId &&
       t.date >= periodStart &&
       t.date <= periodEnd
     );
-    
+
     // Начальный остаток (операции до periodStart)
-    const beforePeriod = transactions.filter(t => 
+    const beforePeriod = transactions.filter(t =>
       t.company_id === companyId && t.date < periodStart
     );
-    
+
     const startingBalance = this.calculateBalance(beforePeriod, accounts);
-    
+
     // Классифицируем операции
     let operatingInflow = 0;
     let operatingOutflow = 0;
@@ -83,13 +83,13 @@ export class FinancialCalculator {
     let investingOutflow = 0;
     let financingInflow = 0;
     let financingOutflow = 0;
-    
+
     for (const t of filtered) {
       const debitAccount = accounts.find(a => a.id === t.debit_account_id);
       const creditAccount = accounts.find(a => a.id === t.credit_account_id);
-      
+
       if (!debitAccount || !creditAccount) continue;
-      
+
       // Определяем тип потока
       if (t.debit_account_id === 'acc-bank-001') {
         // Поступление
@@ -111,12 +111,12 @@ export class FinancialCalculator {
         }
       }
     }
-    
-    const endingBalance = startingBalance + 
+
+    const endingBalance = startingBalance +
       operatingInflow - operatingOutflow +
       investingInflow - investingOutflow +
       financingInflow - financingOutflow;
-    
+
     return {
       period_start: periodStart,
       period_end: periodEnd,
@@ -131,7 +131,7 @@ export class FinancialCalculator {
       ending_balance: endingBalance
     };
   }
-  
+
   /**
    * Расчёт ОПиУ (P&L)
    */
@@ -142,34 +142,34 @@ export class FinancialCalculator {
     periodStart: string,
     periodEnd: string
   ): PnLReport {
-    
-    const filtered = transactions.filter(t => 
+
+    const filtered = transactions.filter(t =>
       t.company_id === companyId &&
       t.date >= periodStart &&
       t.date <= periodEnd
     );
-    
+
     let revenue = 0;
     let costOfGoodsSold = 0;
     let operatingExpenses = 0;
     let depreciation = 0;
     let taxes = 0;
-    
+
     for (const t of filtered) {
       const debitAccount = accounts.find(a => a.id === t.debit_account_id);
       const creditAccount = accounts.find(a => a.id === t.credit_account_id);
-      
+
       if (!debitAccount || !creditAccount) continue;
-      
+
       // Доходы
       if (creditAccount.type === 'I') {
         revenue += t.amount_rub;
       }
-      
+
       // Расходы
       if (debitAccount.type === 'X') {
         const category = debitAccount.code;
-        
+
         if (category === 'COGS') {
           costOfGoodsSold += t.amount_rub;
         } else if (category === 'DEPRECIATION') {
@@ -181,10 +181,10 @@ export class FinancialCalculator {
         }
       }
     }
-    
+
     const grossProfit = revenue - costOfGoodsSold;
     const netProfit = grossProfit - operatingExpenses - depreciation - taxes;
-    
+
     return {
       period_start: periodStart,
       period_end: periodEnd,
@@ -198,7 +198,7 @@ export class FinancialCalculator {
       net_profit: netProfit
     };
   }
-  
+
   /**
    * Расчёт Баланса
    */
@@ -208,11 +208,10 @@ export class FinancialCalculator {
     companyId: string,
     date: string
   ): BalanceSheet {
-    
-    const filtered = transactions.filter(t => 
+
+    const filtered = transactions.filter(t =>
       t.company_id === companyId && t.date <= date
     );
-    
     let cash = 0;
     let accountsReceivable = 0;
     let inventory = 0;
@@ -221,37 +220,44 @@ export class FinancialCalculator {
     let loans = 0;
     let capital = 0;
     let retainedEarnings = 0;
-    
+
+    // Учитываем начальные остатки
+    for (const t of filtered) {
+      if (t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact') {
+        capital += t.amount_rub;
+      }
+    }
+
     for (const t of filtered) {
       const debitAccount = accounts.find(a => a.id === t.debit_account_id);
       const creditAccount = accounts.find(a => a.id === t.credit_account_id);
-      
+
       if (!debitAccount || !creditAccount) continue;
-      
+
       // Обновляем остатки по счетам
       if (debitAccount.code === 'BANK_MAIN') cash += t.amount_rub;
       if (creditAccount.code === 'BANK_MAIN') cash -= t.amount_rub;
-      
+
       if (debitAccount.code === 'AR') accountsReceivable += t.amount_rub;
       if (creditAccount.code === 'AR') accountsReceivable -= t.amount_rub;
-      
+
       if (debitAccount.code === 'INVENTORY') inventory += t.amount_rub;
       if (creditAccount.code === 'INVENTORY') inventory -= t.amount_rub;
-      
+
       if (debitAccount.code === 'FIXED_ASSETS') fixedAssets += t.amount_rub;
       if (creditAccount.code === 'FIXED_ASSETS') fixedAssets -= t.amount_rub;
-      
+
       if (creditAccount.code === 'AP') accountsPayable += t.amount_rub;
       if (debitAccount.code === 'AP') accountsPayable -= t.amount_rub;
-      
+
       if (creditAccount.code === 'LOANS') loans += t.amount_rub;
       if (debitAccount.code === 'LOANS') loans -= t.amount_rub;
     }
-    
+
     const totalAssets = cash + accountsReceivable + inventory + fixedAssets;
     const totalLiabilities = accountsPayable + loans;
     const totalEquity = totalAssets - totalLiabilities;
-    
+
     return {
       date,
       company_id: companyId,
@@ -274,26 +280,26 @@ export class FinancialCalculator {
       }
     };
   }
-  
+
   /**
    * Вспомогательные функции
    */
   private calculateBalance(transactions: Transaction[], accounts: Account[]): number {
     let balance = 0;
-    
+
     for (const t of transactions) {
       const debitAccount = accounts.find(a => a.id === t.debit_account_id);
       const creditAccount = accounts.find(a => a.id === t.credit_account_id);
-      
+
       if (!debitAccount || !creditAccount) continue;
-      
+
       if (debitAccount.code === 'BANK_MAIN') balance += t.amount_rub;
       if (creditAccount.code === 'BANK_MAIN') balance -= t.amount_rub;
     }
-    
+
     return balance;
   }
-  
+
   private generateId(): string {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = Math.random() * 16 | 0;
