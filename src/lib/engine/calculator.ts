@@ -315,10 +315,7 @@ export class FinancialCalculator {
       if (debitIsCash) balance += t.amount_rub;
       if (creditIsCash) balance -= t.amount_rub;
 
-      // Начальные остатки
-      if (t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact') {
-        balance += t.amount_rub;
-      }
+      
     }
 
     return balance;
