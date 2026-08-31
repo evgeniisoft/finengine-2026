@@ -176,6 +176,7 @@ export default function SettingsPage() {
         { id: 'taxes', label: 'Налоги' },
         { id: 'users', label: 'Пользователи' },
         { id: 'notifications', label: 'Уведомления' },
+        { id: 'balances', label: 'Начальные остатки' },
     ];
 
     return (
@@ -201,6 +202,9 @@ export default function SettingsPage() {
                                         window.location.href = '/settings/mappings';
                                     } else {
                                         setActiveSection(section.id);
+                                    }
+                                    if (section.id === 'balances') {
+                                        window.location.href = '/settings/balances';
                                     }
                                 }}
                                 className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeSection === section.id
