@@ -14,13 +14,12 @@ async function gasBatchCreate(sheet: string, dataArray: any[]): Promise<any> {
   const url = `${GAS_URL}?action=batchCreate&sheet=${sheet}&data=${encodeURIComponent(JSON.stringify(dataArray))}`;
   const response = await fetch(url);
   const text = await response.text();
-
+  
   try {
     return JSON.parse(text);
   } catch {
-    // Если ответ не JSON (HTML ошибка) — не падаем, данные уже записались
     console.log('Ответ не JSON для ' + sheet + ', но данные записаны');
-    return { success: true, note: 'Non-JSON response' };
+    return { success: true };
   }
 }
 
@@ -28,9 +27,70 @@ export async function POST(request: NextRequest) {
   try {
     // Тестовые компании
     const companies = [
-      { id: 'comp-test-1', name: 'ООО "Альфа"', tax_system: 'USN_6', currency: 'RUB', is_group: true, parent_id: '', inn: '7701234567', kpp: '770101001', external_id: '', source: 'manual', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), deleted_at: null },
-      { id: 'comp-test-2', name: 'ООО "Бета"', tax_system: 'USN_15', currency: 'RUB', is_group: false, parent_id: 'comp-test-1', inn: '7707654321', kpp: '770101002', external_id: '', source: 'manual', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), deleted_at: null },
-      { id: 'comp-test-3', name: 'ИП Иванов', tax_system: 'USN_6', currency: 'RUB', is_group: false, parent_id: 'comp-test-1', inn: '7701112233', kpp: '', external_id: '', source: 'manual', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), deleted_at: null },
+      { 
+        id: 'comp-test-1', 
+        name: 'ООО "Альфа"', 
+        tax_system: 'USN_6', 
+        currency: 'RUB', 
+        is_group: true, 
+        parent_id: '', 
+        inn: '7701234567', 
+        kpp: '770101001', 
+        external_id: '', 
+        source: 'manual', 
+        tenant_id: 'tenant-1',
+        record_type: 'fact',
+        created_at: new Date().toISOString(), 
+        updated_at: new Date().toISOString(), 
+        deleted_at: '',
+        is_deleted: ''
+      },
+      { 
+        id: 'comp-test-2', 
+        name: 'ООО "Бета"', 
+        tax_system: 'USN_15', 
+        currency: 'RUB', 
+        is_group: false, 
+        parent_id: 'comp-test-1', 
+        inn: '7707654321', 
+        kpp: '770101002', 
+        external_id: '', 
+        source: 'manual', 
+        tenant_id: 'tenant-1',
+        record_type: 'fact',
+        created_at: new Date().toISOString(), 
+        updated_at: new Date().toISOString(), 
+        deleted_at: '',
+        is_deleted: ''
+      },
+      { 
+        id: 'comp-test-3', 
+        name: 'ИП Иванов', 
+        tax_system: 'USN_6', 
+        currency: 'RUB', 
+        is_group: false, 
+        parent_id: 'comp-test-1', 
+        inn: '7701112233', 
+        kpp: '', 
+        external_id: '', 
+        source: 'manual', 
+        tenant_id: 'tenant-1',
+        record_type: 'fact',
+        created_at: new Date().toISOString(), 
+        updated_at: new Date().toISOString(), 
+        deleted_at: '',
+        is_deleted: ''
+      },
+    ];
+
+    // Тестовые счета
+    const accounts = [
+      { id: 'acc-bank-001', code: 'BANK_ALFA', name: 'Альфа-Банк', type: 'A', is_cash_flow: 'true', is_deleted: '', deleted_at: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 'acc-bank-002', code: 'BANK_SBER', name: 'Сбербанк', type: 'A', is_cash_flow: 'true', is_deleted: '', deleted_at: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 'acc-in-revenue', code: 'IN_REVENUE', name: 'Выручка от клиентов', type: 'I', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 'acc-out-salary', code: 'OUT_SALARY', name: 'Зарплата', type: 'X', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 'acc-out-rent', code: 'OUT_RENT', name: 'Аренда', type: 'X', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 'acc-out-marketing', code: 'OUT_MARKETING', name: 'Маркетинг', type: 'X', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
     ];
 
     // Тестовые операции
@@ -49,8 +109,9 @@ export async function POST(request: NextRequest) {
 
       for (const companyData of companiesData) {
         // Доход
+        const incomeDate = `2026-${month}-10`;
         transactions.push({
-          date: `2026-${month}-10`,
+          date: incomeDate,
           company_id: companyData.id,
           description: `Выручка за ${month}.2026`,
           amount: companyData.revenue,
@@ -65,13 +126,23 @@ export async function POST(request: NextRequest) {
           is_system: false,
           external_id: '',
           source: 'manual',
+          deleted_at: '',
+          is_deleted: '',
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          // Новые поля
+          tenant_id: 'tenant-1',
+          record_type: 'fact',
+          accrual_date: incomeDate,
+          import_hash: `hash-${companyData.id}-${incomeDate}-income`,
+          source_account_id: '',
+          destination_account_id: 'acc-bank-001'
         });
 
         // Зарплата
+        const salaryDate = `2026-${month}-15`;
         transactions.push({
-          date: `2026-${month}-15`,
+          date: salaryDate,
           company_id: companyData.id,
           description: `Зарплата ${month}.2026`,
           amount: companyData.expenses * 0.5,
@@ -86,13 +157,22 @@ export async function POST(request: NextRequest) {
           is_system: false,
           external_id: '',
           source: 'manual',
+          deleted_at: '',
+          is_deleted: '',
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          tenant_id: 'tenant-1',
+          record_type: 'fact',
+          accrual_date: salaryDate,
+          import_hash: `hash-${companyData.id}-${salaryDate}-salary`,
+          source_account_id: 'acc-bank-001',
+          destination_account_id: ''
         });
 
         // Аренда
+        const rentDate = `2026-${month}-20`;
         transactions.push({
-          date: `2026-${month}-20`,
+          date: rentDate,
           company_id: companyData.id,
           description: `Аренда ${month}.2026`,
           amount: companyData.expenses * 0.3,
@@ -107,13 +187,22 @@ export async function POST(request: NextRequest) {
           is_system: false,
           external_id: '',
           source: 'manual',
+          deleted_at: '',
+          is_deleted: '',
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          tenant_id: 'tenant-1',
+          record_type: 'fact',
+          accrual_date: rentDate,
+          import_hash: `hash-${companyData.id}-${rentDate}-rent`,
+          source_account_id: 'acc-bank-001',
+          destination_account_id: ''
         });
 
         // Маркетинг
+        const marketingDate = `2026-${month}-25`;
         transactions.push({
-          date: `2026-${month}-25`,
+          date: marketingDate,
           company_id: companyData.id,
           description: `Маркетинг ${month}.2026`,
           amount: companyData.expenses * 0.2,
@@ -128,8 +217,16 @@ export async function POST(request: NextRequest) {
           is_system: false,
           external_id: '',
           source: 'manual',
+          deleted_at: '',
+          is_deleted: '',
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          tenant_id: 'tenant-1',
+          record_type: 'fact',
+          accrual_date: marketingDate,
+          import_hash: `hash-${companyData.id}-${marketingDate}-marketing`,
+          source_account_id: 'acc-bank-001',
+          destination_account_id: ''
         });
       }
     }
@@ -153,8 +250,16 @@ export async function POST(request: NextRequest) {
       is_system: false,
       external_id: '',
       source: 'manual',
+      deleted_at: '',
+      is_deleted: '',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      tenant_id: 'tenant-1',
+      record_type: 'fact',
+      accrual_date: tomorrow.toISOString().split('T')[0],
+      import_hash: 'hash-equipment-tomorrow',
+      source_account_id: 'acc-bank-001',
+      destination_account_id: ''
     });
 
     const in3days = new Date(today);
@@ -175,8 +280,16 @@ export async function POST(request: NextRequest) {
       is_system: false,
       external_id: '',
       source: 'manual',
+      deleted_at: '',
+      is_deleted: '',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      tenant_id: 'tenant-1',
+      record_type: 'fact',
+      accrual_date: in3days.toISOString().split('T')[0],
+      import_hash: 'hash-client-payment',
+      source_account_id: '',
+      destination_account_id: 'acc-bank-001'
     });
 
     const in7days = new Date(today);
@@ -197,26 +310,34 @@ export async function POST(request: NextRequest) {
       is_system: false,
       external_id: '',
       source: 'manual',
+      deleted_at: '',
+      is_deleted: '',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      tenant_id: 'tenant-1',
+      record_type: 'fact',
+      accrual_date: in7days.toISOString().split('T')[0],
+      import_hash: 'hash-supplier-payment',
+      source_account_id: 'acc-bank-001',
+      destination_account_id: ''
     });
 
     // Массовое создание
-    // Компании — одним батчем
     await gasBatchCreate('Companies', companies);
+    await gasBatchCreate('Accounts', accounts);
 
-    // Транзакции — по частям (по 20 штук)
+    // Транзакции по частям (по 10 штук)
     for (let i = 0; i < transactions.length; i += 10) {
-      const chunk = transactions.slice(i, i + 20);
+      const chunk = transactions.slice(i, i + 10);
       await gasBatchCreate('Transactions', chunk);
-
     }
 
     return NextResponse.json({
       success: true,
       companies: companies.length,
+      accounts: accounts.length,
       transactions: transactions.length,
-      message: 'Тестовые данные загружены'
+      message: 'Тестовые данные загружены полностью'
     });
 
   } catch (error) {

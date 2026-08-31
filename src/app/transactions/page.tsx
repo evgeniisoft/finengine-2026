@@ -9,13 +9,13 @@ export default function TransactionsPage() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [counterparties, setCounterparties] = useState<any[]>([]);
-  
+
   // Состояние
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
-  
+
   // Фильтры
   const [filters, setFilters] = useState({
     company_id: '',
@@ -24,7 +24,7 @@ export default function TransactionsPage() {
     type: '',
     search: ''
   });
-  
+
   // Форма
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -52,7 +52,7 @@ export default function TransactionsPage() {
         api.getAll('Accounts'),
         api.getAll('Counterparties')
       ]);
-      
+
       setTransactions(transactionsData);
       setCompanies(companiesData);
       setAccounts(accountsData);
@@ -67,10 +67,10 @@ export default function TransactionsPage() {
   };
 
   // Получение денежных счетов (для выбора)
-  const cashAccounts = accounts.filter(a => 
+  const cashAccounts = accounts.filter(a =>
     a.is_cash_flow === true || a.is_cash_flow === 'true' || a.is_cash_flow === 'TRUE'
   );
-  
+
   // Получение статей доходов/расходов
   const incomeAccounts = accounts.filter(a => a.type === 'I');
   const expenseAccounts = accounts.filter(a => a.type === 'X');
@@ -91,10 +91,10 @@ export default function TransactionsPage() {
       if (!formData.company_id) { alert('Выберите компанию'); return; }
       if (!formData.amount || parseFloat(formData.amount) <= 0) { alert('Введите сумму'); return; }
       if (!formData.description.trim()) { alert('Введите описание'); return; }
-      
+
       // Определяем счета
       let debitAccountId, creditAccountId;
-      
+
       if (formData.type === 'income') {
         debitAccountId = formData.account_id || cashAccounts[0]?.id;
         creditAccountId = formData.category_id || incomeAccounts[0]?.id;
@@ -106,7 +106,7 @@ export default function TransactionsPage() {
         debitAccountId = formData.account_id;
         creditAccountId = formData.category_id;
       }
-      
+
       const newTransaction = {
         date: formData.date,
         company_id: formData.company_id,
@@ -125,7 +125,13 @@ export default function TransactionsPage() {
         source: formData.source,
         deleted_at: null,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        tenant_id: 'tenant-1',
+        record_type: 'fact',
+        accrual_date: formData.date,
+        import_hash: '',
+        source_account_id: formData.type === 'income' ? '' : (formData.account_id || 'acc-bank-001'),
+        destination_account_id: formData.type === 'income' ? (formData.account_id || 'acc-bank-001') : '',
       };
 
       await api.create('Transactions', newTransaction);
@@ -190,7 +196,7 @@ export default function TransactionsPage() {
             <label className="block text-xs font-medium text-gray-500 mb-1">Компания</label>
             <select
               value={filters.company_id}
-              onChange={(e) => setFilters({...filters, company_id: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, company_id: e.target.value })}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
             >
               <option value="">Все компании</option>
@@ -199,32 +205,32 @@ export default function TransactionsPage() {
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">С даты</label>
             <input
               type="date"
               value={filters.period_start}
-              onChange={(e) => setFilters({...filters, period_start: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, period_start: e.target.value })}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
             />
           </div>
-          
+
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">По дату</label>
             <input
               type="date"
               value={filters.period_end}
-              onChange={(e) => setFilters({...filters, period_end: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, period_end: e.target.value })}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
             />
           </div>
-          
+
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Тип</label>
             <select
               value={filters.type}
-              onChange={(e) => setFilters({...filters, type: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, type: e.target.value })}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
             >
               <option value="">Все</option>
@@ -233,18 +239,18 @@ export default function TransactionsPage() {
               <option value="transfer">Перемещение</option>
             </select>
           </div>
-          
+
           <div className="flex-1 min-w-[200px]">
             <label className="block text-xs font-medium text-gray-500 mb-1">Поиск</label>
             <input
               type="text"
               value={filters.search}
-              onChange={(e) => setFilters({...filters, search: e.target.value})}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
               placeholder="Поиск по описанию..."
             />
           </div>
-          
+
           <button
             onClick={resetFilters}
             className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
@@ -260,7 +266,7 @@ export default function TransactionsPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Новая операция
           </h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -268,7 +274,7 @@ export default function TransactionsPage() {
               </label>
               <select
                 value={formData.company_id}
-                onChange={(e) => setFormData({...formData, company_id: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               >
                 <option value="">Выберите компанию</option>
@@ -285,7 +291,7 @@ export default function TransactionsPage() {
               <input
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({...formData, date: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
             </div>
@@ -296,7 +302,7 @@ export default function TransactionsPage() {
               </label>
               <select
                 value={formData.type}
-                onChange={(e) => setFormData({...formData, type: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               >
                 <option value="income">Доход</option>
@@ -311,7 +317,7 @@ export default function TransactionsPage() {
               </label>
               <select
                 value={formData.account_id}
-                onChange={(e) => setFormData({...formData, account_id: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               >
                 <option value="">Выберите счёт</option>
@@ -327,7 +333,7 @@ export default function TransactionsPage() {
               </label>
               <select
                 value={formData.category_id}
-                onChange={(e) => setFormData({...formData, category_id: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               >
                 <option value="">Выберите статью</option>
@@ -350,7 +356,7 @@ export default function TransactionsPage() {
               <input
                 type="number"
                 value={formData.amount}
-                onChange={(e) => setFormData({...formData, amount: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 placeholder="0.00"
                 min="0"
@@ -364,7 +370,7 @@ export default function TransactionsPage() {
               </label>
               <select
                 value={formData.currency}
-                onChange={(e) => setFormData({...formData, currency: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               >
                 <option value="RUB">₽ Рубль</option>
@@ -380,7 +386,7 @@ export default function TransactionsPage() {
               </label>
               <select
                 value={formData.counterparty_id}
-                onChange={(e) => setFormData({...formData, counterparty_id: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, counterparty_id: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               >
                 <option value="">Выберите контрагента</option>
@@ -397,7 +403,7 @@ export default function TransactionsPage() {
               <input
                 type="text"
                 value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 placeholder="Оплата по счёту №123"
               />
@@ -442,8 +448,8 @@ export default function TransactionsPage() {
               {filteredTransactions.map((transaction) => {
                 const company = companies.find(c => c.id === transaction.company_id);
                 return (
-                  <tr 
-                    key={transaction.id} 
+                  <tr
+                    key={transaction.id}
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => setSelectedTransaction(selectedTransaction?.id === transaction.id ? null : transaction)}
                   >
@@ -456,13 +462,12 @@ export default function TransactionsPage() {
                       {parseFloat(transaction.amount)?.toLocaleString('ru-RU')} {transaction.currency}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        transaction.type === 'income'
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${transaction.type === 'income'
                           ? 'bg-green-100 text-green-800'
                           : transaction.type === 'expense'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
                         {transaction.type === 'income' ? 'Доход' : transaction.type === 'expense' ? 'Расход' : 'Перемещение'}
                       </span>
                     </td>
@@ -471,7 +476,7 @@ export default function TransactionsPage() {
               })}
             </tbody>
           </table>
-          
+
           {filteredTransactions.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-500">Операции не найдены</p>

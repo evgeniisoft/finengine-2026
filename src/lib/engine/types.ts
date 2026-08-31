@@ -60,6 +60,13 @@ export interface Transaction {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+  // Новые поля
+  tenant_id: string;
+  record_type: 'fact' | 'plan';
+  accrual_date: string;
+  import_hash: string;
+  source_account_id: string;
+  destination_account_id: string;
 }
 
 // Проводка (для двойной записи)
