@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { api } from '@/lib/api';
 
 export default function ReportsPage() {
-    const [activeTab, setActiveTab] = useState<'pnl' | 'cashflow' | 'balance'>('pnl');
+    const [activeTab, setActiveTab] = useState<'pnl' | 'cashflow' | 'balance' | 'calendar'>('pnl');
     const [viewMode, setViewMode] = useState<'consolidated' | 'by_company'>('consolidated');
     const [period, setPeriod] = useState({
         start: '2026-01-01',
@@ -16,6 +17,10 @@ export default function ReportsPage() {
     const [isLoadingTestData, setIsLoadingTestData] = useState(false);
     const [loading, setLoading] = useState(true);
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
+    const [drilldownData, setDrilldownData] = useState<any[]>([]);
+    const [drilldownLoading, setDrilldownLoading] = useState(false);
+    const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
+    const [transactions, setTransactions] = useState<any[]>([]);
 
     // Пресеты периодов
     const periodPresets = [
@@ -41,6 +46,13 @@ export default function ReportsPage() {
                 const monthlyResponse = await fetch(monthlyUrl);
                 const monthlyData = await monthlyResponse.json();
                 setMonthlyData(Array.isArray(monthlyData.periods) ? monthlyData.periods : []);
+                setLoading(false);
+                return;
+            }
+
+            if (activeTab === 'calendar') {
+                const txData = await api.getAll('Transactions');
+                setTransactions(txData);
                 setLoading(false);
                 return;
             }
@@ -76,6 +88,28 @@ export default function ReportsPage() {
             setMonthlyData([]);
         } finally {
             setLoading(false);
+        }
+    };
+    const loadDrilldown = async (accountId: string) => {
+        if (activeDrilldown === accountId) {
+            setActiveDrilldown(null);
+            setDrilldownData([]);
+            return;
+        }
+
+        try {
+            setDrilldownLoading(true);
+            setActiveDrilldown(accountId);
+
+            const url = `/api/reports/drilldown?account_id=${accountId}&period_start=${period.start}&period_end=${period.end}`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            setDrilldownData(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Ошибка drill-down:', error);
+        } finally {
+            setDrilldownLoading(false);
         }
     };
 
@@ -165,6 +199,7 @@ export default function ReportsPage() {
         { id: 'pnl', label: 'ОПиУ (P&L)' },
         { id: 'cashflow', label: 'ДДС (Cash Flow)' },
         { id: 'balance', label: 'Баланс' },
+        { id: 'calendar', label: 'Платёжный календарь' },
     ];
 
     return (
@@ -288,8 +323,8 @@ export default function ReportsPage() {
                         <button
                             onClick={() => setPeriodType('monthly')}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${periodType === 'monthly'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                                 }`}
                         >
                             Месяцы
@@ -297,8 +332,8 @@ export default function ReportsPage() {
                         <button
                             onClick={() => setPeriodType('weekly')}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${periodType === 'weekly'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                                 }`}
                         >
                             Недели
@@ -306,8 +341,8 @@ export default function ReportsPage() {
                         <button
                             onClick={() => setPeriodType('daily')}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${periodType === 'daily'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                                 }`}
                         >
                             Дни
@@ -334,7 +369,15 @@ export default function ReportsPage() {
                                     </h3>
 
                                     {activeTab === 'pnl' && reports.pnl && (
-                                        <PnlView data={reports.pnl} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
+                                        <PnlView
+                                            data={reports.pnl}
+                                            expandedRow={expandedRow}
+                                            setExpandedRow={setExpandedRow}
+                                            onDrilldown={loadDrilldown}
+                                            drilldownData={drilldownData}
+                                            drilldownLoading={drilldownLoading}
+                                            activeDrilldown={activeDrilldown}
+                                        />
                                     )}
 
                                     {activeTab === 'cashflow' && reports.cashFlow && (
@@ -354,7 +397,15 @@ export default function ReportsPage() {
                                     </h3>
 
                                     {activeTab === 'pnl' && report.report && (
-                                        <PnlView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
+                                        <PnlView
+                                            data={report.report}
+                                            expandedRow={expandedRow}
+                                            setExpandedRow={setExpandedRow}
+                                            onDrilldown={loadDrilldown}
+                                            drilldownData={drilldownData}
+                                            drilldownLoading={drilldownLoading}
+                                            activeDrilldown={activeDrilldown}
+                                        />
                                     )}
 
                                     {activeTab === 'cashflow' && report.report && (
@@ -363,6 +414,10 @@ export default function ReportsPage() {
 
                                     {activeTab === 'balance' && report.report && (
                                         <BalanceView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
+                                    )}
+
+                                    {activeTab === 'calendar' && (
+                                        <CalendarView transactions={transactions} />
                                     )}
                                 </div>
                             ))}
@@ -376,7 +431,15 @@ export default function ReportsPage() {
                             </h3>
 
                             {activeTab === 'pnl' && report.report && (
-                                <PnlView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
+                                <PnlView
+                                    data={report.report}
+                                    expandedRow={expandedRow}
+                                    setExpandedRow={setExpandedRow}
+                                    onDrilldown={loadDrilldown}
+                                    drilldownData={drilldownData}
+                                    drilldownLoading={drilldownLoading}
+                                    activeDrilldown={activeDrilldown}
+                                />
                             )}
 
                             {activeTab === 'cashflow' && report.report && (
@@ -386,6 +449,10 @@ export default function ReportsPage() {
                             {activeTab === 'balance' && report.report && (
                                 <BalanceView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
                             )}
+
+                            {activeTab === 'calendar' && (
+                                <CalendarView transactions={transactions} />
+                            )}
                         </div>
                     ))}
                 </div>
@@ -394,7 +461,7 @@ export default function ReportsPage() {
     );
 }
 
-function PnlView({ data, expandedRow, setExpandedRow }: any) {
+function PnlView({ data, expandedRow, setExpandedRow, onDrilldown, drilldownData, drilldownLoading, activeDrilldown }: any) {
     const rows = [
         { id: 'revenue', label: 'Выручка', value: data.revenue, type: 'income' },
         { id: 'cogs', label: 'Себестоимость', value: data.cost_of_goods_sold, type: 'expense' },
@@ -411,9 +478,11 @@ function PnlView({ data, expandedRow, setExpandedRow }: any) {
                 <div key={row.id}>
                     <div
                         className="flex justify-between items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
-                        onClick={() => setExpandedRow(expandedRow === row.id ? null : row.id)}
-                    >
-                        <span className={`text-sm ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                        onClick={() => {
+                            setExpandedRow(expandedRow === row.id ? null : row.id);
+                            onDrilldown(row.id);
+                        }}
+                    >   <span className={`text-sm ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
                             {row.label}
                         </span>
                         <span className={`text-sm ${row.bold ? 'font-bold' : 'font-medium'
@@ -424,16 +493,29 @@ function PnlView({ data, expandedRow, setExpandedRow }: any) {
                     </div>
 
                     {expandedRow === row.id && (
-                        <div className="ml-6 mt-2 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
-                            <p>Детализация по статье «{row.label}»</p>
-                            <p className="text-xs text-gray-400 mt-1">
-                                Здесь будет список операций, составляющих эту статью
-                            </p>
+                        <div className="ml-6 mt-2 p-3 bg-gray-50 rounded-lg">
+                            {drilldownLoading && activeDrilldown === row.id ? (
+                                <p className="text-sm text-gray-500">Загрузка...</p>
+                            ) : drilldownData.length > 0 ? (
+                                <div className="space-y-2">
+                                    {drilldownData.slice(0, 10).map((op: any) => (
+                                        <div key={op.id} className="flex justify-between text-sm">
+                                            <span className="text-gray-600">{op.date} — {op.description}</span>
+                                            <span className="font-medium text-gray-900">
+                                                {parseFloat(op.amount)?.toLocaleString('ru-RU')} {op.currency}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500">Нет операций по этой статье</p>
+                            )}
                         </div>
                     )}
                 </div>
-            ))}
-        </div>
+            ))
+            }
+        </div >
     );
 }
 
@@ -593,6 +675,75 @@ function MonthlyTableView({ data }: { data: any[] }) {
                                     {row.getValue(monthData)?.toLocaleString('ru-RU') || 0} ₽
                                 </td>
                             ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+function CalendarView({ transactions }: { transactions: any[] }) {
+    const [days, setDays] = useState(30);
+
+    // Группируем по датам
+    const today = new Date();
+    const dates = [];
+
+    for (let i = 0; i < days; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+
+        const dayTransactions = transactions.filter(t => t.date === dateStr);
+        const inflow = dayTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+        const outflow = dayTransactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+        dates.push({ date: dateStr, inflow, outflow, balance: inflow - outflow });
+    }
+
+    return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Платёжный календарь</h3>
+                <select
+                    value={days}
+                    onChange={(e) => setDays(parseInt(e.target.value))}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                    <option value={7}>7 дней</option>
+                    <option value={14}>14 дней</option>
+                    <option value={30}>30 дней</option>
+                    <option value={90}>90 дней</option>
+                </select>
+            </div>
+
+            <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Дата</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Поступления</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Выбытия</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Баланс</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                    {dates.map(day => (
+                        <tr key={day.date} className={day.balance < 0 ? 'bg-red-50' : ''}>
+                            <td className="px-4 py-3 text-sm text-gray-900">{day.date}</td>
+                            <td className="px-4 py-3 text-sm text-right text-green-600">
+                                {day.inflow > 0 ? '+' + day.inflow.toLocaleString('ru-RU') : ''}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right text-red-600">
+                                {day.outflow > 0 ? '-' + day.outflow.toLocaleString('ru-RU') : ''}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">
+                                {day.balance.toLocaleString('ru-RU')}
+                            </td>
                         </tr>
                     ))}
                 </tbody>
