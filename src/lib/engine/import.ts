@@ -270,7 +270,13 @@ export class ImportEngine {
       source: '1c',                          // ← ДОБАВЬ
       deleted_at: null,                      // ← ДОБАВЬ
       created_at: new Date().toISOString(),  // ← ДОБАВЬ
-      updated_at: new Date().toISOString()   // ← ДОБАВЬ
+      updated_at: new Date().toISOString(),
+      tenant_id: 'tenant-1',
+      record_type: 'fact',
+      accrual_date: data.date,
+      import_hash: data.import_hash || '',
+      source_account_id: '',
+      destination_account_id: ''   // ← ДОБАВЬ
     };
   }
 
