@@ -309,8 +309,16 @@ export class FinancialCalculator {
 
       if (!debitAccount || !creditAccount) continue;
 
-      if (debitAccount.code === 'BANK_MAIN') balance += t.amount_rub;
-      if (creditAccount.code === 'BANK_MAIN') balance -= t.amount_rub;
+      const debitIsCash = debitAccount.is_cash_flow === true;
+      const creditIsCash = creditAccount.is_cash_flow === true;
+
+      if (debitIsCash) balance += t.amount_rub;
+      if (creditIsCash) balance -= t.amount_rub;
+
+      // Начальные остатки
+      if (t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact') {
+        balance += t.amount_rub;
+      }
     }
 
     return balance;
