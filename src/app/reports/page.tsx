@@ -396,7 +396,9 @@ export default function ReportsPage() {
                                 </div>
                             )}
 
-                            {viewMode === 'by_company' && Array.isArray(reports) && reports.map((report: any) => (
+                            {viewMode === 'by_company' && Array.isArray(reports) && reports.filter((report: any, index: number, self: any[]) =>
+                                self.findIndex(r => r.company?.id === report.company?.id) === index
+                            ).map((report: any) => (
                                 <div key={report.company.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                                         {report.company.name}
@@ -434,7 +436,9 @@ export default function ReportsPage() {
                         </>
                     )}
 
-                    {viewMode === 'by_company' && Array.isArray(reports) && reports.map((report: any) => (
+                    {viewMode === 'by_company' && Array.isArray(reports) && reports.filter((report: any, index: number, self: any[]) =>
+                        self.findIndex(r => r.company?.id === report.company?.id) === index
+                    ).map((report: any) => (
                         <div key={report.company.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">
                                 {report.company.name}
