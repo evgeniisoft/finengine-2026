@@ -1,32 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { api } from '@/lib/api';
 
-/**
- * GET /api/reports/drilldown
- * Получение операций по статье за период
- */
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
+
+async function gasGet(sheet: string): Promise<any[]> {
+  const url = `${GAS_URL}?action=getAll&sheet=${sheet}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const accountId = url.searchParams.get('account_id');
-    const companyId = url.searchParams.get('company_id');
     const periodStart = url.searchParams.get('period_start') || '2026-01-01';
     const periodEnd = url.searchParams.get('period_end') || '2026-12-31';
     
-    const transactions = await api.getAll('Transactions');
-    const accounts = await api.getAll('Accounts');
+    const [transactions, accounts] = await Promise.all([
+      gasGet('Transactions'),
+      gasGet('Accounts')
+    ]);
     
-    // Фильтруем операции
-    const filtered = transactions.filter(t => {
-      if (t.date < periodStart || t.date > periodEnd) return false;
-      if (companyId && t.company_id !== companyId) return false;
-      if (accountId) {
-        return t.debit_account_id === accountId || t.credit_account_id === accountId;
-      }
-      return true;
-    });
+    // Фильтруем по периоду
+    let filtered = transactions.filter(t => 
+      t.date >= periodStart && t.date <= periodEnd
+    );
     
-    // Обогащаем данными
+    // Если указан счёт — фильтруем по нему
+    if (accountId && accountId !== 'gross' && accountId !== 'opex') {
+      filtered = filtered.filter(t => 
+        t.debit_account_id === accountId || t.credit_account_id === accountId
+      );
+    }
+    
+    // Обогащаем названиями счетов
     const enriched = filtered.map(t => {
       const debitAccount = accounts.find(a => a.id === t.debit_account_id);
       const creditAccount = accounts.find(a => a.id === t.credit_account_id);
@@ -41,6 +48,9 @@ export async function GET(request: NextRequest) {
     
   } catch (error) {
     console.error('Ошибка API:', error);
-    return NextResponse.json({ error: 'Внутренняя ошибка' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Внутренняя ошибка: ' + (error as Error).message },
+      { status: 500 }
+    );
   }
 }
