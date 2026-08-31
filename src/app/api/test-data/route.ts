@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
           is_system: false,
           external_id: '',
           source: 'manual',
-          deleted_at: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
@@ -79,7 +78,6 @@ export async function POST(request: NextRequest) {
           is_system: false,
           external_id: '',
           source: 'manual',
-          deleted_at: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
@@ -101,7 +99,6 @@ export async function POST(request: NextRequest) {
           is_system: false,
           external_id: '',
           source: 'manual',
-          deleted_at: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
@@ -123,7 +120,6 @@ export async function POST(request: NextRequest) {
           is_system: false,
           external_id: '',
           source: 'manual',
-          deleted_at: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
@@ -149,7 +145,6 @@ export async function POST(request: NextRequest) {
       is_system: false,
       external_id: '',
       source: 'manual',
-      deleted_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
@@ -172,7 +167,6 @@ export async function POST(request: NextRequest) {
       is_system: false,
       external_id: '',
       source: 'manual',
-      deleted_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
@@ -195,7 +189,6 @@ export async function POST(request: NextRequest) {
       is_system: false,
       external_id: '',
       source: 'manual',
-      deleted_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
@@ -208,7 +201,7 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < transactions.length; i += 20) {
       const chunk = transactions.slice(i, i + 20);
       await gasBatchCreate('Transactions', chunk);
-      console.log(`Загружено ${i + chunk.length} из ${transactions.length}`);
+
     }
 
     return NextResponse.json({
