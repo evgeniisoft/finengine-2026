@@ -356,7 +356,7 @@ export default function ReportsPage() {
                             )}
 
                             {/* По компаниям */}
-                            {viewMode === 'by_company' && Array.isArray(reports) && reports
+                            {viewMode === 'by_company' && Array.isArray(reports) && activeTab !== 'calendar' && activeTab !== 'gaps' && reports
                                 .filter((r: any, i: number, self: any[]) => self.findIndex(x => x.company?.id === r.company?.id) === i)
                                 .map((report: any) => (
                                     <div key={report.company.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -774,6 +774,7 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
 
 function CalendarView({ transactions, viewMode, companies, companyId }: any) {
     const [days, setDays] = useState(30);
+    const [periodType, setPeriodType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
     const filteredTx = companyId
         ? transactions.filter((t: any) => t.company_id === companyId)
@@ -783,45 +784,47 @@ function CalendarView({ transactions, viewMode, companies, companyId }: any) {
         ? companies.find((c: any) => c.id === companyId)?.name || ''
         : 'Консолидированный';
 
-    const today = new Date();
-    const dates = [];
+    // Получаем периоды
+    const periods = getCalendarPeriods(filteredTx, periodType, days);
 
-    for (let i = 0; i < days; i++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-
-        const dayTx = filteredTx.filter((t: any) => t.date?.startsWith(dateStr));
-        const inflow = dayTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
-        const outflow = dayTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
-
-        dates.push({ date: dateStr, inflow, outflow, balance: inflow - outflow });
-    }
-
-    // Горизонтальная таблица
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
             <div className="flex justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
                     {companyName} — Платёжный календарь
                 </h3>
-                <select value={days} onChange={(e) => setDays(parseInt(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option value={7}>7 дней</option>
-                    <option value={14}>14 дней</option>
-                    <option value={30}>30 дней</option>
-                    <option value={90}>90 дней</option>
-                </select>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => setPeriodType('daily')} 
+                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                    >
+                        Дни
+                    </button>
+                    <button 
+                        onClick={() => setPeriodType('weekly')} 
+                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                    >
+                        Недели
+                    </button>
+                    <button 
+                        onClick={() => setPeriodType('monthly')} 
+                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                    >
+                        Месяцы
+                    </button>
+                </div>
             </div>
 
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">Статья</th>
-                            {dates.map(d => (
-                                <th key={d.date} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">
-                                    {formatDay(d.date)}
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">
+                                Статья
+                            </th>
+                            {periods.map((p: any) => (
+                                <th key={p.label} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">
+                                    {p.label}
                                 </th>
                             ))}
                         </tr>
@@ -829,25 +832,25 @@ function CalendarView({ transactions, viewMode, companies, companyId }: any) {
                     <tbody className="divide-y divide-gray-200">
                         <tr>
                             <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Поступления</td>
-                            {dates.map(d => (
-                                <td key={d.date} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">
-                                    {d.inflow > 0 ? '+' + d.inflow.toLocaleString('ru-RU') : ''}
+                            {periods.map((p: any) => (
+                                <td key={p.label} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">
+                                    {p.inflow > 0 ? '+' + p.inflow.toLocaleString('ru-RU') : ''}
                                 </td>
                             ))}
                         </tr>
                         <tr>
                             <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Выбытия</td>
-                            {dates.map(d => (
-                                <td key={d.date} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">
-                                    {d.outflow > 0 ? '-' + d.outflow.toLocaleString('ru-RU') : ''}
+                            {periods.map((p: any) => (
+                                <td key={p.label} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">
+                                    {p.outflow > 0 ? '-' + p.outflow.toLocaleString('ru-RU') : ''}
                                 </td>
                             ))}
                         </tr>
                         <tr>
                             <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-white">Баланс</td>
-                            {dates.map(d => (
-                                <td key={d.date} className={`px-4 py-3 text-sm text-right font-medium whitespace-nowrap ${d.balance < 0 ? 'text-red-600 bg-red-50' : 'text-gray-900'}`}>
-                                    {d.balance.toLocaleString('ru-RU')}
+                            {periods.map((p: any) => (
+                                <td key={p.label} className={`px-4 py-3 text-sm text-right font-medium whitespace-nowrap ${p.balance < 0 ? 'text-red-600 bg-red-50' : 'text-gray-900'}`}>
+                                    {p.balance.toLocaleString('ru-RU')}
                                 </td>
                             ))}
                         </tr>
@@ -860,6 +863,7 @@ function CalendarView({ transactions, viewMode, companies, companyId }: any) {
 
 function CashGapsView({ transactions, viewMode, companies, companyId }: any) {
     const [days, setDays] = useState(30);
+    const [periodType, setPeriodType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
     const filteredTx = companyId
         ? transactions.filter((t: any) => t.company_id === companyId)
@@ -869,78 +873,121 @@ function CashGapsView({ transactions, viewMode, companies, companyId }: any) {
         ? companies.find((c: any) => c.id === companyId)?.name || ''
         : 'Консолидированные';
 
-    const today = new Date();
-    let balance = 0;
-    const gaps = [];
-
-    // Остаток на начало (все операции до сегодня)
-    const pastTx = filteredTx.filter((t: any) => t.date < today.toISOString().split('T')[0]);
-    balance = pastTx.reduce((s: number, t: any) => {
-        if (t.type === 'income') return s + parseFloat(t.amount || 0);
-        if (t.type === 'expense') return s - parseFloat(t.amount || 0);
-        return s;
-    }, 0);
-
-    for (let i = 0; i < days; i++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-
-        const dayTx = filteredTx.filter((t: any) => t.date?.startsWith(dateStr));
-        const inflow = dayTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
-        const outflow = dayTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
-
-        balance += inflow - outflow;
-
-        if (balance < 0) {
-            gaps.push({ date: dateStr, deficit: Math.abs(balance), balance });
-        }
-    }
+    // Получаем периоды
+    const periods = getCalendarPeriods(filteredTx, periodType, days);
+    
+    // Находим периоды с отрицательным балансом
+    const gapPeriods = periods.filter((p: any) => p.balance < 0);
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
             <div className="flex justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
                     {companyName} — Кассовые разрывы
                 </h3>
-                <select value={days} onChange={(e) => setDays(parseInt(e.target.value))}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option value={7}>7 дней</option>
-                    <option value={14}>14 дней</option>
-                    <option value={30}>30 дней</option>
-                    <option value={90}>90 дней</option>
-                </select>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => setPeriodType('daily')} 
+                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                    >
+                        Дни
+                    </button>
+                    <button 
+                        onClick={() => setPeriodType('weekly')} 
+                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                    >
+                        Недели
+                    </button>
+                    <button 
+                        onClick={() => setPeriodType('monthly')} 
+                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                    >
+                        Месяцы
+                    </button>
+                </div>
             </div>
 
-            {gaps.length === 0 ? (
+            {gapPeriods.length === 0 ? (
                 <div className="p-8 text-center">
                     <p className="text-green-600 font-medium">✅ Кассовых разрывов не прогнозируется</p>
                 </div>
             ) : (
                 <>
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-red-700 font-medium">⚠️ Обнаружено {gaps.length} дн. с отрицательным остатком</p>
+                        <p className="text-red-700 font-medium">
+                            ⚠️ Обнаружено {gapPeriods.length} периодов с отрицательным остатком
+                        </p>
                     </div>
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Дата</th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Дефицит</th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Баланс</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {gaps.map(gap => (
-                                <tr key={gap.date} className="bg-red-50">
-                                    <td className="px-4 py-3 text-sm font-medium">{gap.date}</td>
-                                    <td className="px-4 py-3 text-sm text-right text-red-600 font-medium">-{gap.deficit.toLocaleString('ru-RU')}</td>
-                                    <td className="px-4 py-3 text-sm text-right text-red-600 font-medium">{gap.balance.toLocaleString('ru-RU')}</td>
+
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">
+                                        Период
+                                    </th>
+                                    {gapPeriods.map((gap: any) => (
+                                        <th key={gap.label} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">
+                                            {gap.label}
+                                        </th>
+                                    ))}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">
+                                        Остаток
+                                    </td>
+                                    {gapPeriods.map((gap: any) => (
+                                        <td key={gap.label} className="px-4 py-3 text-sm text-right font-medium text-red-600 bg-red-50 whitespace-nowrap">
+                                            {gap.balance.toLocaleString('ru-RU')} ₽
+                                        </td>
+                                    ))}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </>
             )}
         </div>
     );
+}
+function getCalendarPeriods(transactions: any[], periodType: string, count: number): any[] {
+    const today = new Date();
+    const periods: any[] = [];
+    
+    for (let i = 0; i < count; i++) {
+        const date = new Date(today);
+        
+        if (periodType === 'daily') {
+            date.setDate(date.getDate() + i);
+            const dateStr = date.toISOString().split('T')[0];
+            const dayTx = transactions.filter((t: any) => t.date?.startsWith(dateStr));
+            const inflow = dayTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
+            const outflow = dayTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
+            periods.push({ label: formatDay(dateStr), inflow, outflow, balance: inflow - outflow });
+        } else if (periodType === 'weekly') {
+            date.setDate(date.getDate() + i * 7);
+            const weekStart = date.toISOString().split('T')[0];
+            const weekEnd = new Date(date);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            const weekEndStr = weekEnd.toISOString().split('T')[0];
+            const weekTx = transactions.filter((t: any) => {
+                const txDate = t.date?.split('T')[0] || t.date;
+                return txDate >= weekStart && txDate <= weekEndStr;
+            });
+            const inflow = weekTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
+            const outflow = weekTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
+            periods.push({ label: `${i + 1} нед`, inflow, outflow, balance: inflow - outflow });
+        } else if (periodType === 'monthly') {
+            date.setMonth(date.getMonth() + i);
+            const monthStr = date.toISOString().substring(0, 7);
+            const monthTx = transactions.filter((t: any) => t.date?.startsWith(monthStr));
+            const inflow = monthTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
+            const outflow = monthTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
+            periods.push({ label: formatMonth(monthStr), inflow, outflow, balance: inflow - outflow });
+        }
+    }
+    
+    return periods;
 }
