@@ -112,8 +112,8 @@ export default function ReportsPage() {
     // ============================================
     // DRILLDOWN
     // ============================================
-    const loadDrilldown = async (accountId: string) => {
-        if (activeDrilldown === accountId) {
+    const loadDrilldown = async (rowId: string, rowType?: string) => {
+        if (activeDrilldown === rowId) {
             setActiveDrilldown(null);
             setDrilldownData([]);
             return;
@@ -121,9 +121,10 @@ export default function ReportsPage() {
 
         try {
             setDrilldownLoading(true);
-            setActiveDrilldown(accountId);
+            setActiveDrilldown(rowId);
 
-            const url = `/api/reports/drilldown?account_id=${accountId}&period_start=${period.start}&period_end=${period.end}`;
+            // Для вертикальных отчётов используем тип строки (income/expense)
+            const url = `/api/reports/drilldown?type=${rowType || 'all'}&period_start=${period.start}&period_end=${period.end}`;
             const response = await fetch(url);
             const data = await response.json();
 
@@ -443,7 +444,7 @@ function PnlView({ data, expandedRow, setExpandedRow, onDrilldown, drilldownData
                         className="flex justify-between items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
                         onClick={() => {
                             setExpandedRow(expandedRow === row.id ? null : row.id);
-                            if (onDrilldown) onDrilldown(row.id);
+                            if (onDrilldown) onDrilldown(row.id, row.type === 'expense' ? 'expense' : 'income');
                         }}
                     >
                         <span className={`text-sm ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{row.label}</span>
@@ -497,7 +498,7 @@ function CashFlowView({ data, expandedRow, setExpandedRow, onDrilldown, drilldow
                         className="flex justify-between items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
                         onClick={() => {
                             setExpandedRow(expandedRow === row.id ? null : row.id);
-                            if (onDrilldown) onDrilldown(row.id);
+                            if (onDrilldown) onDrilldown(row.id, row.type === 'outflow' ? 'expense' : 'income');
                         }}
                     >
                         <span className={`text-sm ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{row.label}</span>

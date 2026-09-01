@@ -12,31 +12,35 @@ async function gasGet(sheet: string): Promise<any[]> {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const accountId = url.searchParams.get('account_id');
+    const type = url.searchParams.get('type') || 'all';
     const periodStart = url.searchParams.get('period_start') || '2026-01-01';
     const periodEnd = url.searchParams.get('period_end') || '2026-12-31';
+    const companyId = url.searchParams.get('company_id');
     
     const [transactions, accounts] = await Promise.all([
       gasGet('Transactions'),
       gasGet('Accounts')
     ]);
     
-    // Фильтруем по периоду
-    let filtered = transactions.filter(t => 
+    let filtered = transactions.filter((t: any) => 
       t.date >= periodStart && t.date <= periodEnd
     );
     
-    // Если указан счёт — фильтруем по нему
-    if (accountId && accountId !== 'gross' && accountId !== 'opex') {
-      filtered = filtered.filter(t => 
-        t.debit_account_id === accountId || t.credit_account_id === accountId
-      );
+    if (companyId) {
+      filtered = filtered.filter((t: any) => t.company_id === companyId);
+    }
+    
+    // Фильтруем по типу
+    if (type === 'income') {
+      filtered = filtered.filter((t: any) => t.type === 'income');
+    } else if (type === 'expense') {
+      filtered = filtered.filter((t: any) => t.type === 'expense');
     }
     
     // Обогащаем названиями счетов
-    const enriched = filtered.map(t => {
-      const debitAccount = accounts.find(a => a.id === t.debit_account_id);
-      const creditAccount = accounts.find(a => a.id === t.credit_account_id);
+    const enriched = filtered.map((t: any) => {
+      const debitAccount = accounts.find((a: any) => a.id === t.debit_account_id);
+      const creditAccount = accounts.find((a: any) => a.id === t.credit_account_id);
       return {
         ...t,
         debit_account_name: debitAccount?.name || t.debit_account_id,
