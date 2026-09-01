@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { monthlyEngine } from '@/lib/engine/monthly';
-import { api } from '@/lib/api';
+
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
+
+async function gasGet(sheet: string): Promise<any[]> {
+  const url = `${GAS_URL}?action=getAll&sheet=${sheet}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,10 +17,11 @@ export async function GET(request: NextRequest) {
     const periodStart = url.searchParams.get('period_start') || '2026-01-01';
     const periodEnd = url.searchParams.get('period_end') || '2026-12-31';
     const periodType = url.searchParams.get('period_type') || 'monthly';
+    const reportType = url.searchParams.get('report_type') || 'pnl';
     
     const [transactions, accounts] = await Promise.all([
-      api.getAll('Transactions'),
-      api.getAll('Accounts')
+      gasGet('Transactions'),
+      gasGet('Accounts')
     ]);
     
     let data;
@@ -28,9 +37,9 @@ export async function GET(request: NextRequest) {
       );
     } else {
       // Агрегируем по всем компаниям
-      const companies = await api.getAll('Companies');
+      const companies = await gasGet('Companies');
       
-      const allData = companies.flatMap(company =>
+      const allData = companies.flatMap((company: any) =>
         monthlyEngine.getPeriodBreakdown(
           transactions,
           accounts,
@@ -56,10 +65,6 @@ export async function GET(request: NextRequest) {
           existing.cash_out += item.cash_out;
           existing.net_cash_flow += item.net_cash_flow;
           existing.ending_balance += item.ending_balance;
-          // Агрегируем детали
-          for (const accountId in item.details) {
-            existing.details[accountId] = (existing.details[accountId] || 0) + item.details[accountId];
-          }
         }
       }
       
@@ -67,16 +72,16 @@ export async function GET(request: NextRequest) {
         .sort((a, b) => a.period.localeCompare(b.period));
     }
     
-    // Возвращаем вместе со счетами для расшифровки
     return NextResponse.json({
       periods: data,
-      accounts: accounts
+      accounts: accounts,
+      report_type: reportType
     });
     
   } catch (error) {
     console.error('Ошибка API:', error);
     return NextResponse.json(
-      { error: 'Внутренняя ошибка сервера' },
+      { error: 'Внутренняя ошибка: ' + (error as Error).message },
       { status: 500 }
     );
   }
