@@ -266,10 +266,10 @@ export class ImportEngine {
       debit_account_id: debitAccount,
       credit_account_id: creditAccount,
       is_system: false,
-      external_id: data.external_id || '',  // ← ДОБАВЬ
-      source: '1c',                          // ← ДОБАВЬ
-      deleted_at: null,                      // ← ДОБАВЬ
-      created_at: new Date().toISOString(),  // ← ДОБАВЬ
+      external_id: data.external_id || '',  
+      source: '1c',                          
+      deleted_at: null,                      
+      created_at: new Date().toISOString(),  
       updated_at: new Date().toISOString(),
       tenant_id: 'tenant-1',
       record_type: 'fact',
@@ -280,7 +280,7 @@ export class ImportEngine {
       vat_rate: 0,
       vat_amount: 0,
       vat_direction: 'none',
-      destination_account_id: ''   // ← ДОБАВЬ
+      destination_account_id: ''   
     };
   }
 

@@ -137,6 +137,8 @@ export async function POST(request: NextRequest) {
       { id: 'acc-loan-001', code: 'LOAN', name: 'Кредиты', type: 'L', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
       { id: 'acc-equity-001', code: 'EQUITY', name: 'Капитал', type: 'E', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
       { id: 'acc-unclassified', code: 'UNCLASSIFIED', name: 'Требует уточнения', type: 'X', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-vat-incoming', code: 'VAT_IN', name: 'Входящий НДС', type: 'A', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-vat-outgoing', code: 'VAT_OUT', name: 'Исходящий НДС', type: 'L', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
     ];
 
     // ============================================
