@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [balanceData, setBalanceData] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
+  const [taxData, setTaxData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedPanels, setExpandedPanels] = useState<{ [key: string]: boolean }>({});
@@ -54,6 +55,8 @@ export default function Dashboard() {
 
       setCompanies(companiesData);
       setReports(Array.isArray(reportsData) ? reportsData : []);
+      const taxInfo = Array.isArray(reportsData) ? reportsData.map((r: any) => r.tax).filter(Boolean) : [];
+      setTaxData(taxInfo);
       setBalanceData(Array.isArray(balanceResponse) ? balanceResponse : []);
       setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
       setAccounts(Array.isArray(accountsData) ? accountsData : []);
@@ -129,6 +132,11 @@ export default function Dashboard() {
     .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
   const dailyAverage = daysPassed > 0 ? currentMonthRevenue / daysPassed : 0;
   const runRate = dailyAverage * daysInMonth;
+  const totalVat = taxData.reduce((sum, t) => sum + (t.vat_amount || 0), 0);
+  const totalIncomeTax = taxData.reduce((sum, t) => sum + (t.income_tax_amount || 0), 0);
+  const totalInsurance = taxData.reduce((sum, t) => sum + (t.insurance_amount || 0), 0);
+  const totalTax = totalVat + totalIncomeTax + totalInsurance;
+  const effectiveTaxRate = totalRevenue > 0 ? (totalIncomeTax / totalRevenue) * 100 : 0;
 
   // Кассовые разрывы
   const today = new Date();
@@ -363,6 +371,36 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
           <p className="text-xs text-gray-500">Расходы</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{totalExpenses.toLocaleString('ru-RU')} ₽</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer" onClick={() => togglePanel('taxes')}>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">Налоги</p>
+            <span className="text-gray-400 text-xs">{expandedPanels['taxes'] ? '▲' : '▼'}</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{totalTax.toLocaleString('ru-RU')} ₽</p>
+          <p className="text-xs text-gray-400">нагрузка: {effectiveTaxRate.toFixed(1)}%</p>
+
+          {expandedPanels['taxes'] && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              {taxData.map((tax: any) => (
+                <div key={tax.company_id} className="mb-2">
+                  <p className="text-xs font-medium text-gray-900">{tax.company_name}</p>
+                  <div className="flex justify-between text-sm ml-3 py-1">
+                    <span className="text-gray-600">НДС ({Math.round(tax.vat_rate * 100)}%)</span>
+                    <span className="font-medium">{tax.vat_amount.toLocaleString('ru-RU')} ₽</span>
+                  </div>
+                  <div className="flex justify-between text-sm ml-3 py-1">
+                    <span className="text-gray-600">Налог ({Math.round(tax.income_tax_rate * 100)}%)</span>
+                    <span className="font-medium">{tax.income_tax_amount.toLocaleString('ru-RU')} ₽</span>
+                  </div>
+                  <div className="flex justify-between text-sm ml-3 py-1">
+                    <span className="text-gray-600">Взносы ({tax.insurance_rate}%)</span>
+                    <span className="font-medium">{tax.insurance_amount.toLocaleString('ru-RU')} ₽</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

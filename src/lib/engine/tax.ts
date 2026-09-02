@@ -111,13 +111,13 @@ export class TaxEngine {
     }
 
     // Страховые взносы
-    const insurance = this.calculateInsuranceContributions(company);
+    const insurance = this.calculateInsuranceContributions(company, revenue);
     const insuranceAmount = insurance.annual_contributions;
 
     // УСН 6% можно уменьшить на взносы (до 50%)
     let finalIncomeTax = incomeTaxAmount;
-    if (company.tax_system === 'USN_6' && company.has_employees) {
-      const maxReduction = incomeTaxAmount * 0.5;
+    if (company.tax_system === 'USN_6') {
+      const maxReduction = company.is_individual ? incomeTaxAmount : incomeTaxAmount * 0.5;
       finalIncomeTax = Math.max(incomeTaxAmount - Math.min(insuranceAmount, maxReduction), 0);
     }
 
@@ -191,7 +191,7 @@ export class TaxEngine {
   /**
  * Расчёт страховых взносов
  */
-  calculateInsuranceContributions(company: Company): {
+  calculateInsuranceContributions(company: Company, revenue: number = 0): {
     annual_contributions: number;
     monthly_contributions: number;
     rate: number;
@@ -203,8 +203,11 @@ export class TaxEngine {
     let rate = 0;
 
     if (company.is_individual) {
-      // Фиксированные взносы ИП
       contributions = 57390;
+      if (revenue > 300000) {
+        const additional = (revenue - 300000) * 0.01;
+        contributions += Math.min(additional, 321818);
+      }
       rate = 0;
     } else if (company.industry_type === 'it') {
       // IT: 15% до лимита, 7.6% сверх
