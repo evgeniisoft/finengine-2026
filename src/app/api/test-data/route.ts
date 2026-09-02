@@ -557,8 +557,8 @@ export async function POST(request: NextRequest) {
     await gasBatchCreate('Accounts', accounts);
     await gasBatchCreate('Counterparties', counterparties);
 
-    for (let i = 0; i < transactions.length; i += 10) {
-      const chunk = transactions.slice(i, i + 10);
+    for (let i = 0; i < transactions.length; i += 5) {
+      const chunk = transactions.slice(i, i + 5);
       await gasBatchCreate('Transactions', chunk);
     }
 
