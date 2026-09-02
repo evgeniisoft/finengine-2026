@@ -110,7 +110,8 @@ export class TaxEngine {
     // УСН 6% можно уменьшить на взносы (до 50%)
     let finalIncomeTax = incomeTaxAmount;
     if (company.tax_system === 'USN_6') {
-      const maxReduction = company.is_individual ? incomeTaxAmount : incomeTaxAmount * 0.5;
+      const isIndividual = Boolean(company.is_individual);
+      const maxReduction = isIndividual ? incomeTaxAmount : incomeTaxAmount * 0.5;
       finalIncomeTax = Math.max(incomeTaxAmount - Math.min(insuranceAmount, maxReduction), 0);
     }
 
@@ -204,7 +205,7 @@ export class TaxEngine {
     let contributions = 0;
     let rate = 0;
 
-    if (company.is_individual) {
+    if (Boolean(company.is_individual)) {
       contributions = 57390;
       if (revenue > 300000) {
         const additional = (revenue - 300000) * 0.01;
