@@ -276,6 +276,7 @@ export class ImportEngine {
       accrual_date: data.date,
       import_hash: data.import_hash || '',
       source_account_id: '',
+      type: 'expense',
       destination_account_id: ''   // ← ДОБАВЬ
     };
   }

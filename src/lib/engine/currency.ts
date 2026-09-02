@@ -83,6 +83,7 @@ export class CurrencyEngine {
           record_type: 'fact',
           accrual_date: date,
           import_hash: '',
+          type: 'expense',
           source_account_id: difference > 0 ? '' : 'acc-bank-001',
           destination_account_id: difference > 0 ? 'acc-bank-001' : ''           
         };
