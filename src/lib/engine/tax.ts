@@ -21,6 +21,9 @@ export interface TaxCalculation {
   profit_before_tax: number;
   vat_rate: number;
   vat_amount: number;
+  outgoing_vat: number;
+  incoming_vat: number;
+  vat_to_pay: number;
   income_tax_rate: number;
   income_tax_amount: number;
   insurance_rate: number;
@@ -74,11 +77,8 @@ export class TaxEngine {
 
     switch (company.tax_system) {
       case 'USN_6':
-        // НДС: проверяем порог
         vatRate = this.getVatRateForUSN(revenue);
         vatAmount = revenue * vatRate;
-
-        // УСН 6% от доходов (доходы не включают НДС)
         incomeTaxRate = 0.06;
         incomeTaxAmount = revenue * incomeTaxRate;
         break;
@@ -86,12 +86,9 @@ export class TaxEngine {
       case 'USN_15':
         vatRate = this.getVatRateForUSN(revenue);
         vatAmount = revenue * vatRate;
-
         incomeTaxRate = 0.15;
         const taxBase = Math.max(0, revenue - expenses);
         incomeTaxAmount = taxBase * incomeTaxRate;
-
-        // Минимальный налог 1% от доходов
         const minimumTax = revenue * 0.01;
         if (incomeTaxAmount < minimumTax) {
           incomeTaxAmount = minimumTax;
@@ -101,12 +98,8 @@ export class TaxEngine {
       case 'OSNO':
         vatRate = 0.22;
         vatAmount = revenue * vatRate;
-
         incomeTaxRate = 0.25;
         incomeTaxAmount = Math.max(0, profit) * incomeTaxRate;
-        break;
-
-      default:
         break;
     }
 
@@ -122,6 +115,12 @@ export class TaxEngine {
     }
 
     const totalTax = vatAmount + finalIncomeTax + insuranceAmount;
+    // Исходящий и входящий НДС
+    const outgoingVat = revenue * vatRate;
+    const incomingVat = companyTx
+      .filter(t => t.vat_direction === 'incoming')
+      .reduce((sum, t) => sum + parseFloat(String(t.vat_amount || 0)), 0);
+    const vatToPay = Math.max(0, outgoingVat - incomingVat);
     const effectiveRate = revenue > 0 ? (totalTax / revenue) * 100 : 0;
 
     return {
@@ -138,7 +137,10 @@ export class TaxEngine {
       insurance_rate: insurance.rate,
       insurance_amount: insuranceAmount,
       total_tax: Math.round(totalTax * 100) / 100,
-      effective_tax_rate: Math.round((totalTax / revenue) * 10000) / 100
+      effective_tax_rate: Math.round((totalTax / revenue) * 10000) / 100,
+      outgoing_vat: Math.round(outgoingVat * 100) / 100,
+      incoming_vat: Math.round(incomingVat * 100) / 100,
+      vat_to_pay: Math.round(vatToPay * 100) / 100,
     };
   }
 

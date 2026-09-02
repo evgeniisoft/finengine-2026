@@ -74,6 +74,10 @@ export interface Transaction {
   source_account_id: string;
   destination_account_id: string;
   type: 'income' | 'expense' | 'transfer';
+  // Новые поля НДС
+  vat_rate: number;
+  vat_amount: number;
+  vat_direction: 'incoming' | 'outgoing' | 'none';
 }
 
 // Проводка (для двойной записи)
