@@ -561,6 +561,21 @@ export async function POST(request: NextRequest) {
       const chunk = transactions.slice(i, i + 5);
       await gasBatchCreate('Transactions', chunk);
     }
+    // Отдельно загружаем операции ОСНО
+    const osnoTransactions = transactions.filter(t => t.company_id === 'comp-test-4');
+    if (osnoTransactions.length > 0) {
+      for (let i = 0; i < osnoTransactions.length; i += 3) {
+        const chunk = osnoTransactions.slice(i, i + 3);
+        await gasBatchCreate('Transactions', chunk);
+      }
+    }
+
+    // Убираем ОСНО из общей загрузки
+    const nonOsnoTransactions = transactions.filter(t => t.company_id !== 'comp-test-4');
+    for (let i = 0; i < nonOsnoTransactions.length; i += 5) {
+      const chunk = nonOsnoTransactions.slice(i, i + 5);
+      await gasBatchCreate('Transactions', chunk);
+    }
 
     return NextResponse.json({
       success: true,
