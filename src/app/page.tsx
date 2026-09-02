@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedPanels, setExpandedPanels] = useState<{ [key: string]: boolean }>({});
 
   const [period, setPeriod] = useState({
     start: '2026-01-01',
@@ -65,6 +66,12 @@ export default function Dashboard() {
     }
   };
 
+  const togglePanel = (panelId: string) => {
+    setExpandedPanels(prev => ({
+      ...prev,
+      [panelId]: !prev[panelId]
+    }));
+  };
   const applyPeriod = (type: 'month' | 'quarter' | 'year') => {
     const now = new Date();
     const year = now.getFullYear();
@@ -246,19 +253,73 @@ export default function Dashboard() {
 
       {/* Первый ряд KPI */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-          <p className="text-xs text-gray-500">Деньги на счетах</p>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer" onClick={() => togglePanel('cash')}>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">Деньги на счетах</p>
+            <span className="text-gray-400 text-xs">{expandedPanels['cash'] ? '▲' : '▼'}</span>
+          </div>
           <p className="text-2xl font-bold text-gray-900 mt-1">{totalCash.toLocaleString('ru-RU')} ₽</p>
+
+          {expandedPanels['cash'] && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              {accounts.filter(a => a.is_cash_flow === 'true' || a.is_cash_flow === true).map((acc: any) => (
+                <div key={acc.id} className="flex justify-between text-sm py-1">
+                  <span className="text-gray-600">{acc.name}</span>
+                  <span className="font-medium text-gray-900">
+                    {(() => {
+                      const accTx = transactions.filter(t => t.debit_account_id === acc.id || t.credit_account_id === acc.id);
+                      const balance = accTx.reduce((s, t) => {
+                        if (t.debit_account_id === acc.id) return s + parseFloat(t.amount || 0);
+                        if (t.credit_account_id === acc.id) return s - parseFloat(t.amount || 0);
+                        return s;
+                      }, 0);
+                      return balance.toLocaleString('ru-RU') + ' ₽';
+                    })()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-          <p className="text-xs text-gray-500">Выручка</p>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer" onClick={() => togglePanel('revenue')}>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">Выручка</p>
+            <span className="text-gray-400 text-xs">{expandedPanels['revenue'] ? '▲' : '▼'}</span>
+          </div>
           <p className="text-2xl font-bold text-gray-900 mt-1">{totalRevenue.toLocaleString('ru-RU')} ₽</p>
+
+          {expandedPanels['revenue'] && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              {reportsArray.map(report => (
+                <div key={report.company.id} className="flex justify-between text-sm py-1">
+                  <span className="text-gray-600">{report.company.name}</span>
+                  <span className="font-medium text-gray-900">{(report.report?.revenue || 0).toLocaleString('ru-RU')} ₽</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-          <p className="text-xs text-gray-500">Прибыль</p>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer" onClick={() => togglePanel('profit')}>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">Прибыль</p>
+            <span className="text-gray-400 text-xs">{expandedPanels['profit'] ? '▲' : '▼'}</span>
+          </div>
           <p className={`text-2xl font-bold mt-1 ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             {totalProfit.toLocaleString('ru-RU')} ₽
           </p>
+
+          {expandedPanels['profit'] && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              {reportsArray.map(report => (
+                <div key={report.company.id} className="flex justify-between text-sm py-1">
+                  <span className="text-gray-600">{report.company.name}</span>
+                  <span className={`font-medium ${report.report?.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {(report.report?.net_profit || 0).toLocaleString('ru-RU')} ₽
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
           <p className="text-xs text-gray-500">Рентабельность</p>
@@ -334,13 +395,30 @@ export default function Dashboard() {
                 const pct = sumExpensesByCategory > 0 ? (exp.amount / sumExpensesByCategory) * 100 : 0;
                 return (
                   <div key={exp.id}>
-                    <div className="flex justify-between text-sm mb-1">
+                    <div
+                      className="flex justify-between text-sm mb-1 cursor-pointer hover:bg-gray-50 rounded px-1"
+                      onClick={() => togglePanel(`expense_${exp.id}`)}
+                    >
                       <span className="text-gray-600">{exp.name}</span>
                       <span className="font-medium text-gray-900">{exp.amount.toLocaleString('ru-RU')} ₽ ({Math.round(pct)}%)</span>
                     </div>
                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                       <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
                     </div>
+
+                    {expandedPanels[`expense_${exp.id}`] && (
+                      <div className="mt-2 ml-4 space-y-1">
+                        {periodTx
+                          .filter(t => t.debit_account_id === exp.id)
+                          .slice(0, 10)
+                          .map(t => (
+                            <div key={t.id} className="flex justify-between text-xs text-gray-500">
+                              <span>{getDateStr(t.date)} — {t.description}</span>
+                              <span>{parseFloat(t.amount || 0).toLocaleString('ru-RU')} ₽</span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
