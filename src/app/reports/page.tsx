@@ -11,7 +11,7 @@ export default function ReportsPage() {
     const [activeTab, setActiveTab] = useState<'pnl' | 'cashflow' | 'balance' | 'calendar' | 'gaps'>('pnl');
     const [viewMode, setViewMode] = useState<'consolidated' | 'by_company'>('consolidated');
     const [periodType, setPeriodType] = useState<'monthly' | 'weekly' | 'daily' | 'quarterly'>('monthly');
-    const [showMonthly, setShowMonthly] = useState(false);
+    const [showPeriods, setShowPeriods] = useState(false);
 
     const [period, setPeriod] = useState({
         start: '2026-01-01',
@@ -33,22 +33,11 @@ export default function ReportsPage() {
     const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
 
     // ============================================
-    // PERIOD PRESETS
-    // ============================================
-    const periodPresets = [
-        { id: 'current_month', label: 'Текущий месяц' },
-        { id: 'last_month', label: 'Прошлый месяц' },
-        { id: 'current_quarter', label: 'Текущий квартал' },
-        { id: 'current_year', label: 'Текущий год' },
-        { id: 'last_year', label: 'Прошлый год' },
-    ];
-
-    // ============================================
     // EFFECTS
     // ============================================
     useEffect(() => {
         loadData();
-    }, [activeTab, viewMode, showMonthly, periodType]);
+    }, [activeTab, viewMode, showPeriods, periodType]);
 
     // ============================================
     // LOAD DATA
@@ -57,7 +46,6 @@ export default function ReportsPage() {
         try {
             setLoading(true);
 
-            // Загружаем справочники
             const [accountsData, companiesData] = await Promise.all([
                 api.getAll('Accounts'),
                 api.getAll('Companies')
@@ -65,7 +53,6 @@ export default function ReportsPage() {
             setAccounts(accountsData);
             setCompanies(companiesData);
 
-            // Для календаря и кассовых разрывов нужны транзакции
             if (activeTab === 'calendar' || activeTab === 'gaps') {
                 const txData = await api.getAll('Transactions');
                 setTransactions(Array.isArray(txData) ? txData : []);
@@ -73,17 +60,28 @@ export default function ReportsPage() {
                 return;
             }
 
-            // Для "по месяцам" — отдельный запрос
-            if (showMonthly) {
-                const monthlyUrl = `/api/reports/monthly?period_start=${period.start}&period_end=${period.end}&period_type=${periodType}&report_type=${activeTab}`;
-                const monthlyResponse = await fetch(monthlyUrl);
-                const monthlyResult = await monthlyResponse.json();
-                setMonthlyData(Array.isArray(monthlyResult.periods) ? monthlyResult.periods : []);
+            if (showPeriods) {
+                if (viewMode === 'consolidated') {
+                    const monthlyUrl = `/api/reports/monthly?period_start=${period.start}&period_end=${period.end}&period_type=${periodType}&report_type=${activeTab}`;
+                    const monthlyResponse = await fetch(monthlyUrl);
+                    const monthlyResult = await monthlyResponse.json();
+                    setMonthlyData(Array.isArray(monthlyResult.periods) ? monthlyResult.periods : []);
+                } else {
+                    // По компаниям — загружаем для каждой компании
+                    const allMonthly: any[] = [];
+                    for (const company of companiesData) {
+                        const monthlyUrl = `/api/reports/monthly?company_id=${company.id}&period_start=${period.start}&period_end=${period.end}&period_type=${periodType}&report_type=${activeTab}`;
+                        const monthlyResponse = await fetch(monthlyUrl);
+                        const monthlyResult = await monthlyResponse.json();
+                        const periods = Array.isArray(monthlyResult.periods) ? monthlyResult.periods : [];
+                        allMonthly.push({ company, periods });
+                    }
+                    setMonthlyData(allMonthly);
+                }
                 setLoading(false);
                 return;
             }
 
-            // Обычные отчёты
             let url;
             if (viewMode === 'consolidated') {
                 url = `/api/reports?type=consolidated&period_start=${period.start}&period_end=${period.end}`;
@@ -102,7 +100,7 @@ export default function ReportsPage() {
 
         } catch (error) {
             console.error('Ошибка загрузки:', error);
-            setReports(viewMode === 'consolidated' ? null : []);
+            setReports(null);
             setMonthlyData([]);
         } finally {
             setLoading(false);
@@ -112,8 +110,8 @@ export default function ReportsPage() {
     // ============================================
     // DRILLDOWN
     // ============================================
-    const loadDrilldown = async (rowId: string, rowType?: string) => {
-        if (activeDrilldown === rowId) {
+    const loadDrilldown = async (rowId: string, rowType?: string, companyId?: string) => {
+        if (activeDrilldown === rowId && drilldownData.length > 0) {
             setActiveDrilldown(null);
             setDrilldownData([]);
             return;
@@ -123,8 +121,11 @@ export default function ReportsPage() {
             setDrilldownLoading(true);
             setActiveDrilldown(rowId);
 
-            // Передаём ID статьи и тип (income/expense)
-            const url = `/api/reports/drilldown?account_id=${rowId}&type=${rowType || 'all'}&period_start=${period.start}&period_end=${period.end}`;
+            const accountId = rowType && rowType !== 'income' && rowType !== 'expense' && rowType !== 'all' ? rowId : '';
+            const typeParam = rowType || 'all';
+            const companyParam = companyId ? `&company_id=${companyId}` : '';
+
+            const url = `/api/reports/drilldown?account_id=${accountId}&type=${typeParam}&period_start=${period.start}&period_end=${period.end}${companyParam}`;
             const response = await fetch(url);
             const data = await response.json();
 
@@ -137,7 +138,7 @@ export default function ReportsPage() {
     };
 
     // ============================================
-    // PERIOD HANDLERS
+    // PERIOD PRESETS
     // ============================================
     const applyPreset = (presetId: string) => {
         const now = new Date();
@@ -154,18 +155,8 @@ export default function ReportsPage() {
                 break;
             case 'last_month': {
                 const lm = new Date(year, month - 1, 1);
-                const lmYear = lm.getFullYear();
-                const lmMonth = lm.getMonth();
-                start = `${lmYear}-${String(lmMonth + 1).padStart(2, '0')}-01`;
-                end = `${lmYear}-${String(lmMonth + 1).padStart(2, '0')}-${String(new Date(lmYear, lmMonth + 1, 0).getDate()).padStart(2, '0')}`;
-                break;
-            }
-            case 'current_quarter': {
-                const q = Math.floor(month / 3);
-                const qStart = q * 3;
-                const qEnd = qStart + 2;
-                start = `${year}-${String(qStart + 1).padStart(2, '0')}-01`;
-                end = `${year}-${String(qEnd + 1).padStart(2, '0')}-${String(new Date(year, qEnd + 1, 0).getDate()).padStart(2, '0')}`;
+                start = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}-01`;
+                end = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}-${String(new Date(lm.getFullYear(), lm.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
                 break;
             }
             case 'current_year':
@@ -205,58 +196,28 @@ export default function ReportsPage() {
             {/* Панель фильтров */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
                 <div className="flex flex-wrap items-center gap-4">
-                    {/* Пресеты */}
                     <div className="flex gap-2">
-                        {periodPresets.map(preset => (
-                            <button
-                                key={preset.id}
-                                onClick={() => applyPreset(preset.id)}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-                            >
-                                {preset.label}
-                            </button>
-                        ))}
+                        <button onClick={() => applyPreset('current_month')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Текущий месяц</button>
+                        <button onClick={() => applyPreset('last_month')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Прошлый месяц</button>
+                        <button onClick={() => applyPreset('current_year')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Текущий год</button>
+                        <button onClick={() => applyPreset('last_year')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Прошлый год</button>
                     </div>
 
-                    {/* Даты */}
                     <div className="flex items-center gap-2 ml-auto">
-                        <input
-                            type="date"
-                            value={period.start}
-                            onChange={(e) => setPeriod({ ...period, start: e.target.value })}
-                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-                        />
+                        <input type="date" value={period.start} onChange={(e) => setPeriod({ ...period, start: e.target.value })} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
                         <span className="text-gray-400">—</span>
-                        <input
-                            type="date"
-                            value={period.end}
-                            onChange={(e) => setPeriod({ ...period, end: e.target.value })}
-                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-                        />
-                        <button
-                            onClick={loadData}
-                            className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-                        >
-                            Применить
-                        </button>
+                        <input type="date" value={period.end} onChange={(e) => setPeriod({ ...period, end: e.target.value })} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
+                        <button onClick={loadData} className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Применить</button>
                     </div>
                 </div>
             </div>
 
             {/* Переключатель вида */}
             <div className="flex items-center gap-4 mb-4">
-                <button
-                    onClick={() => setViewMode('consolidated')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'consolidated' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                        }`}
-                >
+                <button onClick={() => setViewMode('consolidated')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'consolidated' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}>
                     Консолидированный
                 </button>
-                <button
-                    onClick={() => setViewMode('by_company')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'by_company' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                        }`}
-                >
+                <button onClick={() => setViewMode('by_company')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'by_company' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}>
                     По компаниям
                 </button>
             </div>
@@ -268,27 +229,23 @@ export default function ReportsPage() {
                         key={tab.id}
                         onClick={() => {
                             setActiveTab(tab.id as any);
-                            setShowMonthly(false);
+                            setShowPeriods(false);
                         }}
-                        className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${activeTab === tab.id
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700'
-                            }`}
+                        className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                     >
                         {tab.label}
                     </button>
                 ))}
 
-                {/* Переключатель периода — только для ОПиУ, ДДС, Баланс */}
                 {(activeTab === 'pnl' || activeTab === 'cashflow' || activeTab === 'balance') && (
                     <div className="ml-auto flex gap-2">
                         <button
-                            onClick={() => setShowMonthly(!showMonthly)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium ${showMonthly ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                            onClick={() => setShowPeriods(!showPeriods)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium ${showPeriods ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
                         >
-                            {showMonthly ? 'Скрыть по периодам' : 'По периодам'}
+                            {showPeriods ? 'Скрыть по периодам' : 'По периодам'}
                         </button>
-                        {showMonthly && (
+                        {showPeriods && (
                             <>
                                 {activeTab === 'pnl' && (
                                     <>
@@ -322,27 +279,43 @@ export default function ReportsPage() {
                 </div>
             ) : (
                 <div className="space-y-6">
-                    {/* === ПО МЕСЯЦАМ === */}
-                    {showMonthly && (activeTab === 'pnl' || activeTab === 'cashflow' || activeTab === 'balance') && (
-                        <MonthlyTableView
-                            data={monthlyData}
-                            type={activeTab}
-                            accounts={accounts}
-                            onDrilldown={loadDrilldown}
-                            drilldownData={drilldownData}
-                            drilldownLoading={drilldownLoading}
-                            activeDrilldown={activeDrilldown}
-                        />
+                    {showPeriods && (activeTab === 'pnl' || activeTab === 'cashflow' || activeTab === 'balance') && (
+                        <>
+                            {viewMode === 'consolidated' && (
+                                <MonthlyTableView
+                                    data={monthlyData}
+                                    type={activeTab}
+                                    periodType={periodType}
+                                    accounts={accounts}
+                                    onDrilldown={loadDrilldown}
+                                    drilldownData={drilldownData}
+                                    drilldownLoading={drilldownLoading}
+                                    activeDrilldown={activeDrilldown}
+                                />
+                            )}
+                            {viewMode === 'by_company' && Array.isArray(monthlyData) && monthlyData.map((item: any) => (
+                                <div key={item.company?.id || Math.random()}>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-3">{item.company?.name}</h3>
+                                    <MonthlyTableView
+                                        data={item.periods || []}
+                                        type={activeTab}
+                                        periodType={periodType}
+                                        accounts={accounts}
+                                        onDrilldown={loadDrilldown}
+                                        drilldownData={drilldownData}
+                                        drilldownLoading={drilldownLoading}
+                                        activeDrilldown={activeDrilldown}
+                                    />
+                                </div>
+                            ))}
+                        </>
                     )}
 
-                    {/* === ОБЫЧНЫЕ ОТЧЁТЫ === */}
-                    {!showMonthly && (
+                    {!showPeriods && (
                         <>
-                            {/* Консолидированный */}
                             {viewMode === 'consolidated' && reports && activeTab !== 'calendar' && activeTab !== 'gaps' && (
                                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Холдинг (консолидированный)</h3>
-
                                     {activeTab === 'pnl' && reports.pnl && (
                                         <PnlView data={reports.pnl} expandedRow={expandedRow} setExpandedRow={setExpandedRow} onDrilldown={loadDrilldown} drilldownData={drilldownData} drilldownLoading={drilldownLoading} activeDrilldown={activeDrilldown} />
                                     )}
@@ -355,13 +328,11 @@ export default function ReportsPage() {
                                 </div>
                             )}
 
-                            {/* По компаниям */}
                             {viewMode === 'by_company' && Array.isArray(reports) && activeTab !== 'calendar' && activeTab !== 'gaps' && reports
                                 .filter((r: any, i: number, self: any[]) => self.findIndex(x => x.company?.id === r.company?.id) === i)
                                 .map((report: any) => (
                                     <div key={report.company.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                                         <h3 className="text-lg font-semibold text-gray-900 mb-4">{report.company.name}</h3>
-
                                         {activeTab === 'pnl' && report.report && (
                                             <PnlView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} onDrilldown={loadDrilldown} drilldownData={drilldownData} drilldownLoading={drilldownLoading} activeDrilldown={activeDrilldown} />
                                         )}
@@ -374,44 +345,18 @@ export default function ReportsPage() {
                                     </div>
                                 ))}
 
-                            {/* Календарь */}
                             {activeTab === 'calendar' && viewMode === 'consolidated' && (
-                                <CalendarView
-                                    transactions={transactions}
-                                    viewMode="consolidated"
-                                    companies={companies}
-                                    companyId={null}
-                                />
+                                <CalendarView transactions={transactions} companies={companies} companyId={null} accounts={accounts} />
                             )}
-
                             {activeTab === 'calendar' && viewMode === 'by_company' && companies.map((company: any) => (
-                                <CalendarView
-                                    key={company.id}
-                                    transactions={transactions}
-                                    viewMode="by_company"
-                                    companies={companies}
-                                    companyId={company.id}
-                                />
+                                <CalendarView key={company.id} transactions={transactions} companies={companies} companyId={company.id} accounts={accounts} />
                             ))}
 
-                            {/* Кассовые разрывы */}
                             {activeTab === 'gaps' && viewMode === 'consolidated' && (
-                                <CashGapsView
-                                    transactions={transactions}
-                                    viewMode="consolidated"
-                                    companies={companies}
-                                    companyId={null}
-                                />
+                                <CashGapsView transactions={transactions} companies={companies} companyId={null} />
                             )}
-
                             {activeTab === 'gaps' && viewMode === 'by_company' && companies.map((company: any) => (
-                                <CashGapsView
-                                    key={company.id}
-                                    transactions={transactions}
-                                    viewMode="by_company"
-                                    companies={companies}
-                                    companyId={company.id}
-                                />
+                                <CashGapsView key={company.id} transactions={transactions} companies={companies} companyId={company.id} />
                             ))}
                         </>
                     )}
@@ -422,9 +367,8 @@ export default function ReportsPage() {
 }
 
 // ============================================
-// COMPONENTS
+// PNL VIEW
 // ============================================
-
 function PnlView({ data, expandedRow, setExpandedRow, onDrilldown, drilldownData, drilldownLoading, activeDrilldown }: any) {
     const rows = [
         { id: 'revenue', label: 'Выручка', value: data.revenue, type: 'income' },
@@ -448,29 +392,12 @@ function PnlView({ data, expandedRow, setExpandedRow, onDrilldown, drilldownData
                         }}
                     >
                         <span className={`text-sm ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{row.label}</span>
-                        <span className={`text-sm ${row.bold ? 'font-bold' : 'font-medium'} ${row.green ? 'text-green-600' : row.type === 'expense' ? 'text-red-600' : 'text-gray-900'
-                            }`}>
+                        <span className={`text-sm ${row.bold ? 'font-bold' : 'font-medium'} ${row.green ? 'text-green-600' : row.type === 'expense' ? 'text-red-600' : 'text-gray-900'}`}>
                             {row.value?.toLocaleString('ru-RU') || 0} ₽
                         </span>
                     </div>
-
                     {expandedRow === row.id && (
-                        <div className="ml-6 mt-2 p-3 bg-gray-50 rounded-lg">
-                            {drilldownLoading && activeDrilldown === row.id ? (
-                                <p className="text-sm text-gray-500">Загрузка...</p>
-                            ) : drilldownData.length > 0 ? (
-                                <div className="space-y-2 max-h-60 overflow-auto">
-                                    {drilldownData.slice(0, 20).map((op: any) => (
-                                        <div key={op.id} className="flex justify-between text-sm">
-                                            <span className="text-gray-600">{op.date} — {op.description}</span>
-                                            <span className="font-medium text-gray-900">{parseFloat(op.amount)?.toLocaleString('ru-RU')} {op.currency}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-gray-500">Нет операций по этой статье</p>
-                            )}
-                        </div>
+                        <DrilldownPanel data={drilldownData} loading={drilldownLoading} active={activeDrilldown === row.id} />
                     )}
                 </div>
             ))}
@@ -478,16 +405,19 @@ function PnlView({ data, expandedRow, setExpandedRow, onDrilldown, drilldownData
     );
 }
 
+// ============================================
+// CASH FLOW VIEW
+// ============================================
 function CashFlowView({ data, expandedRow, setExpandedRow, onDrilldown, drilldownData, drilldownLoading, activeDrilldown }: any) {
     const rows = [
-        { id: 'start', label: 'Остаток на начало', value: data.starting_balance },
-        { id: 'op_in', label: 'Поступления (операционные)', value: data.operating_inflow, type: 'inflow' },
-        { id: 'op_out', label: 'Выбытия (операционные)', value: data.operating_outflow, type: 'outflow' },
-        { id: 'inv_in', label: 'Инвестиционные поступления', value: data.investing_inflow, type: 'inflow' },
-        { id: 'inv_out', label: 'Инвестиционные выбытия', value: data.investing_outflow, type: 'outflow' },
-        { id: 'fin_in', label: 'Финансовые поступления', value: data.financing_inflow, type: 'inflow' },
-        { id: 'fin_out', label: 'Финансовые выбытия', value: data.financing_outflow, type: 'outflow' },
-        { id: 'end', label: 'Остаток на конец', value: data.ending_balance, bold: true },
+        { id: 'start', label: 'Остаток на начало', value: data.starting_balance, type: 'start' },
+        { id: 'op_in', label: 'Поступления (операционные)', value: data.operating_inflow, type: 'income' },
+        { id: 'op_out', label: 'Выбытия (операционные)', value: data.operating_outflow, type: 'expense' },
+        { id: 'inv_in', label: 'Инвестиционные поступления', value: data.investing_inflow, type: 'income' },
+        { id: 'inv_out', label: 'Инвестиционные выбытия', value: data.investing_outflow, type: 'expense' },
+        { id: 'fin_in', label: 'Финансовые поступления', value: data.financing_inflow, type: 'income' },
+        { id: 'fin_out', label: 'Финансовые выбытия', value: data.financing_outflow, type: 'expense' },
+        { id: 'end', label: 'Остаток на конец', value: data.ending_balance, type: 'end', bold: true },
     ];
 
     return (
@@ -498,32 +428,37 @@ function CashFlowView({ data, expandedRow, setExpandedRow, onDrilldown, drilldow
                         className="flex justify-between items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
                         onClick={() => {
                             setExpandedRow(expandedRow === row.id ? null : row.id);
-                            if (onDrilldown) onDrilldown(row.id, row.type === 'outflow' ? 'expense' : 'income');
+                            if (onDrilldown) onDrilldown(row.id, row.type === 'expense' ? 'expense' : row.type === 'income' ? 'income' : 'all');
                         }}
                     >
                         <span className={`text-sm ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{row.label}</span>
-                        <span className={`text-sm ${row.bold ? 'font-bold' : 'font-medium'} ${row.type === 'inflow' ? 'text-green-600' : row.type === 'outflow' ? 'text-red-600' : 'text-gray-900'
-                            }`}>
+                        <span className={`text-sm ${row.bold ? 'font-bold' : 'font-medium'} ${row.type === 'income' ? 'text-green-600' : row.type === 'expense' ? 'text-red-600' : 'text-gray-900'}`}>
                             {row.value?.toLocaleString('ru-RU') || 0} ₽
                         </span>
                     </div>
+                    {expandedRow === row.id && (
+                        <DrilldownPanel data={drilldownData} loading={drilldownLoading} active={activeDrilldown === row.id} />
+                    )}
                 </div>
             ))}
         </div>
     );
 }
 
+// ============================================
+// BALANCE VIEW
+// ============================================
 function BalanceView({ data, onDrilldown }: any) {
     const assetRows = [
-        { id: 'acc-bank-001', label: 'Деньги', value: data.assets?.cash, accountId: 'acc-bank-001' },
-        { id: 'acc-ar-001', label: 'Дебиторская задолженность', value: data.assets?.accounts_receivable, accountId: 'acc-ar-001' },
+        { id: 'cash', label: 'Деньги', value: data.assets?.cash, accountId: 'acc-bank-001' },
+        { id: 'ar', label: 'Дебиторская задолженность', value: data.assets?.accounts_receivable, accountId: 'acc-ar-001' },
         { id: 'inventory', label: 'Запасы', value: data.assets?.inventory, accountId: 'inventory' },
-        { id: 'fixed_assets', label: 'Основные средства', value: data.assets?.fixed_assets, accountId: 'fixed_assets' },
+        { id: 'fa', label: 'Основные средства', value: data.assets?.fixed_assets, accountId: 'fixed_assets' },
     ];
 
     const liabilityRows = [
-        { id: 'acc-ap-001', label: 'Кредиторская задолженность', value: data.liabilities?.accounts_payable, accountId: 'acc-ap-001' },
-        { id: 'acc-loan-001', label: 'Кредиты', value: data.liabilities?.loans, accountId: 'acc-loan-001' },
+        { id: 'ap', label: 'Кредиторская задолженность', value: data.liabilities?.accounts_payable, accountId: 'acc-ap-001' },
+        { id: 'loans', label: 'Кредиты', value: data.liabilities?.loans, accountId: 'acc-loan-001' },
     ];
 
     return (
@@ -531,11 +466,8 @@ function BalanceView({ data, onDrilldown }: any) {
             <div>
                 <h4 className="font-medium text-gray-700 mb-2">Активы</h4>
                 {assetRows.map(row => (
-                    <div
-                        key={row.id}
-                        className="flex justify-between px-2 py-1 cursor-pointer hover:bg-gray-50 rounded"
-                        onClick={() => onDrilldown && onDrilldown(row.accountId, 'all')}
-                    >
+                    <div key={row.id} className="flex justify-between px-2 py-1 cursor-pointer hover:bg-gray-50 rounded"
+                        onClick={() => onDrilldown && onDrilldown(row.accountId, 'all')}>
                         <span className="text-sm text-gray-600">{row.label}</span>
                         <span className="text-sm font-medium text-gray-900">{row.value?.toLocaleString('ru-RU') || 0} ₽</span>
                     </div>
@@ -548,11 +480,8 @@ function BalanceView({ data, onDrilldown }: any) {
             <div>
                 <h4 className="font-medium text-gray-700 mb-2">Пассивы</h4>
                 {liabilityRows.map(row => (
-                    <div
-                        key={row.id}
-                        className="flex justify-between px-2 py-1 cursor-pointer hover:bg-gray-50 rounded"
-                        onClick={() => onDrilldown && onDrilldown(row.accountId, 'all')}
-                    >
+                    <div key={row.id} className="flex justify-between px-2 py-1 cursor-pointer hover:bg-gray-50 rounded"
+                        onClick={() => onDrilldown && onDrilldown(row.accountId, 'all')}>
                         <span className="text-sm text-gray-600">{row.label}</span>
                         <span className="text-sm font-medium text-red-600">{row.value?.toLocaleString('ru-RU') || 0} ₽</span>
                     </div>
@@ -578,6 +507,35 @@ function BalanceView({ data, onDrilldown }: any) {
     );
 }
 
+// ============================================
+// DRILLDOWN PANEL
+// ============================================
+function DrilldownPanel({ data, loading, active }: any) {
+    if (!active) return null;
+    
+    return (
+        <div className="ml-6 mt-2 p-3 bg-gray-50 rounded-lg">
+            {loading ? (
+                <p className="text-sm text-gray-500">Загрузка...</p>
+            ) : data && data.length > 0 ? (
+                <div className="space-y-2 max-h-60 overflow-auto">
+                    {data.slice(0, 20).map((op: any) => (
+                        <div key={op.id} className="flex justify-between text-sm">
+                            <span className="text-gray-600">{formatDay(op.date)} — {op.description}</span>
+                            <span className="font-medium text-gray-900">{parseFloat(op.amount)?.toLocaleString('ru-RU')} {op.currency}</span>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-sm text-gray-500">Нет операций по этой статье</p>
+            )}
+        </div>
+    );
+}
+
+// ============================================
+// MONTHLY TABLE VIEW
+// ============================================
 function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drilldownData, drilldownLoading, activeDrilldown }: any) {
     if (!data || data.length === 0) {
         return (
@@ -587,136 +545,66 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
         );
     }
 
-    // Форматируем периоды
     const periods = data.map((d: any) => {
         const raw = d.period || d.month || '';
         if (periodType === 'monthly') return formatMonth(raw);
         if (periodType === 'weekly') return formatWeek(raw);
         if (periodType === 'daily') return formatDay(raw);
+        if (periodType === 'quarterly') return raw;
         return raw;
     });
 
-    // Получаем все статьи из accounts
-    const getRowsForType = () => {
-        const cashAccounts = accounts.filter((a: any) =>
-            a.is_cash_flow === 'true' || a.is_cash_flow === true
-        );
-        const incomeAccounts = accounts.filter((a: any) => a.type === 'I');
-        const expenseAccounts = accounts.filter((a: any) => a.type === 'X');
-        const assetAccounts = accounts.filter((a: any) => a.type === 'A');
-        const liabilityAccounts = accounts.filter((a: any) => a.type === 'L');
-        const equityAccounts = accounts.filter((a: any) => a.type === 'E');
+    const cashAccounts = accounts.filter((a: any) => a.is_cash_flow === 'true' || a.is_cash_flow === true);
+    const incomeAccounts = accounts.filter((a: any) => a.type === 'I');
+    const expenseAccounts = accounts.filter((a: any) => a.type === 'X');
 
+    const getRows = () => {
         switch (type) {
-            case 'pnl':
-                const pnlRows: any[] = [];
-
-                // Все доходные статьи
-                incomeAccounts.forEach((a: any) => {
-                    pnlRows.push({
-                        id: a.id,
-                        label: a.name,
-                        getValue: (d: any) => d.details?.[a.id] || 0,
-                        color: 'text-gray-900',
-                        bold: false
-                    });
-                });
-                pnlRows.push({ id: 'total_revenue', label: 'Итого доходы', getValue: (d: any) => d.revenue || 0, color: 'text-gray-900', bold: true });
-
-                // Все расходные статьи
-                expenseAccounts.forEach((a: any) => {
-                    pnlRows.push({
-                        id: a.id,
-                        label: a.name,
-                        getValue: (d: any) => d.details?.[a.id] || 0,
-                        color: 'text-red-600',
-                        bold: false
-                    });
-                });
-                pnlRows.push({ id: 'total_expenses', label: 'Итого расходы', getValue: (d: any) => d.expenses || 0, color: 'text-red-600', bold: true });
-                pnlRows.push({ id: 'profit', label: 'Прибыль', getValue: (d: any) => d.profit || 0, color: 'text-green-600', bold: true });
-
-                return pnlRows;
-
-            case 'cashflow':
-                const cfRows: any[] = [];
-
-                cfRows.push({ id: 'start', label: 'Остаток на начало', getValue: (d: any) => d.starting_balance || 0, color: 'text-gray-900', bold: false });
-
-                // Операционная деятельность
-                cfRows.push({ id: 'operating_header', label: 'Операционная деятельность', getValue: () => '', color: 'text-gray-900', bold: true });
-
-                // Поступления
-                cfRows.push({ id: 'op_in', label: '  Поступления', getValue: (d: any) => d.cash_in || 0, color: 'text-green-600', bold: false });
-
-                // Выбытия по статьям
-                expenseAccounts.forEach((a: any) => {
-                    if (a.activity_type !== 'financing' && a.activity_type !== 'investing') {
-                        cfRows.push({
-                            id: `out_${a.id}`,
-                            label: `  ${a.name}`,
-                            getValue: (d: any) => d.details?.[a.id] || 0,
-                            color: 'text-red-600',
-                            bold: false
-                        });
-                    }
-                });
-
-                cfRows.push({ id: 'op_out_total', label: '  Итого выбытия', getValue: (d: any) => d.cash_out || 0, color: 'text-red-600', bold: true });
-
-                // Инвестиционная деятельность
-                cfRows.push({ id: 'investing_header', label: 'Инвестиционная деятельность', getValue: () => '', color: 'text-gray-900', bold: true });
-                cfRows.push({ id: 'inv_in', label: '  Поступления', getValue: (d: any) => d.investing_inflow || 0, color: 'text-green-600', bold: false });
-                cfRows.push({ id: 'inv_out', label: '  Выбытия', getValue: (d: any) => d.investing_outflow || 0, color: 'text-red-600', bold: false });
-
-                // Финансовая деятельность
-                cfRows.push({ id: 'financing_header', label: 'Финансовая деятельность', getValue: () => '', color: 'text-gray-900', bold: true });
-                cfRows.push({ id: 'fin_in', label: '  Поступления (Кредиты, Взносы)', getValue: (d: any) => d.financing_inflow || 0, color: 'text-green-600', bold: false });
-                cfRows.push({ id: 'fin_out', label: '  Выбытия (Погашение, Проценты, Дивиденды)', getValue: (d: any) => d.financing_outflow || 0, color: 'text-red-600', bold: false });
-
-                cfRows.push({ id: 'end', label: 'Остаток на конец', getValue: (d: any) => d.ending_balance || 0, color: 'text-gray-900', bold: true });
-
-                return cfRows;
-
-            case 'balance':
-                const balRows: any[] = [];
-
-                // Активы
-                balRows.push({ id: 'assets_header', label: 'АКТИВЫ', getValue: () => '', color: 'text-gray-900', bold: true });
-
-                // Денежные счета
-                cashAccounts.forEach((a: any) => {
-                    balRows.push({
-                        id: a.id,
-                        label: `  ${a.name}`,
-                        getValue: (d: any) => d.details?.[a.id] || 0,
-                        color: 'text-gray-900',
-                        bold: false
-                    });
-                });
-
-                // Дебиторка
-                balRows.push({ id: 'ar', label: 'Дебиторская задолженность', getValue: (d: any) => d.accounts_receivable || 0, color: 'text-gray-900', bold: false });
-                balRows.push({ id: 'total_assets', label: 'Итого активы', getValue: (d: any) => d.total_assets || 0, color: 'text-gray-900', bold: true });
-
-                // Пассивы
-                balRows.push({ id: 'liabilities_header', label: 'ПАССИВЫ', getValue: () => '', color: 'text-gray-900', bold: true });
-                balRows.push({ id: 'ap', label: 'Кредиторская задолженность', getValue: (d: any) => d.accounts_payable || 0, color: 'text-red-600', bold: false });
-                balRows.push({ id: 'loans', label: 'Кредиты', getValue: (d: any) => d.loans || 0, color: 'text-red-600', bold: false });
-                balRows.push({ id: 'total_liabilities', label: 'Итого пассивы', getValue: (d: any) => d.total_liabilities || 0, color: 'text-red-600', bold: true });
-
-                // Капитал
-                balRows.push({ id: 'equity_header', label: 'КАПИТАЛ', getValue: () => '', color: 'text-gray-900', bold: true });
-                balRows.push({ id: 'retained', label: 'Нераспределённая прибыль', getValue: (d: any) => d.retained_earnings || d.equity || 0, color: 'text-green-600', bold: true });
-
-                return balRows;
-
+            case 'pnl': {
+                const rows: any[] = [];
+                incomeAccounts.forEach((a: any) => rows.push({ id: a.id, label: a.name, getValue: (d: any) => d.details?.[a.id] || d.revenue || 0, color: 'text-gray-900', bold: false, rowType: 'income' }));
+                rows.push({ id: 'total_income', label: 'Итого доходы', getValue: (d: any) => d.revenue || 0, color: 'text-gray-900', bold: true, rowType: 'income' });
+                expenseAccounts.forEach((a: any) => rows.push({ id: a.id, label: a.name, getValue: (d: any) => d.details?.[a.id] || d.expenses || 0, color: 'text-red-600', bold: false, rowType: 'expense' }));
+                rows.push({ id: 'total_expense', label: 'Итого расходы', getValue: (d: any) => d.expenses || 0, color: 'text-red-600', bold: true, rowType: 'expense' });
+                rows.push({ id: 'profit', label: 'Прибыль', getValue: (d: any) => d.profit || 0, color: 'text-green-600', bold: true, rowType: 'all' });
+                return rows;
+            }
+            case 'cashflow': {
+                const rows: any[] = [];
+                rows.push({ id: 'start', label: 'Остаток на начало', getValue: (d: any) => d.starting_balance || 0, color: 'text-gray-900', bold: false, rowType: 'all' });
+                rows.push({ id: 'op_header', label: 'Операционная деятельность', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
+                rows.push({ id: 'op_in', label: '  Поступления', getValue: (d: any) => d.cash_in || 0, color: 'text-green-600', bold: false, rowType: 'income' });
+                expenseAccounts.forEach((a: any) => rows.push({ id: `out_${a.id}`, label: `  ${a.name}`, getValue: (d: any) => d.details?.[a.id] || 0, color: 'text-red-600', bold: false, rowType: 'expense' }));
+                rows.push({ id: 'op_out_total', label: '  Итого выбытия', getValue: (d: any) => d.cash_out || 0, color: 'text-red-600', bold: true, rowType: 'expense' });
+                rows.push({ id: 'inv_header', label: 'Инвестиционная деятельность', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
+                rows.push({ id: 'inv_in', label: '  Поступления', getValue: (d: any) => d.investing_inflow || 0, color: 'text-green-600', bold: false, rowType: 'income' });
+                rows.push({ id: 'inv_out', label: '  Выбытия', getValue: (d: any) => d.investing_outflow || 0, color: 'text-red-600', bold: false, rowType: 'expense' });
+                rows.push({ id: 'fin_header', label: 'Финансовая деятельность', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
+                rows.push({ id: 'fin_in', label: '  Поступления', getValue: (d: any) => d.financing_inflow || 0, color: 'text-green-600', bold: false, rowType: 'income' });
+                rows.push({ id: 'fin_out', label: '  Выбытия', getValue: (d: any) => d.financing_outflow || 0, color: 'text-red-600', bold: false, rowType: 'expense' });
+                rows.push({ id: 'end', label: 'Остаток на конец', getValue: (d: any) => d.ending_balance || 0, color: 'text-gray-900', bold: true, rowType: 'all' });
+                return rows;
+            }
+            case 'balance': {
+                const rows: any[] = [];
+                rows.push({ id: 'assets_header', label: 'АКТИВЫ', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
+                cashAccounts.forEach((a: any) => rows.push({ id: a.id, label: `  ${a.name}`, getValue: (d: any) => d.details?.[a.id] || 0, color: 'text-gray-900', bold: false, rowType: 'all' }));
+                rows.push({ id: 'ar', label: 'Дебиторская задолженность', getValue: (d: any) => d.accounts_receivable || 0, color: 'text-gray-900', bold: false, rowType: 'all' });
+                rows.push({ id: 'total_assets', label: 'Итого активы', getValue: (d: any) => d.total_assets || 0, color: 'text-gray-900', bold: true, rowType: 'all' });
+                rows.push({ id: 'liab_header', label: 'ПАССИВЫ', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
+                rows.push({ id: 'ap', label: 'Кредиторская задолженность', getValue: (d: any) => d.accounts_payable || 0, color: 'text-red-600', bold: false, rowType: 'all' });
+                rows.push({ id: 'loans', label: 'Кредиты', getValue: (d: any) => d.loans || 0, color: 'text-red-600', bold: false, rowType: 'all' });
+                rows.push({ id: 'total_liab', label: 'Итого пассивы', getValue: (d: any) => d.total_liabilities || 0, color: 'text-red-600', bold: true, rowType: 'all' });
+                rows.push({ id: 'equity_header', label: 'КАПИТАЛ', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
+                rows.push({ id: 'equity', label: 'Нераспределённая прибыль', getValue: (d: any) => d.equity || 0, color: 'text-green-600', bold: true, rowType: 'all' });
+                return rows;
+            }
             default:
                 return [];
         }
     };
 
-    const rows = getRowsForType();
+    const rows = getRows();
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -724,26 +612,16 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50 z-10">
-                                Статья
-                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50 z-10">Статья</th>
                             {periods.map((p: string, idx: number) => (
-                                <th key={idx} className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">
-                                    {p}
-                                </th>
+                                <th key={idx} className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{p}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                         {rows.map((row: any, rowIdx: number) => (
-                            <tr
-                                key={rowIdx}
-                                className="hover:bg-gray-50 cursor-pointer transition-colors"
-                                onClick={() => onDrilldown && onDrilldown(row.id)}
-                            >
-                                <td className={`px-4 py-3 text-sm sticky left-0 bg-white z-10 ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
-                                    {row.label}
-                                </td>
+                            <tr key={rowIdx} className="hover:bg-gray-50 cursor-pointer" onClick={() => onDrilldown && row.rowType && onDrilldown(row.id, row.rowType)}>
+                                <td className={`px-4 py-3 text-sm sticky left-0 bg-white z-10 ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{row.label}</td>
                                 {data.map((d: any, dataIdx: number) => (
                                     <td key={dataIdx} className={`px-6 py-3 text-sm text-right whitespace-nowrap ${row.bold ? 'font-bold' : 'font-medium'} ${row.color}`}>
                                         {row.getValue(d)?.toLocaleString('ru-RU') || 0} ₽
@@ -754,86 +632,44 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                     </tbody>
                 </table>
             </div>
-
             {activeDrilldown && (
                 <div className="p-4 bg-gray-50 border-t">
-                    <h4 className="font-medium text-gray-900 mb-2">Детализация</h4>
-                    {drilldownLoading ? (
-                        <p className="text-sm text-gray-500">Загрузка...</p>
-                    ) : drilldownData.length > 0 ? (
-                        <div className="space-y-1 max-h-60 overflow-auto">
-                            {drilldownData.slice(0, 20).map((op: any) => (
-                                <div key={op.id} className="flex justify-between text-sm">
-                                    <span className="text-gray-600">{formatDay(op.date)} — {op.description}</span>
-                                    <span className="font-medium">{parseFloat(op.amount)?.toLocaleString('ru-RU')} ₽</span>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-gray-500">Нет операций</p>
-                    )}
+                    <DrilldownPanel data={drilldownData} loading={drilldownLoading} active={true} />
                 </div>
             )}
         </div>
     );
 }
 
-
-
-function CalendarView({ transactions, viewMode, companies, companyId }: any) {
+// ============================================
+// CALENDAR VIEW
+// ============================================
+function CalendarView({ transactions, companies, companyId, accounts }: any) {
     const [days, setDays] = useState(30);
     const [periodType, setPeriodType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
-    const filteredTx = companyId
-        ? transactions.filter((t: any) => t.company_id === companyId)
-        : transactions;
+    const filteredTx = companyId ? transactions.filter((t: any) => t.company_id === companyId) : transactions;
+    const companyName = companyId ? companies.find((c: any) => c.id === companyId)?.name || '' : 'Консолидированный';
 
-    const companyName = companyId
-        ? companies.find((c: any) => c.id === companyId)?.name || ''
-        : 'Консолидированный';
-
-    // Получаем периоды
     const periods = getCalendarPeriods(filteredTx, periodType, days);
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
             <div className="flex justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                    {companyName} — Платёжный календарь
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-900">{companyName} — Платёжный календарь</h3>
                 <div className="flex gap-2">
-                    <button
-                        onClick={() => setPeriodType('daily')}
-                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-                    >
-                        Дни
-                    </button>
-                    <button
-                        onClick={() => setPeriodType('weekly')}
-                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-                    >
-                        Недели
-                    </button>
-                    <button
-                        onClick={() => setPeriodType('monthly')}
-                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-                    >
-                        Месяцы
-                    </button>
+                    <button onClick={() => setPeriodType('daily')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Дни</button>
+                    <button onClick={() => setPeriodType('weekly')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Недели</button>
+                    <button onClick={() => setPeriodType('monthly')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Месяцы</button>
                 </div>
             </div>
-
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">
-                                Статья
-                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">Статья</th>
                             {periods.map((p: any) => (
-                                <th key={p.label} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">
-                                    {p.label}
-                                </th>
+                                <th key={p.label} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{p.label}</th>
                             ))}
                         </tr>
                     </thead>
@@ -841,25 +677,19 @@ function CalendarView({ transactions, viewMode, companies, companyId }: any) {
                         <tr>
                             <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Поступления</td>
                             {periods.map((p: any) => (
-                                <td key={p.label} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">
-                                    {p.inflow > 0 ? '+' + p.inflow.toLocaleString('ru-RU') : ''}
-                                </td>
+                                <td key={p.label} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">{p.inflow > 0 ? '+' + p.inflow.toLocaleString('ru-RU') : ''}</td>
                             ))}
                         </tr>
                         <tr>
                             <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Выбытия</td>
                             {periods.map((p: any) => (
-                                <td key={p.label} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">
-                                    {p.outflow > 0 ? '-' + p.outflow.toLocaleString('ru-RU') : ''}
-                                </td>
+                                <td key={p.label} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">{p.outflow > 0 ? '-' + p.outflow.toLocaleString('ru-RU') : ''}</td>
                             ))}
                         </tr>
                         <tr>
                             <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-white">Баланс</td>
                             {periods.map((p: any) => (
-                                <td key={p.label} className={`px-4 py-3 text-sm text-right font-medium whitespace-nowrap ${p.balance < 0 ? 'text-red-600 bg-red-50' : 'text-gray-900'}`}>
-                                    {p.balance.toLocaleString('ru-RU')}
-                                </td>
+                                <td key={p.label} className={`px-4 py-3 text-sm text-right font-medium whitespace-nowrap ${p.balance < 0 ? 'text-red-600 bg-red-50' : 'text-gray-900'}`}>{p.balance.toLocaleString('ru-RU')}</td>
                             ))}
                         </tr>
                     </tbody>
@@ -869,49 +699,27 @@ function CalendarView({ transactions, viewMode, companies, companyId }: any) {
     );
 }
 
-function CashGapsView({ transactions, viewMode, companies, companyId }: any) {
+// ============================================
+// CASH GAPS VIEW
+// ============================================
+function CashGapsView({ transactions, companies, companyId }: any) {
     const [days, setDays] = useState(30);
     const [periodType, setPeriodType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
-    const filteredTx = companyId
-        ? transactions.filter((t: any) => t.company_id === companyId)
-        : transactions;
+    const filteredTx = companyId ? transactions.filter((t: any) => t.company_id === companyId) : transactions;
+    const companyName = companyId ? companies.find((c: any) => c.id === companyId)?.name || '' : 'Консолидированные';
 
-    const companyName = companyId
-        ? companies.find((c: any) => c.id === companyId)?.name || ''
-        : 'Консолидированные';
-
-    // Получаем периоды
     const periods = getCalendarPeriods(filteredTx, periodType, days);
-
-    // Находим периоды с отрицательным балансом
     const gapPeriods = periods.filter((p: any) => p.balance < 0);
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
             <div className="flex justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                    {companyName} — Кассовые разрывы
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-900">{companyName} — Кассовые разрывы</h3>
                 <div className="flex gap-2">
-                    <button
-                        onClick={() => setPeriodType('daily')}
-                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-                    >
-                        Дни
-                    </button>
-                    <button
-                        onClick={() => setPeriodType('weekly')}
-                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-                    >
-                        Недели
-                    </button>
-                    <button
-                        onClick={() => setPeriodType('monthly')}
-                        className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-                    >
-                        Месяцы
-                    </button>
+                    <button onClick={() => setPeriodType('daily')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Дни</button>
+                    <button onClick={() => setPeriodType('weekly')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Недели</button>
+                    <button onClick={() => setPeriodType('monthly')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Месяцы</button>
                 </div>
             </div>
 
@@ -922,34 +730,23 @@ function CashGapsView({ transactions, viewMode, companies, companyId }: any) {
             ) : (
                 <>
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-red-700 font-medium">
-                            ⚠️ Обнаружено {gapPeriods.length} периодов с отрицательным остатком
-                        </p>
+                        <p className="text-red-700 font-medium">⚠️ Обнаружено {gapPeriods.length} периодов с отрицательным остатком</p>
                     </div>
-
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">
-                                        Период
-                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">Период</th>
                                     {gapPeriods.map((gap: any) => (
-                                        <th key={gap.label} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">
-                                            {gap.label}
-                                        </th>
+                                        <th key={gap.label} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{gap.label}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">
-                                        Остаток
-                                    </td>
+                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Остаток</td>
                                     {gapPeriods.map((gap: any) => (
-                                        <td key={gap.label} className="px-4 py-3 text-sm text-right font-medium text-red-600 bg-red-50 whitespace-nowrap">
-                                            {gap.balance.toLocaleString('ru-RU')} ₽
-                                        </td>
+                                        <td key={gap.label} className="px-4 py-3 text-sm text-right font-medium text-red-600 bg-red-50 whitespace-nowrap">{gap.balance.toLocaleString('ru-RU')} ₽</td>
                                     ))}
                                 </tr>
                             </tbody>
@@ -960,13 +757,17 @@ function CashGapsView({ transactions, viewMode, companies, companyId }: any) {
         </div>
     );
 }
+
+// ============================================
+// GET CALENDAR PERIODS
+// ============================================
 function getCalendarPeriods(transactions: any[], periodType: string, count: number): any[] {
     const today = new Date();
     const periods: any[] = [];
-
+    
     for (let i = 0; i < count; i++) {
         const date = new Date(today);
-
+        
         if (periodType === 'daily') {
             date.setDate(date.getDate() + i);
             const dateStr = date.toISOString().split('T')[0];
@@ -996,6 +797,6 @@ function getCalendarPeriods(transactions: any[], periodType: string, count: numb
             periods.push({ label: formatMonth(monthStr), inflow, outflow, balance: inflow - outflow });
         }
     }
-
+    
     return periods;
 }
