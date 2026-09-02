@@ -99,11 +99,11 @@ export default function Dashboard() {
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysPassed = now.getDate();
   const periodTx = transactions.filter(t => {
-    const txDate = t.date?.split('T')[0] || t.date;
+    const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
     return txDate >= period.start && txDate <= period.end;
   });
   const currentMonthTx = transactions.filter(t => {
-    const txDate = t.date?.split('T')[0] || t.date;
+    const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
     return txDate.startsWith(now.toISOString().substring(0, 7));
   });
   const currentMonthRevenue = currentMonthTx
@@ -122,7 +122,7 @@ export default function Dashboard() {
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0];
     
-    const dayTx = transactions.filter(t => t.date?.startsWith?.(dateStr));
+    const dayTx = transactions.filter(t => (typeof t.date === 'string' ? t.date : String(t.date || '')).startsWith(dateStr));
     const inflow = dayTx.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
     const outflow = dayTx.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
     
