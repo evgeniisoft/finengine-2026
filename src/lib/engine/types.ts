@@ -19,6 +19,12 @@ export interface Company {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+  // Новые поля
+  has_employees: boolean;
+  employee_count: number;
+  monthly_payroll: number;
+  industry_type: 'general' | 'msp_priority' | 'it';
+  is_individual: boolean;
 }
 
 // Счёт / Статья
