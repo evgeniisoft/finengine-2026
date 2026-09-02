@@ -12,7 +12,8 @@ async function gasGet(sheet: string): Promise<any[]> {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const type = url.searchParams.get('type') || 'all';
+    const accountId = url.searchParams.get('account_id');
+    const rowType = url.searchParams.get('type');
     const periodStart = url.searchParams.get('period_start') || '2026-01-01';
     const periodEnd = url.searchParams.get('period_end') || '2026-12-31';
     const companyId = url.searchParams.get('company_id');
@@ -22,22 +23,34 @@ export async function GET(request: NextRequest) {
       gasGet('Accounts')
     ]);
     
-    let filtered = transactions.filter((t: any) => 
-      t.date >= periodStart && t.date <= periodEnd
-    );
+    let filtered = transactions.filter((t: any) => {
+      const txDate = t.date?.split('T')[0] || t.date;
+      return txDate >= periodStart && txDate <= periodEnd;
+    });
     
     if (companyId) {
       filtered = filtered.filter((t: any) => t.company_id === companyId);
     }
     
-    // Фильтруем по типу
-    if (type === 'income') {
+    // Фильтрация по статье (счёту)
+    if (accountId && accountId !== 'revenue' && accountId !== 'cogs' && accountId !== 'gross' && 
+        accountId !== 'opex' && accountId !== 'depreciation' && accountId !== 'taxes' && accountId !== 'net' &&
+        accountId !== 'start' && accountId !== 'op_in' && accountId !== 'op_out' && 
+        accountId !== 'inv_in' && accountId !== 'inv_out' && accountId !== 'fin_in' && 
+        accountId !== 'fin_out' && accountId !== 'end') {
+      filtered = filtered.filter((t: any) => 
+        t.debit_account_id === accountId || t.credit_account_id === accountId
+      );
+    }
+    
+    // Фильтрация по типу (доход/расход)
+    if (rowType === 'income') {
       filtered = filtered.filter((t: any) => t.type === 'income');
-    } else if (type === 'expense') {
+    } else if (rowType === 'expense') {
       filtered = filtered.filter((t: any) => t.type === 'expense');
     }
     
-    // Обогащаем названиями счетов
+    // Обогащаем
     const enriched = filtered.map((t: any) => {
       const debitAccount = accounts.find((a: any) => a.id === t.debit_account_id);
       const creditAccount = accounts.find((a: any) => a.id === t.credit_account_id);

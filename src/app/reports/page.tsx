@@ -123,8 +123,8 @@ export default function ReportsPage() {
             setDrilldownLoading(true);
             setActiveDrilldown(rowId);
 
-            // Для вертикальных отчётов используем тип строки (income/expense)
-            const url = `/api/reports/drilldown?type=${rowType || 'all'}&period_start=${period.start}&period_end=${period.end}`;
+            // Передаём ID статьи и тип (income/expense)
+            const url = `/api/reports/drilldown?account_id=${rowId}&type=${rowType || 'all'}&period_start=${period.start}&period_end=${period.end}`;
             const response = await fetch(url);
             const data = await response.json();
 
@@ -350,7 +350,7 @@ export default function ReportsPage() {
                                         <CashFlowView data={reports.cashFlow} expandedRow={expandedRow} setExpandedRow={setExpandedRow} onDrilldown={loadDrilldown} drilldownData={drilldownData} drilldownLoading={drilldownLoading} activeDrilldown={activeDrilldown} />
                                     )}
                                     {activeTab === 'balance' && reports.balance && (
-                                        <BalanceView data={reports.balance} />
+                                        <BalanceView data={reports.balance} onDrilldown={loadDrilldown} />
                                     )}
                                 </div>
                             )}
@@ -369,7 +369,7 @@ export default function ReportsPage() {
                                             <CashFlowView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} onDrilldown={loadDrilldown} drilldownData={drilldownData} drilldownLoading={drilldownLoading} activeDrilldown={activeDrilldown} />
                                         )}
                                         {activeTab === 'balance' && report.report && (
-                                            <BalanceView data={report.report} />
+                                            <BalanceView data={report.report} onDrilldown={loadDrilldown} />
                                         )}
                                     </div>
                                 ))}
@@ -513,17 +513,17 @@ function CashFlowView({ data, expandedRow, setExpandedRow, onDrilldown, drilldow
     );
 }
 
-function BalanceView({ data }: any) {
+function BalanceView({ data, onDrilldown }: any) {
     const assetRows = [
-        { id: 'cash', label: 'Деньги', value: data.assets?.cash },
-        { id: 'ar', label: 'Дебиторская задолженность', value: data.assets?.accounts_receivable },
-        { id: 'inventory', label: 'Запасы', value: data.assets?.inventory },
-        { id: 'fa', label: 'Основные средства', value: data.assets?.fixed_assets },
+        { id: 'acc-bank-001', label: 'Деньги', value: data.assets?.cash, accountId: 'acc-bank-001' },
+        { id: 'acc-ar-001', label: 'Дебиторская задолженность', value: data.assets?.accounts_receivable, accountId: 'acc-ar-001' },
+        { id: 'inventory', label: 'Запасы', value: data.assets?.inventory, accountId: 'inventory' },
+        { id: 'fixed_assets', label: 'Основные средства', value: data.assets?.fixed_assets, accountId: 'fixed_assets' },
     ];
 
     const liabilityRows = [
-        { id: 'ap', label: 'Кредиторская задолженность', value: data.liabilities?.accounts_payable },
-        { id: 'loans', label: 'Кредиты', value: data.liabilities?.loans },
+        { id: 'acc-ap-001', label: 'Кредиторская задолженность', value: data.liabilities?.accounts_payable, accountId: 'acc-ap-001' },
+        { id: 'acc-loan-001', label: 'Кредиты', value: data.liabilities?.loans, accountId: 'acc-loan-001' },
     ];
 
     return (
@@ -531,7 +531,11 @@ function BalanceView({ data }: any) {
             <div>
                 <h4 className="font-medium text-gray-700 mb-2">Активы</h4>
                 {assetRows.map(row => (
-                    <div key={row.id} className="flex justify-between px-2 py-1">
+                    <div
+                        key={row.id}
+                        className="flex justify-between px-2 py-1 cursor-pointer hover:bg-gray-50 rounded"
+                        onClick={() => onDrilldown && onDrilldown(row.accountId, 'all')}
+                    >
                         <span className="text-sm text-gray-600">{row.label}</span>
                         <span className="text-sm font-medium text-gray-900">{row.value?.toLocaleString('ru-RU') || 0} ₽</span>
                     </div>
@@ -544,7 +548,11 @@ function BalanceView({ data }: any) {
             <div>
                 <h4 className="font-medium text-gray-700 mb-2">Пассивы</h4>
                 {liabilityRows.map(row => (
-                    <div key={row.id} className="flex justify-between px-2 py-1">
+                    <div
+                        key={row.id}
+                        className="flex justify-between px-2 py-1 cursor-pointer hover:bg-gray-50 rounded"
+                        onClick={() => onDrilldown && onDrilldown(row.accountId, 'all')}
+                    >
                         <span className="text-sm text-gray-600">{row.label}</span>
                         <span className="text-sm font-medium text-red-600">{row.value?.toLocaleString('ru-RU') || 0} ₽</span>
                     </div>
@@ -794,20 +802,20 @@ function CalendarView({ transactions, viewMode, companies, companyId }: any) {
                     {companyName} — Платёжный календарь
                 </h3>
                 <div className="flex gap-2">
-                    <button 
-                        onClick={() => setPeriodType('daily')} 
+                    <button
+                        onClick={() => setPeriodType('daily')}
                         className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
                     >
                         Дни
                     </button>
-                    <button 
-                        onClick={() => setPeriodType('weekly')} 
+                    <button
+                        onClick={() => setPeriodType('weekly')}
                         className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
                     >
                         Недели
                     </button>
-                    <button 
-                        onClick={() => setPeriodType('monthly')} 
+                    <button
+                        onClick={() => setPeriodType('monthly')}
                         className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
                     >
                         Месяцы
@@ -875,7 +883,7 @@ function CashGapsView({ transactions, viewMode, companies, companyId }: any) {
 
     // Получаем периоды
     const periods = getCalendarPeriods(filteredTx, periodType, days);
-    
+
     // Находим периоды с отрицательным балансом
     const gapPeriods = periods.filter((p: any) => p.balance < 0);
 
@@ -886,20 +894,20 @@ function CashGapsView({ transactions, viewMode, companies, companyId }: any) {
                     {companyName} — Кассовые разрывы
                 </h3>
                 <div className="flex gap-2">
-                    <button 
-                        onClick={() => setPeriodType('daily')} 
+                    <button
+                        onClick={() => setPeriodType('daily')}
                         className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
                     >
                         Дни
                     </button>
-                    <button 
-                        onClick={() => setPeriodType('weekly')} 
+                    <button
+                        onClick={() => setPeriodType('weekly')}
                         className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
                     >
                         Недели
                     </button>
-                    <button 
-                        onClick={() => setPeriodType('monthly')} 
+                    <button
+                        onClick={() => setPeriodType('monthly')}
                         className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
                     >
                         Месяцы
@@ -955,10 +963,10 @@ function CashGapsView({ transactions, viewMode, companies, companyId }: any) {
 function getCalendarPeriods(transactions: any[], periodType: string, count: number): any[] {
     const today = new Date();
     const periods: any[] = [];
-    
+
     for (let i = 0; i < count; i++) {
         const date = new Date(today);
-        
+
         if (periodType === 'daily') {
             date.setDate(date.getDate() + i);
             const dateStr = date.toISOString().split('T')[0];
@@ -988,6 +996,6 @@ function getCalendarPeriods(transactions: any[], periodType: string, count: numb
             periods.push({ label: formatMonth(monthStr), inflow, outflow, balance: inflow - outflow });
         }
     }
-    
+
     return periods;
 }
