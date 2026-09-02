@@ -28,6 +28,8 @@ export interface TaxCalculation {
   income_tax_amount: number;
   insurance_rate: number;
   insurance_amount: number;
+  ndfl_amount: number;
+  total_payroll_cost: number;
   total_tax: number;
   effective_tax_rate: number;
 }
@@ -106,6 +108,8 @@ export class TaxEngine {
     // Страховые взносы
     const insurance = this.calculateInsuranceContributions(company, revenue);
     const insuranceAmount = insurance.annual_contributions;
+    const ndflAmount = insurance.ndfl_annual || 0;
+    const totalPayrollCost = insurance.total_payroll_cost || 0;
 
     // УСН 6% можно уменьшить на взносы (до 50%)
     let finalIncomeTax = incomeTaxAmount;
@@ -137,6 +141,8 @@ export class TaxEngine {
       income_tax_amount: Math.round(finalIncomeTax * 100) / 100,
       insurance_rate: insurance.rate,
       insurance_amount: insuranceAmount,
+      ndfl_amount: ndflAmount,
+      total_payroll_cost: totalPayrollCost,
       total_tax: Math.round(totalTax * 100) / 100,
       effective_tax_rate: Math.round((totalTax / revenue) * 10000) / 100,
       outgoing_vat: Math.round(outgoingVat * 100) / 100,
@@ -198,6 +204,9 @@ export class TaxEngine {
     annual_contributions: number;
     monthly_contributions: number;
     rate: number;
+    ndfl_annual: number;
+    ndfl_monthly: number;
+    total_payroll_cost: number;
   } {
     const payroll = company.monthly_payroll || 0;
     const annualPayroll = payroll * 12;
@@ -243,10 +252,22 @@ export class TaxEngine {
       }
     }
 
+    // НДФЛ: 13% до 5 млн, 15% свыше
+    const ndflLimit = 5000000;
+    let ndfl = 0;
+    if (annualPayroll <= ndflLimit) {
+      ndfl = annualPayroll * 0.13;
+    } else {
+      ndfl = ndflLimit * 0.13 + (annualPayroll - ndflLimit) * 0.15;
+    }
+
     return {
       annual_contributions: Math.round(contributions * 100) / 100,
       monthly_contributions: Math.round((contributions / 12) * 100) / 100,
-      rate
+      rate,
+      ndfl_annual: Math.round(ndfl * 100) / 100,
+      ndfl_monthly: Math.round((ndfl / 12) * 100) / 100,
+      total_payroll_cost: Math.round((annualPayroll + contributions + ndfl) * 100) / 100
     };
   }
 }
