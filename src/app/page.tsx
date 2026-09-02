@@ -426,6 +426,10 @@ export default function Dashboard() {
                     <span className="text-gray-600">Взносы ({tax.insurance_rate}%)</span>
                     <span className="font-medium">{tax.insurance_amount.toLocaleString('ru-RU')} ₽</span>
                   </div>
+                  <div className="flex justify-between text-sm ml-3 py-1">
+                    <span className="text-gray-600">НДФЛ</span>
+                    <span className="font-medium">{tax.ndfl_amount.toLocaleString('ru-RU')} ₽</span>
+                  </div>
                 </div>
               ))}
               <div className="mt-3 pt-3 border-t border-gray-200">
