@@ -389,8 +389,10 @@ export default function Dashboard() {
             <p className="text-xs text-gray-500">Налоги</p>
             <span className="text-gray-400 text-xs">{expandedPanels['taxes'] ? '▲' : '▼'}</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{totalTax.toLocaleString('ru-RU')} ₽</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{totalIncomeTax.toLocaleString('ru-RU')} ₽</p>
           <p className="text-xs text-gray-400">нагрузка: {effectiveTaxRate.toFixed(1)}%</p>
+          <p className="text-xs text-gray-400 mt-1">Взносы: {totalInsurance.toLocaleString('ru-RU')} ₽</p>
+          <p className="text-xs text-gray-400">НДС: {totalVat.toLocaleString('ru-RU')} ₽</p>
 
           {expandedPanels['taxes'] && (
             <div className="mt-3 pt-3 border-t border-gray-100">
@@ -426,6 +428,24 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))}
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <div className="flex justify-between text-sm py-1">
+                  <span className="text-gray-600 font-medium">Налоги (прямые):</span>
+                  <span className="font-bold text-gray-900">{totalIncomeTax.toLocaleString('ru-RU')} ₽ ({effectiveTaxRate.toFixed(1)}%)</span>
+                </div>
+                <div className="flex justify-between text-sm py-1">
+                  <span className="text-gray-600 font-medium">Взносы:</span>
+                  <span className="font-bold text-gray-900">{totalInsurance.toLocaleString('ru-RU')} ₽</span>
+                </div>
+                <div className="flex justify-between text-sm py-1">
+                  <span className="text-gray-600 font-medium">НДС:</span>
+                  <span className="font-bold text-gray-900">{totalVat.toLocaleString('ru-RU')} ₽</span>
+                </div>
+                <div className="flex justify-between text-sm py-1 border-t border-gray-200 mt-1">
+                  <span className="text-gray-900 font-semibold">Итого:</span>
+                  <span className="font-bold text-gray-900">{(totalIncomeTax + totalInsurance + totalVat).toLocaleString('ru-RU')} ₽</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
