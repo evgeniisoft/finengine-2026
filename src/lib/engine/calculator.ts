@@ -63,12 +63,12 @@ export class FinancialCalculator {
   ): CashFlowReport {
 
     // Фильтруем операции по компании и периоду
-    const filtered = transactions.filter(t =>
-      t.company_id === companyId &&
-      t.date >= periodStart &&
-      t.date <= periodEnd
-    );
-
+    const filtered = transactions.filter(t => {
+      const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+      return t.company_id === companyId &&
+        txDate >= periodStart &&
+        txDate <= periodEnd;
+    });
     // Начальный остаток (операции до periodStart)
     const beforePeriod = transactions.filter(t =>
       t.company_id === companyId && t.date < periodStart
@@ -143,12 +143,12 @@ export class FinancialCalculator {
     periodEnd: string
   ): PnLReport {
 
-    const filtered = transactions.filter(t =>
-      t.company_id === companyId &&
-      t.date >= periodStart &&
-      t.date <= periodEnd
-    );
-
+    const filtered = transactions.filter(t => {
+      const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+      return t.company_id === companyId &&
+        txDate >= periodStart &&
+        txDate <= periodEnd;
+    });
     let revenue = 0;
     let costOfGoodsSold = 0;
     let operatingExpenses = 0;
@@ -209,9 +209,10 @@ export class FinancialCalculator {
     date: string
   ): BalanceSheet {
 
-    const filtered = transactions.filter(t =>
-      t.company_id === companyId && t.date <= date
-    );
+    const filtered = transactions.filter(t => {
+      const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+      return t.company_id === companyId && txDate <= date;
+    });
 
     let cash = 0;
     let accountsReceivable = 0;
@@ -315,7 +316,7 @@ export class FinancialCalculator {
       if (debitIsCash) balance += t.amount_rub;
       if (creditIsCash) balance -= t.amount_rub;
 
-      
+
     }
 
     return balance;

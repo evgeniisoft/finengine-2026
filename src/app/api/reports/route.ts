@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
     if (!companies || companies.length === 0) {
       return NextResponse.json([]);
     }
-    
     let targetCompanies = companies;
     if (companyId) {
       targetCompanies = companies.filter(c => c.id === companyId);
