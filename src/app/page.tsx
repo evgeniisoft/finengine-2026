@@ -20,7 +20,7 @@ export default function Dashboard() {
   const [balanceData, setBalanceData] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
-  const [taxData, setTaxData] = useState<any[]>([]);
+  const [totalTaxData, setTotalTaxData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedPanels, setExpandedPanels] = useState<{ [key: string]: boolean }>({});
@@ -56,7 +56,7 @@ export default function Dashboard() {
       setCompanies(companiesData);
       setReports(Array.isArray(reportsData) ? reportsData : []);
       const taxInfo = Array.isArray(reportsData) ? reportsData.map((r: any) => r.tax).filter(Boolean) : [];
-      setTaxData(taxInfo);
+      setTotalTaxData(taxInfo);
       setBalanceData(Array.isArray(balanceResponse) ? balanceResponse : []);
       setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
       setAccounts(Array.isArray(accountsData) ? accountsData : []);
@@ -132,10 +132,22 @@ export default function Dashboard() {
     .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
   const dailyAverage = daysPassed > 0 ? currentMonthRevenue / daysPassed : 0;
   const runRate = dailyAverage * daysInMonth;
-  const totalVat = taxData.reduce((sum, t) => sum + (t.vat_amount || 0), 0);
-  const totalIncomeTax = taxData.reduce((sum, t) => sum + (t.income_tax_amount || 0), 0);
-  const totalInsurance = taxData.reduce((sum, t) => sum + (t.insurance_amount || 0), 0);
+  const totalVat = totalTaxData.reduce((sum, t) => sum + (t.vat_amount || 0), 0);
+  const totalIncomeTax = totalTaxData.reduce((sum, t) => sum + (t.income_tax_amount || 0), 0);
+  const totalInsurance = totalTaxData.reduce((sum, t) => sum + (t.insurance_amount || 0), 0);
   const totalTax = totalVat + totalIncomeTax + totalInsurance;
+  // НДС по кварталам
+  const quarterlyVat = [];
+  if (totalVat > 0) {
+    const quarterAmount = totalVat / 4;
+    const deadlines = [
+      { quarter: '1 квартал', date: '2026-04-28', amount: quarterAmount },
+      { quarter: '2 квартал', date: '2026-07-28', amount: quarterAmount },
+      { quarter: '3 квартал', date: '2026-10-28', amount: quarterAmount },
+      { quarter: '4 квартал', date: '2027-01-28', amount: quarterAmount },
+    ];
+    quarterlyVat.push(...deadlines);
+  }
   const effectiveTaxRate = totalRevenue > 0 ? (totalIncomeTax / totalRevenue) * 100 : 0;
 
   // Кассовые разрывы
@@ -382,7 +394,7 @@ export default function Dashboard() {
 
           {expandedPanels['taxes'] && (
             <div className="mt-3 pt-3 border-t border-gray-100">
-              {taxData.map((tax: any) => (
+              {totalTaxData.map((tax: any) => (
                 <div key={tax.company_id} className="mb-2">
                   <p className="text-xs font-medium text-gray-900">{tax.company_name}</p>
 
@@ -417,6 +429,38 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+        {totalVat > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm cursor-pointer" onClick={() => togglePanel('vat')}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">НДС к уплате</p>
+              <span className="text-gray-400 text-xs">{expandedPanels['vat'] ? '▲' : '▼'}</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{totalVat.toLocaleString('ru-RU')} ₽</p>
+
+            {expandedPanels['vat'] && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="flex justify-between text-sm py-1">
+                  <span className="text-gray-600">Исходящий НДС</span>
+                  <span className="font-medium text-gray-900">+{totalTaxData.reduce((s: number, t: any) => s + (t.outgoing_vat || 0), 0).toLocaleString('ru-RU')} ₽</span>
+                </div>
+                <div className="flex justify-between text-sm py-1">
+                  <span className="text-gray-600">Входящий НДС</span>
+                  <span className="font-medium text-gray-900">-{totalTaxData.reduce((s: number, t: any) => s + (t.incoming_vat || 0), 0).toLocaleString('ru-RU')} ₽</span>
+                </div>
+
+                <div className="mt-3">
+                  <p className="text-xs font-medium text-gray-900 mb-2">Сроки уплаты:</p>
+                  {quarterlyVat.map((q: any) => (
+                    <div key={q.quarter} className="flex justify-between text-sm py-1">
+                      <span className="text-gray-600">{q.quarter} ({q.date})</span>
+                      <span className="font-medium text-gray-900">{q.amount.toLocaleString('ru-RU')} ₽</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Кассовые разрывы */}
