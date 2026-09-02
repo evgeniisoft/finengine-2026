@@ -3,8 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
 async function gasBatchCreate(sheet: string, dataArray: any[]): Promise<any> {
-  const url = `${GAS_URL}?action=batchCreate&sheet=${sheet}&data=${encodeURIComponent(JSON.stringify(dataArray))}`;
-  const response = await fetch(url);
+  const response = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      action: 'batchCreate',
+      sheet: sheet,
+      data: dataArray
+    })
+  });
   const text = await response.text();
   try {
     return JSON.parse(text);
