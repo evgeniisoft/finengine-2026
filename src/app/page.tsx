@@ -385,10 +385,25 @@ export default function Dashboard() {
               {taxData.map((tax: any) => (
                 <div key={tax.company_id} className="mb-2">
                   <p className="text-xs font-medium text-gray-900">{tax.company_name}</p>
-                  <div className="flex justify-between text-sm ml-3 py-1">
-                    <span className="text-gray-600">НДС ({Math.round(tax.vat_rate * 100)}%)</span>
-                    <span className="font-medium">{tax.vat_amount.toLocaleString('ru-RU')} ₽</span>
-                  </div>
+
+                  {/* НДС детали */}
+                  {tax.vat_rate > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm ml-3 py-1">
+                        <span className="text-gray-600">Исходящий НДС ({Math.round(tax.vat_rate * 100)}%)</span>
+                        <span className="font-medium text-gray-900">+{tax.outgoing_vat.toLocaleString('ru-RU')} ₽</span>
+                      </div>
+                      <div className="flex justify-between text-sm ml-3 py-1">
+                        <span className="text-gray-600">Входящий НДС</span>
+                        <span className="font-medium text-gray-900">-{tax.incoming_vat.toLocaleString('ru-RU')} ₽</span>
+                      </div>
+                      <div className="flex justify-between text-sm ml-3 py-1 border-t border-gray-100">
+                        <span className="text-gray-600 font-medium">НДС к уплате</span>
+                        <span className="font-bold text-gray-900">{tax.vat_to_pay.toLocaleString('ru-RU')} ₽</span>
+                      </div>
+                    </>
+                  )}
+
                   <div className="flex justify-between text-sm ml-3 py-1">
                     <span className="text-gray-600">Налог ({Math.round(tax.income_tax_rate * 100)}%)</span>
                     <span className="font-medium">{tax.income_tax_amount.toLocaleString('ru-RU')} ₽</span>
