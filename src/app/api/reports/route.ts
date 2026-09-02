@@ -19,17 +19,17 @@ export async function GET(request: NextRequest) {
     const companyId = url.searchParams.get('company_id');
     const periodStart = url.searchParams.get('period_start') || '2026-01-01';
     const periodEnd = url.searchParams.get('period_end') || '2026-12-31';
-    
+
     const [transactions, accounts, companies] = await Promise.all([
       gasGet('Transactions'),
       gasGet('Accounts'),
       gasGet('Companies')
     ]);
-    
+
     console.log('Transactions:', transactions.length);
     console.log('Accounts:', accounts.length);
     console.log('Companies:', companies.length);
-    
+
     if (!companies || companies.length === 0) {
       return NextResponse.json([]);
     }
@@ -37,22 +37,17 @@ export async function GET(request: NextRequest) {
     if (companyId) {
       targetCompanies = companies.filter(c => c.id === companyId);
     }
-    
+
     switch (reportType) {
       case 'pnl': {
-        const reports = targetCompanies.map(company => ({
-          company,
-          report: calculator.calculatePnL(
-            transactions,
-            accounts,
-            company.id,
-            periodStart,
-            periodEnd
-          )
-        }));
+        const reports = targetCompanies.map(company => {
+          const pnl = calculator.calculatePnL(transactions, accounts, company.id, periodStart, periodEnd);
+          const tax = taxEngine.calculateTax(company, transactions, accounts, periodStart, periodEnd);
+          return { company, report: pnl, tax };
+        });
         return NextResponse.json(reports);
       }
-      
+
       case 'cashflow': {
         const reports = targetCompanies.map(company => ({
           company,
@@ -66,7 +61,7 @@ export async function GET(request: NextRequest) {
         }));
         return NextResponse.json(reports);
       }
-      
+
       case 'balance': {
         const reports = targetCompanies.map(company => ({
           company,
@@ -79,7 +74,7 @@ export async function GET(request: NextRequest) {
         }));
         return NextResponse.json(reports);
       }
-      
+
       case 'consolidated': {
         const consolidated = {
           pnl: consolidationEngine.consolidatePnL(
@@ -105,16 +100,16 @@ export async function GET(request: NextRequest) {
         };
         return NextResponse.json(consolidated);
       }
-      
+
       case 'transactions': {
         return NextResponse.json(transactions);
       }
-      
+
       default: {
         return NextResponse.json([]);
       }
     }
-    
+
   } catch (error) {
     console.error('Ошибка API:', error);
     return NextResponse.json(

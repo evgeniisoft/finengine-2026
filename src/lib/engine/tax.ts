@@ -2,16 +2,35 @@
  * ============================================
  * FinEngine 2026 - Налоговый движок
  * ============================================
- * Расчёт налогов для разных систем налогообложения.
- * УСН 6%, УСН 15%, ОСНО (налог на прибыль 25%, НДС 20%).
+ * Актуальные ставки 2026 года:
+ * - НДС ОСНО: 22% (базовая), 10% (льготная)
+ * - НДС УСН: 0% (до 20 млн), 5% (20-250 млн), 7% (250-490.5 млн)
+ * - Налог на прибыль ОСНО: 25%
+ * - УСН 6%: Доходы × 6%
+ * - УСН 15%: (Доходы - Расходы) × 15%
  */
 
 import { Company, Transaction, Account } from './types';
 
+export interface TaxCalculation {
+  company_id: string;
+  company_name: string;
+  tax_system: string;
+  revenue_without_vat: number;
+  expenses_without_vat: number;
+  profit_before_tax: number;
+  vat_rate: number;
+  vat_amount: number;
+  income_tax_rate: number;
+  income_tax_amount: number;
+  total_tax: number;
+  effective_tax_rate: number;
+}
+
 export class TaxEngine {
   
   /**
-   * Расчёт налога для компании за период
+   * Расчёт налогов для компании за период
    */
   calculateTax(
     company: Company,
@@ -19,235 +38,139 @@ export class TaxEngine {
     accounts: Account[],
     periodStart: string,
     periodEnd: string
-  ): {
-    tax_type: string;
-    tax_amount: number;
-    tax_base: number;
-    details: string;
-  } {
+  ): TaxCalculation {
+    
+    // Фильтруем транзакции по периоду и компании
+    const companyTx = transactions.filter(t => {
+      const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+      return t.company_id === company.id && txDate >= periodStart && txDate <= periodEnd;
+    });
+    
+    // Доходы (без НДС)
+    const revenue = companyTx
+      .filter(t => {
+        const creditAccount = accounts.find(a => a.id === t.credit_account_id);
+        return creditAccount?.type === 'I';
+      })
+      .reduce((sum, t) => sum + parseFloat(String(t.amount || 0)), 0);
+    
+    // Расходы (без НДС)
+    const expenses = companyTx
+      .filter(t => {
+        const debitAccount = accounts.find(a => a.id === t.debit_account_id);
+        return debitAccount?.type === 'X';
+      })
+      .reduce((sum, t) => sum + parseFloat(String(t.amount || 0)), 0);
+    
+    const profit = revenue - expenses;
+    
+    // Определяем ставки
+    let vatRate = 0;
+    let incomeTaxRate = 0;
+    let vatAmount = 0;
+    let incomeTaxAmount = 0;
     
     switch (company.tax_system) {
       case 'USN_6':
-        return this.calculateUSN6(company, transactions, accounts, periodStart, periodEnd);
+        // НДС: проверяем порог
+        vatRate = this.getVatRateForUSN(revenue);
+        vatAmount = revenue * vatRate;
+        
+        // УСН 6% от доходов (доходы не включают НДС)
+        incomeTaxRate = 0.06;
+        incomeTaxAmount = revenue * incomeTaxRate;
+        break;
+        
       case 'USN_15':
-        return this.calculateUSN15(company, transactions, accounts, periodStart, periodEnd);
+        vatRate = this.getVatRateForUSN(revenue);
+        vatAmount = revenue * vatRate;
+        
+        incomeTaxRate = 0.15;
+        const taxBase = Math.max(0, revenue - expenses);
+        incomeTaxAmount = taxBase * incomeTaxRate;
+        
+        // Минимальный налог 1% от доходов
+        const minimumTax = revenue * 0.01;
+        if (incomeTaxAmount < minimumTax) {
+          incomeTaxAmount = minimumTax;
+        }
+        break;
+        
       case 'OSNO':
-        return this.calculateOSNO(company, transactions, accounts, periodStart, periodEnd);
+        vatRate = 0.22;
+        vatAmount = revenue * vatRate;
+        
+        incomeTaxRate = 0.25;
+        incomeTaxAmount = Math.max(0, profit) * incomeTaxRate;
+        break;
+        
       default:
-        return { tax_type: 'UNKNOWN', tax_amount: 0, tax_base: 0, details: '' };
+        break;
     }
-  }
-  
-  /**
-   * УСН 6% (Доходы)
-   */
-  private calculateUSN6(
-    company: Company,
-    transactions: Transaction[],
-    accounts: Account[],
-    periodStart: string,
-    periodEnd: string
-  ) {
     
-    // Налоговая база — все доходы
-    const revenue = this.calculateRevenue(transactions, accounts, periodStart, periodEnd);
-    const taxRate = 0.06;
-    const taxAmount = revenue * taxRate;
+    const totalTax = vatAmount + incomeTaxAmount;
+    const effectiveRate = revenue > 0 ? (totalTax / revenue) * 100 : 0;
     
     return {
-      tax_type: 'УСН 6%',
-      tax_amount: Math.round(taxAmount * 100) / 100,
-      tax_base: revenue,
-      details: `${revenue} × 6% = ${taxAmount}`
+      company_id: company.id,
+      company_name: company.name,
+      tax_system: company.tax_system,
+      revenue_without_vat: revenue,
+      expenses_without_vat: expenses,
+      profit_before_tax: profit,
+      vat_rate: vatRate,
+      vat_amount: Math.round(vatAmount * 100) / 100,
+      income_tax_rate: incomeTaxRate,
+      income_tax_amount: Math.round(incomeTaxAmount * 100) / 100,
+      total_tax: Math.round(totalTax * 100) / 100,
+      effective_tax_rate: Math.round(effectiveRate * 100) / 100
     };
   }
   
   /**
-   * УСН 15% (Доходы минус Расходы)
+   * Определение ставки НДС для УСН по выручке
    */
-  private calculateUSN15(
-    company: Company,
-    transactions: Transaction[],
-    accounts: Account[],
-    periodStart: string,
-    periodEnd: string
-  ) {
-    
-    const revenue = this.calculateRevenue(transactions, accounts, periodStart, periodEnd);
-    const expenses = this.calculateExpenses(transactions, accounts, periodStart, periodEnd);
-    const taxBase = Math.max(0, revenue - expenses);
-    
-    // Минимальный налог 1% от доходов
-    const minimumTax = revenue * 0.01;
-    const regularTax = taxBase * 0.15;
-    const taxAmount = Math.max(regularTax, minimumTax);
-    
-    return {
-      tax_type: 'УСН 15%',
-      tax_amount: Math.round(taxAmount * 100) / 100,
-      tax_base: taxBase,
-      details: `(${revenue} - ${expenses}) × 15% = ${taxAmount}`
-    };
-  }
-  
-  /**
-   * ОСНО (налог на прибыль 25% + НДС 20%)
-   */
-  private calculateOSNO(
-    company: Company,
-    transactions: Transaction[],
-    accounts: Account[],
-    periodStart: string,
-    periodEnd: string
-  ) {
-    
-    const revenue = this.calculateRevenue(transactions, accounts, periodStart, periodEnd);
-    const expenses = this.calculateExpenses(transactions, accounts, periodStart, periodEnd);
-    
-    // Налог на прибыль
-    const profitTaxBase = Math.max(0, revenue - expenses);
-    const profitTax = profitTaxBase * 0.25;
-    
-    // НДС (упрощённо)
-    const vat = revenue * 0.20;
-    
-    const totalTax = profitTax + vat;
-    
-    return {
-      tax_type: 'ОСНО',
-      tax_amount: Math.round(totalTax * 100) / 100,
-      tax_base: profitTaxBase,
-      details: `Прибыль: ${profitTaxBase} × 25% = ${profitTax}, НДС: ${vat}`
-    };
-  }
-  
-  /**
-   * Расчёт доходов за период
-   */
-  private calculateRevenue(
-    transactions: Transaction[],
-    accounts: Account[],
-    periodStart: string,
-    periodEnd: string
-  ): number {
-    
-    return transactions
-      .filter(t => {
-        if (t.date < periodStart || t.date > periodEnd) return false;
-        const creditAccount = accounts.find(a => a.id === t.credit_account_id);
-        return creditAccount && creditAccount.type === 'I';
-      })
-      .reduce((sum, t) => sum + t.amount_rub, 0);
-  }
-  
-  /**
-   * Расчёт расходов за период
-   */
-  private calculateExpenses(
-    transactions: Transaction[],
-    accounts: Account[],
-    periodStart: string,
-    periodEnd: string
-  ): number {
-    
-    return transactions
-      .filter(t => {
-        if (t.date < periodStart || t.date > periodEnd) return false;
-        const debitAccount = accounts.find(a => a.id === t.debit_account_id);
-        return debitAccount && debitAccount.type === 'X';
-      })
-      .reduce((sum, t) => sum + t.amount_rub, 0);
+  private getVatRateForUSN(revenue: number): number {
+    if (revenue <= 20000000) {
+      return 0; // Автоматическое освобождение
+    } else if (revenue <= 250000000) {
+      return 0.05; // 5%
+    } else if (revenue <= 490500000) {
+      return 0.07; // 7%
+    } else {
+      return 0.22; // 22% (превышение)
+    }
   }
   
   /**
    * Проверка лимитов УСН
    */
-  checkUSNLimits(
-    company: Company,
-    transactions: Transaction[],
-    accounts: Account[]
-  ): {
-    exceeded: boolean;
+  checkUSNLimits(company: Company, transactions: Transaction[]): {
     current_revenue: number;
     limit: number;
     percentage: number;
-  } {
-    
-    const limit = 450000000; // 450 млн руб.
-    const currentYear = new Date().getFullYear().toString();
-    
-    const yearTransactions = transactions.filter(t => 
-      t.date.startsWith(currentYear)
-    );
-    
-    const revenue = this.calculateRevenue(
-      yearTransactions,
-      accounts,
-      `${currentYear}-01-01`,
-      `${currentYear}-12-31`
-    );
-    
-    const percentage = (revenue / limit) * 100;
-    
-    return {
-      exceeded: revenue > limit,
-      current_revenue: revenue,
-      limit: limit,
-      percentage: Math.round(percentage * 100) / 100
-    };
-  }
-  
-  /**
-   * Проверка порогов НДС для УСН
-   */
-  checkVATThreshold(
-    company: Company,
-    transactions: Transaction[],
-    accounts: Account[]
-  ): {
     vat_required: boolean;
     vat_rate: number;
-    current_revenue: number;
-    threshold: number;
   } {
-    
     const currentYear = new Date().getFullYear().toString();
+    const yearTx = transactions.filter(t => {
+      const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+      return t.company_id === company.id && txDate.startsWith(currentYear);
+    });
     
-    const yearTransactions = transactions.filter(t => 
-      t.date.startsWith(currentYear)
-    );
+    const revenue = yearTx
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + parseFloat(String(t.amount || 0)), 0);
     
-    const revenue = this.calculateRevenue(
-      yearTransactions,
-      accounts,
-      `${currentYear}-01-01`,
-      `${currentYear}-12-31`
-    );
-    
-    // Пороги НДС для УСН (2025+)
-    const threshold1 = 60000000; // 60 млн
-    const threshold2 = 250000000; // 250 млн
-    const threshold3 = 450000000; // 450 млн
-    
-    let vatRequired = false;
-    let vatRate = 0;
-    
-    if (revenue > threshold1 && revenue <= threshold2) {
-      vatRequired = true;
-      vatRate = 5;
-    } else if (revenue > threshold2 && revenue <= threshold3) {
-      vatRequired = true;
-      vatRate = 7;
-    } else if (revenue > threshold3) {
-      vatRequired = true;
-      vatRate = 20;
-    }
+    const limit = 490500000;
+    const vatThreshold = 20000000;
     
     return {
-      vat_required: vatRequired,
-      vat_rate: vatRate,
       current_revenue: revenue,
-      threshold: threshold1
+      limit,
+      percentage: Math.round((revenue / limit) * 100 * 100) / 100,
+      vat_required: revenue > vatThreshold,
+      vat_rate: this.getVatRateForUSN(revenue)
     };
   }
 }

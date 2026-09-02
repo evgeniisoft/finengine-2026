@@ -67,6 +67,7 @@ export interface Transaction {
   import_hash: string;
   source_account_id: string;
   destination_account_id: string;
+  type: 'income' | 'expense' | 'transfer';
 }
 
 // Проводка (для двойной записи)
