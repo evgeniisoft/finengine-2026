@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       { id: 'comp-test-1', name: 'ООО "Альфа"', tax_system: 'USN_6', currency: 'RUB', is_group: true, parent_id: '', inn: '7701234567', kpp: '770101001', external_id: '', source: 'manual', tenant_id: 'tenant-1', created_at: now, updated_at: now, deleted_at: '', is_deleted: '' },
       { id: 'comp-test-2', name: 'ООО "Бета"', tax_system: 'USN_15', currency: 'RUB', is_group: false, parent_id: 'comp-test-1', inn: '7707654321', kpp: '770101002', external_id: '', source: 'manual', tenant_id: 'tenant-1', created_at: now, updated_at: now, deleted_at: '', is_deleted: '' },
       { id: 'comp-test-3', name: 'ИП Иванов', tax_system: 'USN_6', currency: 'RUB', is_group: false, parent_id: 'comp-test-1', inn: '7701112233', kpp: '', external_id: '', source: 'manual', tenant_id: 'tenant-1', created_at: now, updated_at: now, deleted_at: '', is_deleted: '' },
+      { id: 'comp-test-4', name: 'ООО "Гамма"', tax_system: 'OSNO', currency: 'RUB', is_group: false, parent_id: 'comp-test-1', inn: '7704444444', kpp: '770101004', external_id: '', source: 'manual', tenant_id: 'tenant-1', created_at: now, updated_at: now, deleted_at: '', is_deleted: '' },
     ];
 
     // ============================================
@@ -247,6 +248,64 @@ export async function POST(request: NextRequest) {
           destination_account_id: ''
         });
       }
+      // Операции для ОСНО (comp-test-4)
+      const osnoDate = `2026-${month}-12`;
+      transactions.push({
+        date: osnoDate,
+        company_id: 'comp-test-4',
+        description: `Выручка ОСНО ${month}.2026 (с НДС 22%)`,
+        amount: 1000000,
+        currency: 'RUB',
+        type: 'income',
+        debit_account_id: 'acc-bank-001',
+        credit_account_id: 'acc-in-revenue',
+        amount_rub: 1000000,
+        counterparty_id: 'cp-001',
+        contract_id: '',
+        transaction_group_id: '',
+        is_system: false,
+        external_id: '',
+        source: 'manual',
+        deleted_at: '',
+        is_deleted: '',
+        created_at: now,
+        updated_at: now,
+        tenant_id: 'tenant-1',
+        record_type: 'fact',
+        accrual_date: osnoDate,
+        import_hash: `hash-osno-${month}-income`,
+        source_account_id: '',
+        destination_account_id: 'acc-bank-001'
+      });
+
+      const osnoExpenseDate = `2026-${month}-22`;
+      transactions.push({
+        date: osnoExpenseDate,
+        company_id: 'comp-test-4',
+        description: `Расходы ОСНО ${month}.2026`,
+        amount: 600000,
+        currency: 'RUB',
+        type: 'expense',
+        debit_account_id: 'acc-out-other',
+        credit_account_id: 'acc-bank-001',
+        amount_rub: 600000,
+        counterparty_id: '',
+        contract_id: '',
+        transaction_group_id: '',
+        is_system: false,
+        external_id: '',
+        source: 'manual',
+        deleted_at: '',
+        is_deleted: '',
+        created_at: now,
+        updated_at: now,
+        tenant_id: 'tenant-1',
+        record_type: 'fact',
+        accrual_date: osnoExpenseDate,
+        import_hash: `hash-osno-${month}-expense`,
+        source_account_id: 'acc-bank-001',
+        destination_account_id: ''
+      });
     }
 
     // --- 4.3. ДЕБИТОРСКАЯ ЗАДОЛЖЕННОСТЬ (акт без оплаты) ---
