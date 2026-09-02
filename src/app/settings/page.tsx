@@ -9,6 +9,7 @@ export default function SettingsPage() {
     const [accounts, setAccounts] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [showAddConnection, setShowAddConnection] = useState(false);
+    const [isLoadingTestData, setIsLoadingTestData] = useState(false);
     const [showAddAccount, setShowAddAccount] = useState(false);
 
     // Форма подключения
@@ -135,6 +136,30 @@ export default function SettingsPage() {
             alert('Ошибка при сохранении подключения: ' + (error as Error).message);
         }
     };
+    const handleLoadTestData = async () => {
+        if (!confirm('Загрузить тестовые данные? Будут созданы компании, счета и операции.')) return;
+
+        try {
+            setIsLoadingTestData(true);
+
+            const response = await fetch('/api/test-data', {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(`Загружено: ${result.companies} компаний, ${result.accounts} счетов, ${result.transactions} операций`);
+            } else {
+                alert('Ошибка: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки:', error);
+            alert('Ошибка при загрузке тестовых данных');
+        } finally {
+            setIsLoadingTestData(false);
+        }
+    };
 
     const handleAddAccount = async () => {
         try {
@@ -226,12 +251,21 @@ export default function SettingsPage() {
                                 <h3 className="text-lg font-semibold text-gray-900">
                                     Подключения к базам данных
                                 </h3>
-                                <button
-                                    onClick={() => setShowAddConnection(true)}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-                                >
-                                    + Добавить подключение
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setShowAddConnection(true)}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                                    >
+                                        + Добавить подключение
+                                    </button>
+                                    <button
+                                        onClick={handleLoadTestData}
+                                        disabled={isLoadingTestData}
+                                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                        {isLoadingTestData ? 'Загрузка...' : 'Загрузить тестовые данные'}
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Форма добавления */}
