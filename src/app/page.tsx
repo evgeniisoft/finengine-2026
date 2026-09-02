@@ -3,36 +3,32 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
-import { api } from '@/lib/api';
+import { formatDay } from '@/lib/utils/dateFormat';
 
 export default function Dashboard() {
   const router = useRouter();
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [reports, setReports] = useState<any[]>([]);
-  const [balanceData, setBalanceData] = useState<any[]>([]);
+  const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState({
+    start: '2026-01-01',
+    end: new Date().toISOString().split('T')[0]
+  });
 
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/login');
       return;
     }
-    loadData();
+    loadDashboard();
   }, []);
 
-  const loadData = async () => {
+  const loadDashboard = async () => {
     try {
       setLoading(true);
-      const [companiesData, reportsData, balanceResponse] = await Promise.all([
-        api.getAll('Companies'),
-        fetch('/api/reports?type=pnl&period_start=2026-01-01&period_end=2026-12-31').then(r => r.json()),
-        fetch('/api/reports?type=balance').then(r => r.json())
-      ]);
-      
-      setCompanies(companiesData);
-      setReports(Array.isArray(reportsData) ? reportsData : []);
-      setBalanceData(Array.isArray(balanceResponse) ? balanceResponse : []);
+      const response = await fetch(`/api/dashboard?period_start=${period.start}&period_end=${period.end}`);
+      const data = await response.json();
+      setDashboardData(data);
       setError(null);
     } catch (err) {
       setError('Ошибка при загрузке данных');
@@ -42,122 +38,121 @@ export default function Dashboard() {
     }
   };
 
-  // Суммарные показатели
-  const reportsArray = Array.isArray(reports) ? reports : [];
-  const balanceArray = Array.isArray(balanceData) ? balanceData : [];
-  
-  const totalRevenue = reportsArray.reduce((sum, r) => sum + (r.report?.revenue || 0), 0);
-  const totalExpenses = reportsArray.reduce((sum, r) => sum + (r.report?.operating_expenses || 0), 0);
-  const totalProfit = totalRevenue - totalExpenses;
-  const totalCash = balanceArray.reduce((sum, r) => sum + (r.report?.assets?.cash || 0), 0);
+  const applyPeriod = (type: 'month' | 'quarter' | 'year') => {
+    const now = new Date();
+    let start = '';
+    const end = now.toISOString().split('T')[0];
+    
+    if (type === 'month') {
+      start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    } else if (type === 'quarter') {
+      const q = Math.floor(now.getMonth() / 3) * 3;
+      start = `${now.getFullYear()}-${String(q + 1).padStart(2, '0')}-01`;
+    } else {
+      start = `${now.getFullYear()}-01-01`;
+    }
+    
+    setPeriod({ start, end });
+    setTimeout(() => loadDashboard(), 100);
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+      </div>
+    );
+  }
+
+  const kpi = dashboardData?.kpi || {};
+  const gaps = dashboardData?.cash_gaps || [];
+  const expenses = dashboardData?.expenses_by_category || [];
+  const revenueByCompany = dashboardData?.revenue_by_company || [];
 
   return (
     <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">Дашборд</h2>
-        <p className="text-gray-500 mt-1">
-          Финансовое состояние холдинга
-        </p>
-      </div>
-
-      {/* Ключевые показатели */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500">Выручка</h3>
-          <p className="text-2xl font-bold text-gray-900 mt-2">
-            {loading ? '...' : `${totalRevenue.toLocaleString('ru-RU')} ₽`}
-          </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Дашборд</h2>
+          <p className="text-gray-500 mt-1">Финансовое здоровье бизнеса</p>
         </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500">Расходы</h3>
-          <p className="text-2xl font-bold text-gray-900 mt-2">
-            {loading ? '...' : `${totalExpenses.toLocaleString('ru-RU')} ₽`}
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500">Прибыль</h3>
-          <p className={`text-2xl font-bold mt-2 ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {loading ? '...' : `${totalProfit.toLocaleString('ru-RU')} ₽`}
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500">Деньги на счетах</h3>
-          <p className="text-2xl font-bold text-gray-900 mt-2">
-            {loading ? '...' : `${totalCash.toLocaleString('ru-RU')} ₽`}
-          </p>
+        <div className="flex gap-2">
+          <button onClick={() => applyPeriod('month')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Месяц</button>
+          <button onClick={() => applyPeriod('quarter')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Квартал</button>
+          <button onClick={() => applyPeriod('year')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Год</button>
         </div>
       </div>
 
-      {/* Отчёты по компаниям */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Компании холдинга
-          </h3>
+      {/* KPI */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <p className="text-xs text-gray-500">Деньги на счетах</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{kpi.total_cash?.toLocaleString('ru-RU') || 0} ₽</p>
         </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <p className="text-xs text-gray-500">Выручка</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{kpi.total_revenue?.toLocaleString('ru-RU') || 0} ₽</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <p className="text-xs text-gray-500">Прибыль</p>
+          <p className={`text-2xl font-bold mt-1 ${kpi.total_profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {kpi.total_profit?.toLocaleString('ru-RU') || 0} ₽
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <p className="text-xs text-gray-500">Рентабельность</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{kpi.margin || 0}%</p>
+        </div>
+      </div>
 
-        {loading ? (
-          <div className="p-6 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+      {/* Кассовые разрывы */}
+      {gaps.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+          <h3 className="font-semibold text-red-700 mb-2">⚠️ Кассовые разрывы</h3>
+          {gaps.slice(0, 5).map((gap: any) => (
+            <div key={gap.date} className="flex justify-between text-sm text-red-600">
+              <span>{formatDay(gap.date)}</span>
+              <span>-{gap.deficit.toLocaleString('ru-RU')} ₽</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Структура расходов */}
+      {expenses.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-4">Структура расходов</h3>
+          <div className="space-y-3">
+            {expenses.map((exp: any) => {
+              const pct = kpi.total_expenses > 0 ? (exp.amount / kpi.total_expenses) * 100 : 0;
+              return (
+                <div key={exp.id}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600">{exp.name}</span>
+                    <span className="font-medium text-gray-900">{exp.amount.toLocaleString('ru-RU')} ₽ ({Math.round(pct)}%)</span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  Компания
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  Выручка
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  Расходы
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  Прибыль
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                  Деньги
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {reportsArray.map((report) => {
-                const balance = balanceArray.find(b => b.company?.id === report.company?.id);
-                return (
-                  <tr key={report.company.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {report.company.name}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {(report.report?.revenue || 0).toLocaleString('ru-RU')} ₽
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {(report.report?.operating_expenses || 0).toLocaleString('ru-RU')} ₽
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium">
-                      <span className={report.report?.net_profit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {(report.report?.net_profit || 0).toLocaleString('ru-RU')} ₽
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {(balance?.report?.assets?.cash || 0).toLocaleString('ru-RU')} ₽
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Ошибка */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-6">
-          <p className="text-red-600">{error}</p>
+      {/* Выручка по компаниям */}
+      {revenueByCompany.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <h3 className="font-semibold text-gray-900 mb-4">Выручка по компаниям</h3>
+          <div className="space-y-3">
+            {revenueByCompany.map((item: any) => (
+              <div key={item.company.id} className="flex justify-between text-sm">
+                <span className="text-gray-600">{item.company.name}</span>
+                <span className="font-medium text-gray-900">{item.revenue.toLocaleString('ru-RU')} ₽</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
