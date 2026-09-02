@@ -30,7 +30,10 @@ export default function DataSourcesPage() {
         password: '',
         url: '',
         endpoint: '',
-        api_key: ''
+        api_key: '',
+        // Новые поля
+        default_currency: 'RUB',
+        record_type: 'fact'
     });
 
     // Маппинг
@@ -45,19 +48,21 @@ export default function DataSourcesPage() {
     const loadData = async () => {
         try {
             setLoading(true);
-            const [sourcesData, mappingsData] = await Promise.all([
+            const [sourcesData, mappingsData, companiesData] = await Promise.all([
                 api.getAll('DataSources'),
-                api.getAll('DataMappings')
+                api.getAll('DataMappings'),
+                api.getAll('Companies')
             ]);
             setSources(sourcesData);
             setMappings(mappingsData);
+            setCompanies(companiesData);
         } catch (error) {
             console.error('Ошибка загрузки:', error);
         } finally {
             setLoading(false);
         }
     };
-
+    const [companies, setCompanies] = useState<any[]>([]);
     // Получение целевых полей
     const targetFields = getTargetFields(sourceForm.target_type);
 
@@ -108,6 +113,10 @@ export default function DataSourcesPage() {
     const handleCreateSource = async () => {
         if (!sourceForm.name) {
             alert('Введите название');
+            return;
+        }
+        if ((sourceForm.type === 'csv' || sourceForm.type === 'excel' || sourceForm.type === '1c') && !sourceForm.company_id) {
+            alert('Выберите компанию');
             return;
         }
 
@@ -183,7 +192,9 @@ export default function DataSourcesPage() {
             password: '',
             url: '',
             endpoint: '',
-            api_key: ''
+            api_key: '',
+            default_currency: 'RUB',
+            record_type: 'fact'
         });
     };
 
@@ -345,13 +356,25 @@ export default function DataSourcesPage() {
                 }
 
                 if (sourceForm.target_type === 'counterparties') {
-                    record.company_id = sourceForm.company_id || '';
+                    record.company_id = sourceForm.company_id || selectedSource?.company_id || '';
                     record.deleted_at = null;
+                }
+
+                // Генерируем хэш для защиты от дублей
+                const hashString = `${record.date}|${record.amount}|${record.company_id}|${record.description || ''}`;
+                record.import_hash = hashString;
+                const transactionsList = await api.getAll('Transactions');
+                // Проверяем, нет ли уже такой операции
+                const existing = transactionsList.find((t: any) => t.import_hash === hashString);
+                if (existing) {
+                    skipped++;
+                    continue;
                 }
 
                 await api.create(sheetName as any, record);
                 imported++;
             }
+            const transactionsList = await api.getAll('Transactions');
 
             setImportResult(`Импорт завершён: ${imported} создано, ${skipped} пропущено${errors.length > 0 ? '\n' + errors.slice(0, 5).join('\n') : ''}`);
 
@@ -429,22 +452,49 @@ export default function DataSourcesPage() {
 
                         {/* Файловые типы */}
                         {(sourceForm.type === 'csv' || sourceForm.type === 'excel' || sourceForm.type === '1c') && (
-                            <div className="md:col-span-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Файл</label>
-                                <input
-                                    type="file"
-                                    accept=".csv,.txt,.xlsx,.xml"
-                                    onChange={handleFileUpload}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                />
-                                {sourceForm.file_name && (
-                                    <p className="text-sm text-gray-500 mt-1">
-                                        Загружен: {sourceForm.file_name}
-                                    </p>
-                                )}
-                            </div>
-                        )}
+                            <>
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Файл</label>
+                                    <input type="file" accept=".csv,.txt,.xlsx,.xml" onChange={handleFileUpload}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                                    {sourceForm.file_name && (
+                                        <p className="text-sm text-gray-500 mt-1">Загружен: {sourceForm.file_name}</p>
+                                    )}
+                                </div>
 
+                                {/* Компания */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Компания <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        value={sourceForm.company_id}
+                                        onChange={(e) => setSourceForm({ ...sourceForm, company_id: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                    >
+                                        <option value="">Выберите компанию</option>
+                                        {companies.map((c: any) => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Валюта по умолчанию */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Валюта по умолчанию</label>
+                                    <select
+                                        value={sourceForm.default_currency}
+                                        onChange={(e) => setSourceForm({ ...sourceForm, default_currency: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                    >
+                                        <option value="RUB">₽ Рубль</option>
+                                        <option value="USD">$ Доллар</option>
+                                        <option value="EUR">€ Евро</option>
+                                        <option value="CNY">¥ Юань</option>
+                                    </select>
+                                </div>
+                            </>
+                        )}
                         {/* SQL */}
                         {sourceForm.type === 'sql' && (
                             <>
