@@ -277,6 +277,9 @@ export class ImportEngine {
       import_hash: data.import_hash || '',
       source_account_id: '',
       type: 'expense',
+      vat_rate: 0,
+      vat_amount: 0,
+      vat_direction: 'none',
       destination_account_id: ''   // ← ДОБАВЬ
     };
   }

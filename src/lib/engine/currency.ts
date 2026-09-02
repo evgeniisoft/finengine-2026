@@ -74,18 +74,21 @@ export class CurrencyEngine {
           debit_account_id: difference > 0 ? 'acc-bank-001' : 'acc-exp-currency',
           credit_account_id: difference > 0 ? 'acc-rev-currency' : 'acc-bank-001',
           is_system: true,
-          external_id: '',           
-          source: 'manual',          
-          deleted_at: null,          
-          created_at: date,          
+          external_id: '',
+          source: 'manual',
+          deleted_at: null,
+          created_at: date,
           updated_at: date,
           tenant_id: 'tenant-1',
           record_type: 'fact',
           accrual_date: date,
           import_hash: '',
           type: 'expense',
+          vat_rate: 0,
+          vat_amount: 0,
+          vat_direction: 'none',
           source_account_id: difference > 0 ? '' : 'acc-bank-001',
-          destination_account_id: difference > 0 ? 'acc-bank-001' : ''           
+          destination_account_id: difference > 0 ? 'acc-bank-001' : ''
         };
 
         revaluationTransactions.push(revaluationTransaction);
