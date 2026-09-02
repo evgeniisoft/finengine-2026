@@ -6,6 +6,13 @@ import { isAuthenticated } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { formatDay } from '@/lib/utils/dateFormat';
 
+function getDateStr(date: any): string {
+  if (!date) return '';
+  if (typeof date === 'string') return date.split('T')[0];
+  if (date instanceof Date) return date.toISOString().split('T')[0];
+  return String(date).split('T')[0];
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const [companies, setCompanies] = useState<any[]>([]);
@@ -13,7 +20,6 @@ export default function Dashboard() {
   const [balanceData, setBalanceData] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
-  const [counterparties, setCounterparties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -21,7 +27,8 @@ export default function Dashboard() {
     start: '2026-01-01',
     end: '2026-12-31'
   });
-  const [activePeriodLabel, setActivePeriodLabel] = useState('Текущий год');
+  const [activePeriod, setActivePeriod] = useState<'month' | 'quarter' | 'year' | 'custom'>('year');
+  const [periodLabel, setPeriodLabel] = useState('2026 год');
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -34,13 +41,12 @@ export default function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [companiesData, reportsData, balanceResponse, transactionsData, accountsData, counterpartiesData] = await Promise.all([
+      const [companiesData, reportsData, balanceResponse, transactionsData, accountsData] = await Promise.all([
         api.getAll('Companies'),
         fetch(`/api/reports?type=pnl&period_start=${period.start}&period_end=${period.end}`).then(r => r.json()),
         fetch('/api/reports?type=balance').then(r => r.json()),
         api.getAll('Transactions'),
-        api.getAll('Accounts'),
-        api.getAll('Counterparties')
+        api.getAll('Accounts')
       ]);
       
       setCompanies(companiesData);
@@ -48,7 +54,6 @@ export default function Dashboard() {
       setBalanceData(Array.isArray(balanceResponse) ? balanceResponse : []);
       setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
       setAccounts(Array.isArray(accountsData) ? accountsData : []);
-      setCounterparties(Array.isArray(counterpartiesData) ? counterpartiesData : []);
       setError(null);
     } catch (err) {
       setError('Ошибка при загрузке данных');
@@ -60,22 +65,34 @@ export default function Dashboard() {
 
   const applyPeriod = (type: 'month' | 'quarter' | 'year') => {
     const now = new Date();
+    const year = now.getFullYear();
     let start = '';
+    let end = '';
+    let label = '';
     
     if (type === 'month') {
-      start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-      setActivePeriodLabel('Текущий месяц');
+      const m = now.getMonth();
+      start = `${year}-${String(m + 1).padStart(2, '0')}-01`;
+      end = `${year}-${String(m + 1).padStart(2, '0')}-${String(new Date(year, m + 1, 0).getDate()).padStart(2, '0')}`;
+      const monthNames = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+      label = `${monthNames[m]} ${year}`;
     } else if (type === 'quarter') {
-      const q = Math.floor(now.getMonth() / 3) * 3;
-      start = `${now.getFullYear()}-${String(q + 1).padStart(2, '0')}-01`;
-      setActivePeriodLabel('Текущий квартал');
+      const q = Math.floor(now.getMonth() / 3);
+      const qStart = q * 3;
+      const qEnd = qStart + 2;
+      start = `${year}-${String(qStart + 1).padStart(2, '0')}-01`;
+      end = `${year}-${String(qEnd + 1).padStart(2, '0')}-${String(new Date(year, qEnd + 1, 0).getDate()).padStart(2, '0')}`;
+      label = `${q + 1} квартал ${year}`;
     } else {
-      start = `${now.getFullYear()}-01-01`;
-      setActivePeriodLabel('Текущий год');
+      start = `${year}-01-01`;
+      end = `${year}-12-31`;
+      label = `${year} год`;
     }
     
-    const end = now.toISOString().split('T')[0];
     setPeriod({ start, end });
+    setActivePeriod(type);
+    setPeriodLabel(label);
+    setLoading(true);
     setTimeout(() => loadData(), 100);
   };
 
@@ -89,23 +106,16 @@ export default function Dashboard() {
   const totalCash = balanceArray.reduce((sum, r) => sum + (r.report?.assets?.cash || 0), 0);
   const margin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
   
-  // EBITDA = Прибыль + Амортизация + Налоги (упрощённо)
   const totalDepreciation = reportsArray.reduce((sum, r) => sum + (r.report?.depreciation || 0), 0);
   const totalTaxes = reportsArray.reduce((sum, r) => sum + (r.report?.taxes || 0), 0);
   const ebitda = totalProfit + totalDepreciation + totalTaxes;
   
-  // Run Rate: средняя выручка в день × дней в месяце
+  // Run Rate
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysPassed = now.getDate();
-  const periodTx = transactions.filter(t => {
-    const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
-    return txDate >= period.start && txDate <= period.end;
-  });
-  const currentMonthTx = transactions.filter(t => {
-    const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
-    return txDate.startsWith(now.toISOString().substring(0, 7));
-  });
+  const currentMonthStr = now.toISOString().substring(0, 7);
+  const currentMonthTx = transactions.filter(t => getDateStr(t.date).startsWith(currentMonthStr));
   const currentMonthRevenue = currentMonthTx
     .filter(t => t.type === 'income')
     .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
@@ -122,7 +132,7 @@ export default function Dashboard() {
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0];
     
-    const dayTx = transactions.filter(t => (typeof t.date === 'string' ? t.date : String(t.date || '')).startsWith(dateStr));
+    const dayTx = transactions.filter(t => getDateStr(t.date).startsWith(dateStr));
     const inflow = dayTx.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
     const outflow = dayTx.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
     
@@ -135,6 +145,11 @@ export default function Dashboard() {
 
   // Структура расходов
   const expenseAccounts = accounts.filter(a => a.type === 'X');
+  const periodTx = transactions.filter(t => {
+    const txDate = getDateStr(t.date);
+    return txDate >= period.start && txDate <= period.end;
+  });
+  
   const expensesByCategory = expenseAccounts.map(a => {
     const amount = periodTx
       .filter(t => t.debit_account_id === a.id)
@@ -142,17 +157,26 @@ export default function Dashboard() {
     return { id: a.id, name: a.name, amount };
   }).filter(e => e.amount > 0).sort((a, b) => b.amount - a.amount);
 
-  // Дебиторка и кредиторка
-  const arTransactions = transactions.filter(t => t.debit_account_id === 'acc-ar-001');
-  const apTransactions = transactions.filter(t => t.credit_account_id === 'acc-ap-001');
-  const totalAR = arTransactions.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
-  const totalAP = apTransactions.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  const sumExpensesByCategory = expensesByCategory.reduce((s, e) => s + e.amount, 0);
 
+  // Дебиторка/кредиторка
+  const totalAR = transactions.filter(t => t.debit_account_id === 'acc-ar-001').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  const totalAP = transactions.filter(t => t.credit_account_id === 'acc-ap-001').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  
   // Алерты
   const unclassifiedTx = transactions.filter(t => 
     t.debit_account_id === 'acc-unclassified' || t.credit_account_id === 'acc-unclassified'
   );
   const unclassifiedAmount = unclassifiedTx.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="text-gray-500 mt-4">Загрузка данных...</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -160,13 +184,62 @@ export default function Dashboard() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Дашборд</h2>
           <p className="text-gray-500 mt-1">
-            Финансовое здоровье бизнеса • {activePeriodLabel}
+            Финансовое здоровье бизнеса • {periodLabel}
           </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => applyPeriod('month')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Месяц</button>
-          <button onClick={() => applyPeriod('quarter')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Квартал</button>
-          <button onClick={() => applyPeriod('year')} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Год</button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button 
+            onClick={() => applyPeriod('month')} 
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
+            Месяц
+          </button>
+          <button 
+            onClick={() => applyPeriod('quarter')} 
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'quarter' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
+            Квартал
+          </button>
+          <button 
+            onClick={() => applyPeriod('year')} 
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
+            Год
+          </button>
+          
+          {/* Произвольный период */}
+          <div className="flex items-center gap-1">
+            <input
+              type="date"
+              value={period.start}
+              onChange={(e) => {
+                setPeriod({ ...period, start: e.target.value });
+                setActivePeriod('custom');
+                setPeriodLabel(`Произвольный: ${e.target.value} — ${period.end}`);
+              }}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs"
+            />
+            <span className="text-gray-400 text-xs">—</span>
+            <input
+              type="date"
+              value={period.end}
+              onChange={(e) => {
+                setPeriod({ ...period, end: e.target.value });
+                setActivePeriod('custom');
+                setPeriodLabel(`Произвольный: ${period.start} — ${e.target.value}`);
+              }}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs"
+            />
+            <button
+              onClick={() => {
+                setLoading(true);
+                setTimeout(() => loadData(), 100);
+              }}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700"
+            >
+              OK
+            </button>
+          </div>
         </div>
       </div>
 
@@ -227,7 +300,7 @@ export default function Dashboard() {
       )}
 
       {/* Алерт-центр */}
-      {(unclassifiedTx.length > 0 || totalAR > 0) && (
+      {(unclassifiedTx.length > 0 || totalAR > 0 || totalAP > 0) && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
           <h3 className="font-semibold text-yellow-700 mb-2">🔔 Требуют внимания</h3>
           {unclassifiedTx.length > 0 && (
@@ -252,10 +325,12 @@ export default function Dashboard() {
         {/* Структура расходов */}
         {expensesByCategory.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Структура расходов</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">
+              Структура расходов ({sumExpensesByCategory.toLocaleString('ru-RU')} ₽)
+            </h3>
             <div className="space-y-3">
               {expensesByCategory.map(exp => {
-                const pct = totalExpenses > 0 ? (exp.amount / totalExpenses) * 100 : 0;
+                const pct = sumExpensesByCategory > 0 ? (exp.amount / sumExpensesByCategory) * 100 : 0;
                 return (
                   <div key={exp.id}>
                     <div className="flex justify-between text-sm mb-1">
@@ -299,7 +374,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Ошибка */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-6">
           <p className="text-red-600">{error}</p>
