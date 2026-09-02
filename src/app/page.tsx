@@ -22,7 +22,7 @@ export default function Dashboard() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [period, setPeriod] = useState({
     start: '2026-01-01',
     end: '2026-12-31'
@@ -38,17 +38,19 @@ export default function Dashboard() {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (customPeriod?: { start: string; end: string }) => {
+    const currentPeriod = customPeriod || period;
+
     try {
       setLoading(true);
       const [companiesData, reportsData, balanceResponse, transactionsData, accountsData] = await Promise.all([
         api.getAll('Companies'),
-        fetch(`/api/reports?type=pnl&period_start=${period.start}&period_end=${period.end}`).then(r => r.json()),
+        fetch(`/api/reports?type=pnl&period_start=${currentPeriod.start}&period_end=${currentPeriod.end}`).then(r => r.json()),
         fetch('/api/reports?type=balance').then(r => r.json()),
         api.getAll('Transactions'),
         api.getAll('Accounts')
       ]);
-      
+
       setCompanies(companiesData);
       setReports(Array.isArray(reportsData) ? reportsData : []);
       setBalanceData(Array.isArray(balanceResponse) ? balanceResponse : []);
@@ -69,7 +71,7 @@ export default function Dashboard() {
     let start = '';
     let end = '';
     let label = '';
-    
+
     if (type === 'month') {
       const m = now.getMonth();
       start = `${year}-${String(m + 1).padStart(2, '0')}-01`;
@@ -88,28 +90,27 @@ export default function Dashboard() {
       end = `${year}-12-31`;
       label = `${year} год`;
     }
-    
+
     setPeriod({ start, end });
     setActivePeriod(type);
     setPeriodLabel(label);
-    setLoading(true);
-    setTimeout(() => loadData(), 100);
+    loadData({ start, end });
   };
 
   // Суммарные показатели
   const reportsArray = Array.isArray(reports) ? reports : [];
   const balanceArray = Array.isArray(balanceData) ? balanceData : [];
-  
+
   const totalRevenue = reportsArray.reduce((sum, r) => sum + (r.report?.revenue || 0), 0);
   const totalExpenses = reportsArray.reduce((sum, r) => sum + (r.report?.operating_expenses || 0), 0);
   const totalProfit = totalRevenue - totalExpenses;
   const totalCash = balanceArray.reduce((sum, r) => sum + (r.report?.assets?.cash || 0), 0);
   const margin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-  
+
   const totalDepreciation = reportsArray.reduce((sum, r) => sum + (r.report?.depreciation || 0), 0);
   const totalTaxes = reportsArray.reduce((sum, r) => sum + (r.report?.taxes || 0), 0);
   const ebitda = totalProfit + totalDepreciation + totalTaxes;
-  
+
   // Run Rate
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -126,18 +127,18 @@ export default function Dashboard() {
   const today = new Date();
   const gaps: any[] = [];
   let runningBalance = totalCash;
-  
+
   for (let i = 0; i < 30; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0];
-    
+
     const dayTx = transactions.filter(t => getDateStr(t.date).startsWith(dateStr));
     const inflow = dayTx.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
     const outflow = dayTx.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
-    
+
     runningBalance += inflow - outflow;
-    
+
     if (runningBalance < 0) {
       gaps.push({ date: dateStr, deficit: Math.abs(runningBalance) });
     }
@@ -149,7 +150,7 @@ export default function Dashboard() {
     const txDate = getDateStr(t.date);
     return txDate >= period.start && txDate <= period.end;
   });
-  
+
   const expensesByCategory = expenseAccounts.map(a => {
     const amount = periodTx
       .filter(t => t.debit_account_id === a.id)
@@ -162,9 +163,9 @@ export default function Dashboard() {
   // Дебиторка/кредиторка
   const totalAR = transactions.filter(t => t.debit_account_id === 'acc-ar-001').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
   const totalAP = transactions.filter(t => t.credit_account_id === 'acc-ap-001').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
-  
+
   // Алерты
-  const unclassifiedTx = transactions.filter(t => 
+  const unclassifiedTx = transactions.filter(t =>
     t.debit_account_id === 'acc-unclassified' || t.credit_account_id === 'acc-unclassified'
   );
   const unclassifiedAmount = unclassifiedTx.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
@@ -188,25 +189,25 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button 
-            onClick={() => applyPeriod('month')} 
+          <button
+            onClick={() => applyPeriod('month')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
           >
             Месяц
           </button>
-          <button 
-            onClick={() => applyPeriod('quarter')} 
+          <button
+            onClick={() => applyPeriod('quarter')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'quarter' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
           >
             Квартал
           </button>
-          <button 
-            onClick={() => applyPeriod('year')} 
+          <button
+            onClick={() => applyPeriod('year')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
           >
             Год
           </button>
-          
+
           {/* Произвольный период */}
           <div className="flex items-center gap-1">
             <input
