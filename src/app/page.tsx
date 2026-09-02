@@ -262,22 +262,40 @@ export default function Dashboard() {
 
           {expandedPanels['cash'] && (
             <div className="mt-3 pt-3 border-t border-gray-100">
-              {accounts.filter(a => a.is_cash_flow === 'true' || a.is_cash_flow === true).map((acc: any) => (
-                <div key={acc.id} className="flex justify-between text-sm py-1">
-                  <span className="text-gray-600">{acc.name}</span>
-                  <span className="font-medium text-gray-900">
-                    {(() => {
-                      const accTx = transactions.filter(t => t.debit_account_id === acc.id || t.credit_account_id === acc.id);
-                      const balance = accTx.reduce((s, t) => {
-                        if (t.debit_account_id === acc.id) return s + parseFloat(t.amount || 0);
-                        if (t.credit_account_id === acc.id) return s - parseFloat(t.amount || 0);
-                        return s;
-                      }, 0);
-                      return balance.toLocaleString('ru-RU') + ' ₽';
-                    })()}
-                  </span>
-                </div>
-              ))}
+              {companies.map((company: any) => {
+                const companyAccounts = accounts.filter(a =>
+                  a.is_cash_flow === 'true' || a.is_cash_flow === true
+                );
+
+                const accountsWithBalance = companyAccounts.map(acc => {
+                  const accTx = transactions.filter(t =>
+                    t.company_id === company.id &&
+                    (t.debit_account_id === acc.id || t.credit_account_id === acc.id)
+                  );
+                  const balance = accTx.reduce((s, t) => {
+                    if (t.debit_account_id === acc.id) return s + parseFloat(t.amount || 0);
+                    if (t.credit_account_id === acc.id) return s - parseFloat(t.amount || 0);
+                    return s;
+                  }, 0);
+                  return { account: acc, balance };
+                }).filter(item => item.balance !== 0);
+
+                if (accountsWithBalance.length === 0) return null;
+
+                return (
+                  <div key={company.id} className="mb-2 last:mb-0">
+                    <p className="text-xs font-medium text-gray-900">{company.name}</p>
+                    {accountsWithBalance.map(item => (
+                      <div key={item.account.id} className="flex justify-between text-sm py-1 ml-3">
+                        <span className="text-gray-600">{item.account.name}</span>
+                        <span className={`font-medium ${item.balance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                          {item.balance.toLocaleString('ru-RU')} ₽
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
