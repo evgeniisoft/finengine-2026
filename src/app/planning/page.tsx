@@ -183,8 +183,12 @@ export default function PlanningPage() {
                       return (
                         <td
                           key={m}
-                          className="px-4 py-3 text-sm text-right text-gray-900 whitespace-nowrap cursor-pointer hover:bg-blue-50"
+                          className={`px-4 py-3 text-sm text-right whitespace-nowrap ${selectedCompany ? 'text-gray-900 cursor-pointer hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'}`}
                           onClick={() => {
+                            if (!selectedCompany) {
+                              alert('Выберите конкретную компанию для редактирования');
+                              return;
+                            }
                             setEditingCell({ categoryId: acc.id, month: m });
                             setEditValue(amount ? amount.toString() : '');
                           }}
@@ -245,8 +249,12 @@ export default function PlanningPage() {
                       return (
                         <td
                           key={m}
-                          className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap cursor-pointer hover:bg-blue-50"
+                          className={`px-4 py-3 text-sm text-right whitespace-nowrap ${selectedCompany ? 'text-red-600 cursor-pointer hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'}`}
                           onClick={() => {
+                            if (!selectedCompany) {
+                              alert('Выберите конкретную компанию для редактирования');
+                              return;
+                            }
                             setEditingCell({ categoryId: acc.id, month: m });
                             setEditValue(amount ? amount.toString() : '');
                           }}

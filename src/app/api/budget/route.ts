@@ -5,7 +5,7 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y
 
 async function gasGet(sheet: string): Promise<any[]> {
   const url = `${GAS_URL}?action=getAll&sheet=${sheet}`;
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: 'no-store' });
   const data = await response.json();
   return Array.isArray(data) ? data : [];
 }
@@ -89,10 +89,11 @@ export async function POST(request: NextRequest) {
 
       // Найти существующую запись
       const budgets = await gasGet('Budgets');
+      const cleanPeriod = period.startsWith("'") ? period.slice(1) : period;
       const existing = budgets.find((b: any) =>
         b.company_id === companyId &&
         b.category_id === categoryId &&
-        b.period?.includes(period) &&
+        (b.period || '').replace(/^'/, '') === cleanPeriod &&
         b.scenario === scenario
       );
 
