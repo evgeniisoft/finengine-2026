@@ -174,8 +174,18 @@ export default function PlanningPage() {
     }
     return groups;
   };
-  const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
-  const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+  const months: string[] = [];
+  const monthNames: string[] = [];
+  const monthNamesRu = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+
+  const now = new Date();
+  for (let i = 1; i <= 12; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    months.push(`${y}-${m}`);
+    monthNames.push(`${monthNamesRu[date.getMonth()]} ${String(y).substring(2)}`);
+  }
 
   // Группируем бюджеты по статьям
   const budgetByCategory = new Map<string, Map<string, { amount: number, id: string, status: string }>>();
