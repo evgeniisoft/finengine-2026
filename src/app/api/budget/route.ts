@@ -87,10 +87,17 @@ export async function POST(request: NextRequest) {
     if (action === 'update_cell') {
       const { companyId, categoryId, period, plannedAmount, scenario } = body;
 
-      // Найти существующую запись
+      
+      // Если передан budgetId — обновляем по ID напрямую
+      if (body.budgetId) {
+        const updateUrl = `${GAS_URL}?action=update&sheet=Budgets&id=${body.budgetId}&data=${encodeURIComponent(JSON.stringify({ planned_amount: plannedAmount }))}`;
+        await fetch(updateUrl);
+        return NextResponse.json({ success: true });
+      }
+
+      // Иначе — ищем по компании, статье и периоду
       const budgets = await gasGet('Budgets');
       const cleanPeriod = period.startsWith("'") ? period.slice(1) : period;
-      // Нормализуем period — берём только YYYY-MM
       const normalizedSearchPeriod = cleanPeriod.substring(0, 7);
       const existing = budgets.find((b: any) =>
         b.company_id === companyId &&

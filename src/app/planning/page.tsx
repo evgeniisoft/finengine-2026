@@ -83,6 +83,11 @@ export default function PlanningPage() {
       return;
     }
 
+    const catId = editingCell.categoryId;
+    const month = editingCell.month;
+    const cellData = budgetByCategory.get(catId)?.get(month);
+    const budgetId = cellData?.id || '';
+
     try {
       setSavingCell(true);
       const response = await fetch('/api/budget', {
@@ -90,9 +95,10 @@ export default function PlanningPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'update_cell',
+          budgetId: budgetId,
           companyId: selectedCompany,
-          categoryId: editingCell.categoryId,
-          period: `${selectedYear}-${editingCell.month}`,
+          categoryId: catId,
+          period: `${selectedYear}-${month}`,
           plannedAmount: amount,
           scenario: selectedScenario
         })
@@ -102,7 +108,6 @@ export default function PlanningPage() {
 
       if (result.success) {
         setEditingCell(null);
-        setSavingCell(false);
         await loadData();
       } else {
         alert('Ошибка: ' + (result.error || 'Не удалось сохранить'));
@@ -114,19 +119,25 @@ export default function PlanningPage() {
       setSavingCell(false);
     }
   };
-
   const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
   const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
   // Группируем бюджеты по статьям
-  const budgetByCategory = new Map<string, Map<string, number>>();
+  const budgetByCategory = new Map<string, Map<string, { amount: number, id: string }>>();
   for (const budget of budgets) {
     const catId = budget.category_id || budget.account_id;
-    const month = budget.period?.substring(5, 7);
+    const rawPeriod = budget.period || '';
+    // Если period — дата, конвертируем в YYYY-MM по московскому времени
+    let month = rawPeriod.substring(5, 7);
+    if (rawPeriod.includes('T')) {
+      const date = new Date(rawPeriod);
+      const localDate = new Date(date.getTime() + 3 * 60 * 60 * 1000);
+      month = localDate.toISOString().substring(5, 7);
+    }
     if (!budgetByCategory.has(catId)) {
       budgetByCategory.set(catId, new Map());
     }
-    budgetByCategory.get(catId)!.set(month, budget.planned_amount);
+    budgetByCategory.get(catId)!.set(month, { amount: budget.planned_amount, id: budget.id });
   }
 
   return (
@@ -179,7 +190,8 @@ export default function PlanningPage() {
                   <tr key={acc.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">{acc.name}</td>
                     {months.map(m => {
-                      const amount = budgetByCategory.get(acc.id)?.get(m);
+                      const cellData = budgetByCategory.get(acc.id)?.get(m);
+                      const amount = cellData?.amount;
                       return (
                         <td
                           key={m}
@@ -234,7 +246,8 @@ export default function PlanningPage() {
                   {months.map(m => {
                     let total = 0;
                     accounts.filter(a => a.type === 'I').forEach(acc => {
-                      total += budgetByCategory.get(acc.id)?.get(m) || 0;
+                      const cellData = budgetByCategory.get(acc.id)?.get(m);
+                      total += cellData?.amount || 0;
                     });
                     return <td key={m} className="px-4 py-3 text-sm text-right font-bold text-gray-900">{total ? total.toLocaleString('ru-RU') : '—'}</td>;
                   })}
@@ -245,7 +258,8 @@ export default function PlanningPage() {
                   <tr key={acc.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-600 sticky left-0 bg-white">{acc.name}</td>
                     {months.map(m => {
-                      const amount = budgetByCategory.get(acc.id)?.get(m);
+                      const cellData = budgetByCategory.get(acc.id)?.get(m);
+                      const amount = cellData?.amount;
                       return (
                         <td
                           key={m}
@@ -300,7 +314,8 @@ export default function PlanningPage() {
                   {months.map(m => {
                     let total = 0;
                     accounts.filter(a => a.type === 'X').forEach(acc => {
-                      total += budgetByCategory.get(acc.id)?.get(m) || 0;
+                      const cellData = budgetByCategory.get(acc.id)?.get(m);
+                      total += cellData?.amount || 0;
                     });
                     return <td key={m} className="px-4 py-3 text-sm text-right font-bold text-red-600">-{total ? total.toLocaleString('ru-RU') : '—'}</td>;
                   })}
