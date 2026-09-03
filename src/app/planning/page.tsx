@@ -150,21 +150,30 @@ export default function PlanningPage() {
           <h2 className="text-2xl font-bold text-gray-900">Планирование</h2>
           <p className="text-gray-500 mt-1">Бюджет доходов и расходов</p>
         </div>
-        <div className="flex gap-2 items-center">
-          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-            <option value="2026">2026</option>
-            <option value="2027">2027</option>
-          </select>
-          <select value={selectedScenario} onChange={(e) => setSelectedScenario(e.target.value as any)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-            <option value="base">Базовый</option>
-            <option value="optimistic">Оптимистичный</option>
-            <option value="pessimistic">Пессимистичный</option>
-          </select>
-          <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-            <option value="">Все компании</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-2 items-center">
+            <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
+            <select value={selectedScenario} onChange={(e) => setSelectedScenario(e.target.value as any)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+              <option value="base">Базовый</option>
+              <option value="optimistic">Оптимистичный</option>
+              <option value="pessimistic">Пессимистичный</option>
+            </select>
+            <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+              <option value="">Все компании</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <button
+              onClick={handleAutoFill}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+            >
+              Автозаполнить
+            </button>
+          </div>
+
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
             <button
               onClick={() => setViewMode('plan')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium ${viewMode === 'plan' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
@@ -184,12 +193,6 @@ export default function PlanningPage() {
               Отклонение
             </button>
           </div>
-          <button
-            onClick={handleAutoFill}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-          >
-            Автозаполнить
-          </button>
         </div>
       </div>
 
