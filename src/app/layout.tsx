@@ -3,7 +3,7 @@ import "./globals.css";
 import Navigation from "@/components/Navigation";
 
 export const metadata: Metadata = {
-  title: "FinEngine 2026",
+  title: "FinJir",
   description: "SaaS-платформа управленческого учёта",
 };
 
