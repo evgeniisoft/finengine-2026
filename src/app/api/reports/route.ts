@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     switch (reportType) {
       case 'pnl': {
         const reports = targetCompanies.map(company => {
-          const pnl = calculator.calculatePnL(transactions, accounts, company.id, periodStart, periodEnd);
+          const pnl = calculator.calculatePnL(transactions, accounts, company.id, periodStart, periodEnd, company);
           const tax = taxEngine.calculateTax(company, transactions, accounts, periodStart, periodEnd);
           return { company, report: pnl, tax };
         });
