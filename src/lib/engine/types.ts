@@ -292,3 +292,21 @@ export interface DataMapping {
   is_deleted: string;
   deleted_at: string;
 }
+// Бюджетная запись
+export interface Budget {
+  id: string;
+  tenant_id: string;
+  company_id: string;
+  category_id: string;
+  period: string; // YYYY-MM
+  planned_amount: number;
+  actual_amount: number;
+  record_type: 'pnl' | 'cashflow';
+  scenario: 'base' | 'optimistic' | 'pessimistic';
+  status: 'draft' | 'approved';
+  payment_delay_days: number;
+  is_deleted: string;
+  deleted_at: string;
+  created_at: string;
+  updated_at: string;
+}

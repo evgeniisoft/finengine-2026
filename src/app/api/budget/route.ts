@@ -1,67 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { budgetEngine } from '@/lib/engine/budget';
-import { api } from '@/lib/api';
 
-/**
- * GET /api/budget
- * Получение бюджета с сравнением Факт/План
- */
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
+
+async function gasGet(sheet: string): Promise<any[]> {
+  const url = `${GAS_URL}?action=getAll&sheet=${sheet}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function gasCreate(sheet: string, data: any): Promise<any> {
+  const response = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'create', sheet, data })
+  });
+  return await response.json();
+}
+
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const companyId = url.searchParams.get('company_id');
-    const period = url.searchParams.get('period') || '2026-01';
+    const scenario = url.searchParams.get('scenario') || 'base';
+    const year = url.searchParams.get('year') || '2026';
     
-    // Получаем данные
-    const [transactions, accounts] = await Promise.all([
-      api.getAll('Transactions'),
-      api.getAll('Accounts')
+    const [budgets, transactions, accounts, companies] = await Promise.all([
+      gasGet('Budgets'),
+      gasGet('Transactions'),
+      gasGet('Accounts'),
+      gasGet('Companies')
     ]);
     
-    // Создаём скользящий бюджет
-    const budget = budgetEngine.createRollingBudget(
-      companyId || 'comp-demo-001',
-      period,
+    // Фильтруем бюджеты
+    let filteredBudgets = budgets.filter(b => 
+      b.period?.startsWith(year) && 
+      b.scenario === scenario
+    );
+    if (companyId) {
+      filteredBudgets = filteredBudgets.filter(b => b.company_id === companyId);
+    }
+    
+    // Считаем фактические данные
+    const actuals = transactions.filter(t => {
+      const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+      return txDate.startsWith(year);
+    });
+    
+    return NextResponse.json({
+      budgets: filteredBudgets,
+      actuals,
       accounts,
-      transactions
-    );
-    
-    // Сравниваем с фактом
-    const compared = budgetEngine.compareBudgetVsActual(
-      budget,
-      transactions,
-      accounts
-    );
-    
-    return NextResponse.json(compared);
+      companies
+    });
     
   } catch (error) {
     console.error('Ошибка API:', error);
-    return NextResponse.json(
-      { error: 'Внутренняя ошибка сервера' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Внутренняя ошибка' }, { status: 500 });
   }
 }
 
-/**
- * POST /api/budget
- * Создание бюджета
- */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const budget = body.budget;
+    const action = body.action;
     
-    const created = await api.create('Budgets', budget);
+    if (action === 'create_budget') {
+      const result = await gasCreate('Budgets', body.data);
+      return NextResponse.json(result);
+    }
     
-    return NextResponse.json(created);
+    if (action === 'auto_fill') {
+      // Автозаполнение на основе прошлых данных
+      const { transactions, accounts, companyId, year } = body;
+      const budgets: any[] = [];
+      
+      // Логика автозаполнения
+      // ...
+      
+      return NextResponse.json({ budgets });
+    }
+    
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     
   } catch (error) {
     console.error('Ошибка API:', error);
-    return NextResponse.json(
-      { error: 'Внутренняя ошибка сервера' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Внутренняя ошибка' }, { status: 500 });
   }
 }
