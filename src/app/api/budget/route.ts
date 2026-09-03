@@ -145,23 +145,16 @@ export async function POST(request: NextRequest) {
         updated++;
       }
 
-      // Находим последний месяц в горизонте
-      const allPeriods = budgets
-        .filter((b: any) => b.company_id === companyId && b.scenario === scenario)
-        .map((b: any) => String(b.period || '').replace(/^'/, '').substring(0, 7))
-        .sort();
+      // Скользящее планирование: горизонт всегда 12 месяцев вперёд от закрытого
+      const closedYear = parseInt(period.substring(0, 4));
+      const closedMonth = parseInt(period.substring(5, 7));
 
-      const lastPeriod = allPeriods[allPeriods.length - 1];
-      const lastYear = parseInt(lastPeriod.substring(0, 4));
-      const lastMonth = parseInt(lastPeriod.substring(5, 7));
+      // Горизонт начинается со следующего месяца после закрытого
+      const horizonStart = new Date(closedYear, closedMonth, 1); // следующий месяц после закрытого
+      const horizonEnd = new Date(closedYear, closedMonth + 12, 1); // 12 месяцев вперёд
 
-      let newYear = lastYear;
-      let newMonthNum = lastMonth + 1;
-      if (newMonthNum > 12) {
-        newMonthNum = 1;
-        newYear = lastYear + 1;
-      }
-
+      const newYear = horizonEnd.getFullYear();
+      const newMonthNum = horizonEnd.getMonth() + 1;
       const newPeriod = `${newYear}-${String(newMonthNum).padStart(2, '0')}`;
 
       // Создаём пустые бюджеты на новый месяц
