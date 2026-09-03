@@ -206,11 +206,7 @@ export default function PlanningPage() {
     if (!budgetByCategory.has(catId)) {
       budgetByCategory.set(catId, new Map());
     }
-    budgetByCategory.get(catId)!.set(month, {
-      amount: budget.planned_amount,
-      id: budget.id,
-      status: budget.status || 'draft'
-    });
+    budgetByCategory.get(catId)!.set(rawPeriod.replace(/^'/, '').substring(0, 7), { amount: budget.planned_amount, id: budget.id, status: budget.status || 'draft' });
   }
 
   return (
@@ -308,7 +304,7 @@ export default function PlanningPage() {
                         <tr key={acc.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">{acc.name}</td>
                           {months.map(m => {
-                            const cellData = budgetByCategory.get(acc.id)?.get(m);
+                            const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
                             const amount = cellData?.amount;
                             {
                               cellData?.status === 'closed' && (
@@ -367,7 +363,7 @@ export default function PlanningPage() {
                         <tr key={acc.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm text-gray-600 sticky left-0 bg-white">{acc.name}</td>
                           {months.map(m => {
-                            const cellData = budgetByCategory.get(acc.id)?.get(m);
+                            const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
                             const amount = cellData?.amount;
                             {
                               cellData?.status === 'closed' && (
@@ -431,7 +427,7 @@ export default function PlanningPage() {
                     let totalPlan = 0;
                     let totalActual = 0;
                     accounts.filter(a => a.type === 'I').forEach(acc => {
-                      const cellData = budgetByCategory.get(acc.id)?.get(m);
+                      const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
                       totalPlan += cellData?.amount || 0;
                       totalActual += actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
                     });
@@ -463,7 +459,7 @@ export default function PlanningPage() {
                     let totalPlan = 0;
                     let totalActual = 0;
                     accounts.filter(a => a.type === 'X').forEach(acc => {
-                      const cellData = budgetByCategory.get(acc.id)?.get(m);
+                      const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
                       totalPlan += cellData?.amount || 0;
                       totalActual += actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
                     });
