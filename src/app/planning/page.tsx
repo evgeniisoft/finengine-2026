@@ -268,12 +268,12 @@ export default function PlanningPage() {
                                 <div>
                                   <div className="font-medium">{planned ? planned.toLocaleString('ru-RU') : '—'}</div>
                                   {viewMode === 'actual' && actual > 0 && (
-                                    <div className={`text-xs ${actual > planned ? 'text-red-600' : actual < planned ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <div className={`text-xs ${actual >= planned ? 'text-green-600' : 'text-red-600'}`}>
                                       {actual.toLocaleString('ru-RU')}
                                     </div>
                                   )}
                                   {viewMode === 'deviation' && actual > 0 && (
-                                    <div className={`text-xs ${dev > 0 ? 'text-red-600' : dev < 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <div className={`text-xs ${dev >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                       {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
                                     </div>
                                   )}
@@ -291,12 +291,31 @@ export default function PlanningPage() {
                 <tr className="bg-gray-50">
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого доходы</td>
                   {months.map(m => {
-                    let total = 0;
+                    let totalPlan = 0;
+                    let totalActual = 0;
                     accounts.filter(a => a.type === 'I').forEach(acc => {
                       const cellData = budgetByCategory.get(acc.id)?.get(m);
-                      total += cellData?.amount || 0;
+                      totalPlan += cellData?.amount || 0;
+                      totalActual += actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
                     });
-                    return <td key={m} className="px-4 py-3 text-sm text-right font-bold text-gray-900">{total ? total.toLocaleString('ru-RU') : '—'}</td>;
+
+                    const dev = totalPlan && totalActual ? ((totalActual - totalPlan) / totalPlan) * 100 : 0;
+
+                    return (
+                      <td key={m} className="px-4 py-3 text-sm text-right font-bold text-gray-900">
+                        <div>{totalPlan ? totalPlan.toLocaleString('ru-RU') : '—'}</div>
+                        {viewMode === 'actual' && totalActual > 0 && (
+                          <div className={`text-xs ${totalActual >= totalPlan ? 'text-green-600' : 'text-red-600'}`}>
+                            {totalActual.toLocaleString('ru-RU')}
+                          </div>
+                        )}
+                        {viewMode === 'deviation' && totalActual > 0 && (
+                          <div className={`text-xs ${dev >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
+                          </div>
+                        )}
+                      </td>
+                    );
                   })}
                 </tr>
 
@@ -357,12 +376,12 @@ export default function PlanningPage() {
                                 <div>
                                   <div className="font-medium">{planned ? planned.toLocaleString('ru-RU') : '—'}</div>
                                   {viewMode === 'actual' && actual > 0 && (
-                                    <div className={`text-xs ${actual > planned ? 'text-red-600' : actual < planned ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <div className={`text-xs ${actual <= planned ? 'text-green-600' : 'text-red-600'}`}>
                                       {actual.toLocaleString('ru-RU')}
                                     </div>
                                   )}
                                   {viewMode === 'deviation' && actual > 0 && (
-                                    <div className={`text-xs ${dev > 0 ? 'text-red-600' : dev < 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <div className={`text-xs ${dev <= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                       {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
                                     </div>
                                   )}
@@ -380,12 +399,31 @@ export default function PlanningPage() {
                 <tr className="bg-gray-50">
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого расходы</td>
                   {months.map(m => {
-                    let total = 0;
+                    let totalPlan = 0;
+                    let totalActual = 0;
                     accounts.filter(a => a.type === 'X').forEach(acc => {
                       const cellData = budgetByCategory.get(acc.id)?.get(m);
-                      total += cellData?.amount || 0;
+                      totalPlan += cellData?.amount || 0;
+                      totalActual += actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
                     });
-                    return <td key={m} className="px-4 py-3 text-sm text-right font-bold text-red-600">-{total ? total.toLocaleString('ru-RU') : '—'}</td>;
+
+                    const dev = totalPlan && totalActual ? ((totalActual - totalPlan) / totalPlan) * 100 : 0;
+
+                    return (
+                      <td key={m} className="px-4 py-3 text-sm text-right font-bold text-red-600">
+                        <div>-{totalPlan ? totalPlan.toLocaleString('ru-RU') : '—'}</div>
+                        {viewMode === 'actual' && totalActual > 0 && (
+                          <div className={`text-xs ${totalActual <= totalPlan ? 'text-green-600' : 'text-red-600'}`}>
+                            -{totalActual.toLocaleString('ru-RU')}
+                          </div>
+                        )}
+                        {viewMode === 'deviation' && totalActual > 0 && (
+                          <div className={`text-xs ${dev <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
+                          </div>
+                        )}
+                      </td>
+                    );
                   })}
                 </tr>
               </tbody>
