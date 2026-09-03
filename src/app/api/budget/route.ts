@@ -70,6 +70,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result);
     }
 
+
+    if (action === 'update_cell') {
+      const { companyId, categoryId, period, plannedAmount, scenario } = body;
+
+      // Найти существующую запись
+      const budgets = await gasGet('Budgets');
+      const existing = budgets.find((b: any) =>
+        b.company_id === companyId &&
+        b.category_id === categoryId &&
+        b.period?.includes(period) &&
+        b.scenario === scenario
+      );
+
+      if (existing) {
+        // Обновить
+        const updateUrl = `${GAS_URL}?action=update&sheet=Budgets&id=${existing.id}&data=${encodeURIComponent(JSON.stringify({ ...existing, planned_amount: plannedAmount }))}`;
+        await fetch(updateUrl);
+        return NextResponse.json({ success: true });
+      } else {
+        // Создать
+        const newBudget = {
+          id: '',
+          tenant_id: 'tenant-1',
+          company_id: companyId,
+          category_id: categoryId,
+          account_id: categoryId,
+          period: `'${period}`,
+          planned_amount: plannedAmount,
+          actual_amount: 0,
+          record_type: 'pnl',
+          scenario: scenario,
+          status: 'draft',
+          payment_delay_days: 0,
+          is_deleted: '',
+          deleted_at: '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        await gasCreate('Budgets', newBudget);
+        return NextResponse.json({ success: true });
+      }
+    }
+
     if (action === 'auto_fill') {
       const companyId = body.companyId;
       const year = body.year || '2026';

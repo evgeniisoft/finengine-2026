@@ -11,6 +11,8 @@ export default function PlanningPage() {
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [selectedScenario, setSelectedScenario] = useState<'base' | 'optimistic' | 'pessimistic'>('base');
   const [selectedYear, setSelectedYear] = useState('2026');
+  const [editingCell, setEditingCell] = useState<{ categoryId: string, month: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   useEffect(() => {
     loadData();
@@ -25,7 +27,7 @@ export default function PlanningPage() {
       ]);
       setCompanies(companiesData);
       setAccounts(accountsData);
-      
+
       const url = `/api/budget?year=${selectedYear}&scenario=${selectedScenario}${selectedCompany ? `&company_id=${selectedCompany}` : ''}`;
       const response = await fetch(url);
       const data = await response.json();
@@ -42,7 +44,7 @@ export default function PlanningPage() {
       alert('Выберите компанию');
       return;
     }
-    
+
     try {
       setLoading(true);
       const response = await fetch('/api/budget', {
@@ -55,7 +57,7 @@ export default function PlanningPage() {
         })
       });
       const result = await response.json();
-      
+
       if (result.success) {
         alert(`Создано бюджетных записей: ${result.count}`);
         loadData();
@@ -70,8 +72,44 @@ export default function PlanningPage() {
     }
   };
 
-  const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
-  const monthNames = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+  const handleSaveCell = async () => {
+    if (!editingCell) return;
+
+    const amount = parseFloat(editValue);
+    if (isNaN(amount) || amount < 0) {
+      alert('Введите корректную сумму');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/budget', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_cell',
+          companyId: selectedCompany,
+          categoryId: editingCell.categoryId,
+          period: `${selectedYear}-${editingCell.month}`,
+          plannedAmount: amount,
+          scenario: selectedScenario
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setEditingCell(null);
+        loadData();
+      } else {
+        alert('Ошибка: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Ошибка:', error);
+      alert('Ошибка при сохранении');
+    }
+  };
+
+  const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+  const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
   // Группируем бюджеты по статьям
   const budgetByCategory = new Map<string, Map<string, number>>();
@@ -136,14 +174,33 @@ export default function PlanningPage() {
                     {months.map(m => {
                       const amount = budgetByCategory.get(acc.id)?.get(m);
                       return (
-                        <td key={m} className="px-4 py-3 text-sm text-right text-gray-900 whitespace-nowrap">
-                          {amount ? amount.toLocaleString('ru-RU') : '—'}
+                        <td
+                          key={m}
+                          className="px-4 py-3 text-sm text-right text-gray-900 whitespace-nowrap cursor-pointer hover:bg-blue-50"
+                          onClick={() => {
+                            setEditingCell({ categoryId: acc.id, month: m });
+                            setEditValue(amount ? amount.toString() : '');
+                          }}
+                        >
+                          {editingCell?.categoryId === acc.id && editingCell?.month === m ? (
+                            <input
+                              type="number"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleSaveCell}
+                              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCell(); if (e.key === 'Escape') setEditingCell(null); }}
+                              className="w-24 px-2 py-1 border border-blue-500 rounded text-right"
+                              autoFocus
+                            />
+                          ) : (
+                            amount ? amount.toLocaleString('ru-RU') : '—'
+                          )}
                         </td>
                       );
                     })}
                   </tr>
                 ))}
-                
+
                 {/* Итого доходы */}
                 <tr className="bg-gray-50">
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого доходы</td>
@@ -155,7 +212,7 @@ export default function PlanningPage() {
                     return <td key={m} className="px-4 py-3 text-sm text-right font-bold text-gray-900">{total ? total.toLocaleString('ru-RU') : '—'}</td>;
                   })}
                 </tr>
-                
+
                 {/* Расходные статьи */}
                 {accounts.filter(a => a.type === 'X').map(acc => (
                   <tr key={acc.id} className="hover:bg-gray-50">
@@ -163,14 +220,33 @@ export default function PlanningPage() {
                     {months.map(m => {
                       const amount = budgetByCategory.get(acc.id)?.get(m);
                       return (
-                        <td key={m} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">
-                          {amount ? '-' + amount.toLocaleString('ru-RU') : '—'}
+                        <td
+                          key={m}
+                          className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap cursor-pointer hover:bg-blue-50"
+                          onClick={() => {
+                            setEditingCell({ categoryId: acc.id, month: m });
+                            setEditValue(amount ? amount.toString() : '');
+                          }}
+                        >
+                          {editingCell?.categoryId === acc.id && editingCell?.month === m ? (
+                            <input
+                              type="number"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={handleSaveCell}
+                              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCell(); if (e.key === 'Escape') setEditingCell(null); }}
+                              className="w-24 px-2 py-1 border border-blue-500 rounded text-right"
+                              autoFocus
+                            />
+                          ) : (
+                            amount ? amount.toLocaleString('ru-RU') : '—'
+                          )}
                         </td>
                       );
                     })}
                   </tr>
                 ))}
-                
+
                 {/* Итого расходы */}
                 <tr className="bg-gray-50">
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого расходы</td>
@@ -185,7 +261,7 @@ export default function PlanningPage() {
               </tbody>
             </table>
           </div>
-          
+
           {budgets.length === 0 && (
             <div className="p-8 text-center">
               <p className="text-gray-500">Нет бюджетных данных. Выберите компанию и нажмите "Автозаполнить".</p>
