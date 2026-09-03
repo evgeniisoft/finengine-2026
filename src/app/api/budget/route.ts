@@ -79,7 +79,12 @@ export async function GET(request: NextRequest) {
       transactions,
       accounts,
       companies,
-      actualsByCategory: Object.fromEntries(actualsByCategory)
+      actualsByCategory: Object.fromEntries(
+        Array.from(actualsByCategory.entries()).map(([catId, monthsMap]) => [
+          catId,
+          Object.fromEntries(monthsMap)
+        ])
+      )
     });
 
   } catch (error) {
