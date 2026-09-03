@@ -30,30 +30,30 @@ export async function GET(request: NextRequest) {
     const companyId = url.searchParams.get('company_id');
     const scenario = url.searchParams.get('scenario') || 'base';
     const year = url.searchParams.get('year') || '2026';
-    
+
     const [budgets, transactions, accounts, companies] = await Promise.all([
       gasGet('Budgets'),
       gasGet('Transactions'),
       gasGet('Accounts'),
       gasGet('Companies')
     ]);
-    
+
     // Фильтруем бюджеты
-    let filteredBudgets = budgets.filter((b: any) => 
-      b.period?.startsWith(year) && 
+    let filteredBudgets = budgets.filter((b: any) =>
+      b.period?.startsWith(year) &&
       b.scenario === scenario
     );
     if (companyId) {
       filteredBudgets = filteredBudgets.filter((b: any) => b.company_id === companyId);
     }
-    
+
     return NextResponse.json({
       budgets: filteredBudgets,
       transactions,
       accounts,
       companies
     });
-    
+
   } catch (error) {
     console.error('Ошибка API:', error);
     return NextResponse.json({ error: 'Внутренняя ошибка: ' + (error as Error).message }, { status: 500 });
@@ -64,37 +64,41 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const action = body.action;
-    
+
     if (action === 'create_budget') {
       const result = await gasCreate('Budgets', body.data);
       return NextResponse.json(result);
     }
-    
+
     if (action === 'auto_fill') {
       const companyId = body.companyId;
       const year = body.year || '2026';
-      
+
       if (!companyId) {
         return NextResponse.json({ error: 'Не указана компания' }, { status: 400 });
       }
-      
+
       const [transactions, accounts] = await Promise.all([
         gasGet('Transactions'),
         gasGet('Accounts')
       ]);
-      
+
       const budgets = budgetEngine.autoFillBudget(companyId, year, accounts, transactions);
-      
+      // Защищаем period от преобразования в дату
+      budgets.forEach(b => {
+        b.period = `'${b.period}`;
+      });
+
       // Сохраняем бюджеты
       for (const budget of budgets) {
         await gasCreate('Budgets', budget);
       }
-      
+
       return NextResponse.json({ success: true, count: budgets.length });
     }
-    
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
-    
+
   } catch (error) {
     console.error('Ошибка API:', error);
     return NextResponse.json({ error: 'Внутренняя ошибка: ' + (error as Error).message }, { status: 500 });
