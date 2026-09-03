@@ -124,21 +124,71 @@ export async function POST(request: NextRequest) {
     // 2. СЧЕТА
     // ============================================
     const accounts = [
-      { id: 'acc-bank-001', code: 'BANK_ALFA', name: 'Альфа-Банк', type: 'A', is_cash_flow: 'true', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-bank-002', code: 'BANK_SBER', name: 'Сбербанк', type: 'A', is_cash_flow: 'true', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-cash-001', code: 'CASH_OFFICE', name: 'Касса', type: 'A', is_cash_flow: 'true', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-in-revenue', code: 'IN_REVENUE', name: 'Выручка от клиентов', type: 'I', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-out-salary', code: 'OUT_SALARY', name: 'Зарплата', type: 'X', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-out-rent', code: 'OUT_RENT', name: 'Аренда', type: 'X', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-out-marketing', code: 'OUT_MARKETING', name: 'Маркетинг', type: 'X', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-out-other', code: 'OUT_OTHER', name: 'Прочие расходы', type: 'X', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-ar-001', code: 'AR', name: 'Дебиторская задолженность', type: 'A', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-ap-001', code: 'AP', name: 'Кредиторская задолженность', type: 'L', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-loan-001', code: 'LOAN', name: 'Кредиты', type: 'L', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-equity-001', code: 'EQUITY', name: 'Капитал', type: 'E', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-unclassified', code: 'UNCLASSIFIED', name: 'Требует уточнения', type: 'X', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-vat-incoming', code: 'VAT_IN', name: 'Входящий НДС', type: 'A', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-vat-outgoing', code: 'VAT_OUT', name: 'Исходящий НДС', type: 'L', is_cash_flow: 'false', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      // ДОХОДЫ
+      { id: 'acc-in-revenue', code: 'I-001', name: 'Выручка от продаж', type: 'I', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'ДОХОДЫ', source_code: '90.01', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-in-other', code: 'I-002', name: 'Прочие доходы', type: 'I', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'ДОХОДЫ', source_code: '91.01', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-in-fx', code: 'I-003', name: 'Курсовые разницы (доход)', type: 'I', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'ДОХОДЫ', source_code: '91.01', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // СЕБЕСТОИМОСТЬ
+      { id: 'acc-cogs-goods', code: 'C-001', name: 'Закупка товаров', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'СЕБЕСТОИМОСТЬ', source_code: '41', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-cogs-materials', code: 'C-002', name: 'Материалы', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'СЕБЕСТОИМОСТЬ', source_code: '10', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-cogs-logistics', code: 'C-003', name: 'Логистика', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'СЕБЕСТОИМОСТЬ', source_code: '44', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-cogs-packaging', code: 'C-004', name: 'Упаковка', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'СЕБЕСТОИМОСТЬ', source_code: '44', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-cogs-production', code: 'C-005', name: 'Производственные расходы', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'СЕБЕСТОИМОСТЬ', source_code: '20', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-cogs-subcontract', code: 'C-006', name: 'Субподряд', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'СЕБЕСТОИМОСТЬ', source_code: '60', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // ОПЕРАЦИОННЫЕ РАСХОДЫ - Персонал
+      { id: 'acc-out-salary', code: 'O-001', name: 'Зарплата', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-personnel', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '70', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-out-bonus', code: 'O-002', name: 'Премии', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-personnel', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '70', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-out-training', code: 'O-012', name: 'Обучение', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-personnel', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '26', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // ОПЕРАЦИОННЫЕ РАСХОДЫ - Помещения
+      { id: 'acc-out-rent-office', code: 'O-003', name: 'Аренда офиса', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-premises', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '26', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-out-rent-warehouse', code: 'O-004', name: 'Аренда склада', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-premises', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '26', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-out-utilities', code: 'O-005', name: 'Коммунальные', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-premises', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '26', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // ОПЕРАЦИОННЫЕ РАСХОДЫ - IT и связь
+      { id: 'acc-out-internet', code: 'O-006', name: 'Связь и интернет', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-it', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '26', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-out-software', code: 'O-008', name: 'Программное обеспечение', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-it', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '26', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-out-tech', code: 'O-009', name: 'Обслуживание техники', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-it', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '26', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // ОПЕРАЦИОННЫЕ РАСХОДЫ - Маркетинг
+      { id: 'acc-out-marketing', code: 'O-013', name: 'Реклама', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-marketing', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '44', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-out-pr', code: 'O-014', name: 'PR и мероприятия', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-marketing', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '44', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // ОПЕРАЦИОННЫЕ РАСХОДЫ - Банк
+      { id: 'acc-out-bank-fees', code: 'O-007', name: 'Банковские комиссии', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: 'group-bank', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '91.02', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // ОПЕРАЦИОННЫЕ РАСХОДЫ - Прочее
+      { id: 'acc-out-other', code: 'O-023', name: 'Прочие операционные', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '26', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // НАЛОГИ И ВЗНОСЫ
+      { id: 'acc-tax-insurance', code: 'T-001', name: 'Страховые взносы', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'НАЛОГИ И ВЗНОСЫ', source_code: '69', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-tax-ndfl', code: 'T-002', name: 'НДФЛ', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'НАЛОГИ И ВЗНОСЫ', source_code: '68', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-tax-vat', code: 'T-003', name: 'НДС', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'НАЛОГИ И ВЗНОСЫ', source_code: '68', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-tax-usn', code: 'T-004', name: 'Налог УСН', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'НАЛОГИ И ВЗНОСЫ', source_code: '68', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-tax-profit', code: 'T-005', name: 'Налог на прибыль', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'НАЛОГИ И ВЗНОСЫ', source_code: '68', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // АМОРТИЗАЦИЯ
+      { id: 'acc-depreciation-os', code: 'A-001', name: 'Амортизация ОС', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'АМОРТИЗАЦИЯ', source_code: '02', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // ФИНАНСОВЫЕ РАСХОДЫ
+      { id: 'acc-fin-interest', code: 'F-001', name: 'Проценты по кредитам', type: 'X', is_cash_flow: 'false', activity_type: 'financing', parent_id: '', group_name: 'ФИНАНСОВЫЕ РАСХОДЫ', source_code: '91.02', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // ДЕНЕЖНЫЕ СЧЕТА
+      { id: 'acc-bank-001', code: 'CA-001', name: 'Альфа-Банк', type: 'A', is_cash_flow: 'true', activity_type: '', parent_id: '', group_name: 'АКТИВЫ', source_code: '51', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-bank-002', code: 'CA-001', name: 'Сбербанк', type: 'A', is_cash_flow: 'true', activity_type: '', parent_id: '', group_name: 'АКТИВЫ', source_code: '51', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-cash-001', code: 'CA-002', name: 'Касса', type: 'A', is_cash_flow: 'true', activity_type: '', parent_id: '', group_name: 'АКТИВЫ', source_code: '50', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // ЗАДОЛЖЕННОСТИ
+      { id: 'acc-ar-001', code: 'CA-003', name: 'Дебиторская задолженность', type: 'A', is_cash_flow: 'false', activity_type: '', parent_id: '', group_name: 'АКТИВЫ', source_code: '62', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-ap-001', code: 'L-001', name: 'Кредиторская задолженность', type: 'L', is_cash_flow: 'false', activity_type: '', parent_id: '', group_name: 'ОБЯЗАТЕЛЬСТВА', source_code: '60', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // КАПИТАЛ
+      { id: 'acc-equity-001', code: 'E-001', name: 'Капитал', type: 'E', is_cash_flow: 'false', activity_type: '', parent_id: '', group_name: 'КАПИТАЛ', source_code: '80', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // НЕРАСПРЕДЕЛЁННОЕ
+      { id: 'acc-unclassified', code: 'O-999', name: 'Требует уточнения', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
     ];
 
     // ============================================
