@@ -262,22 +262,23 @@ export default function PlanningPage() {
                             (() => {
                               const actual = actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
                               const planned = amount || 0;
+                              const dev = planned && actual ? ((actual - planned) / planned) * 100 : 0;
 
-                              if (viewMode === 'actual') {
-                                return actual ? actual.toLocaleString('ru-RU') : '—';
-                              }
-
-                              if (viewMode === 'deviation') {
-                                if (!planned || !actual) return '—';
-                                const dev = ((actual - planned) / planned) * 100;
-                                return (
-                                  <span className={dev > 0 ? 'text-red-600' : dev < 0 ? 'text-green-600' : 'text-gray-400'}>
-                                    {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
-                                  </span>
-                                );
-                              }
-
-                              return planned ? planned.toLocaleString('ru-RU') : '—';
+                              return (
+                                <div>
+                                  <div className="font-medium">{planned ? planned.toLocaleString('ru-RU') : '—'}</div>
+                                  {viewMode === 'actual' && actual > 0 && (
+                                    <div className={`text-xs ${actual > planned ? 'text-red-600' : actual < planned ? 'text-green-600' : 'text-gray-400'}`}>
+                                      {actual.toLocaleString('ru-RU')}
+                                    </div>
+                                  )}
+                                  {viewMode === 'deviation' && actual > 0 && (
+                                    <div className={`text-xs ${dev > 0 ? 'text-red-600' : dev < 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                                      {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
+                                    </div>
+                                  )}
+                                </div>
+                              );
                             })()
                           )}
                         </td>
@@ -350,22 +351,23 @@ export default function PlanningPage() {
                             (() => {
                               const actual = actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
                               const planned = amount || 0;
+                              const dev = planned && actual ? ((actual - planned) / planned) * 100 : 0;
 
-                              if (viewMode === 'actual') {
-                                return actual ? actual.toLocaleString('ru-RU') : '—';
-                              }
-
-                              if (viewMode === 'deviation') {
-                                if (!planned || !actual) return '—';
-                                const dev = ((actual - planned) / planned) * 100;
-                                return (
-                                  <span className={dev > 0 ? 'text-red-600' : dev < 0 ? 'text-green-600' : 'text-gray-400'}>
-                                    {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
-                                  </span>
-                                );
-                              }
-
-                              return planned ? planned.toLocaleString('ru-RU') : '—';
+                              return (
+                                <div>
+                                  <div className="font-medium">{planned ? planned.toLocaleString('ru-RU') : '—'}</div>
+                                  {viewMode === 'actual' && actual > 0 && (
+                                    <div className={`text-xs ${actual > planned ? 'text-red-600' : actual < planned ? 'text-green-600' : 'text-gray-400'}`}>
+                                      {actual.toLocaleString('ru-RU')}
+                                    </div>
+                                  )}
+                                  {viewMode === 'deviation' && actual > 0 && (
+                                    <div className={`text-xs ${dev > 0 ? 'text-red-600' : dev < 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                                      {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
+                                    </div>
+                                  )}
+                                </div>
+                              );
                             })()
                           )}
                         </td>
