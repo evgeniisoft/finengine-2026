@@ -306,9 +306,12 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Защищаем period от преобразования в дату
+      // Защищаем period от преобразования в дату — только если апострофа ещё нет
       budgets.forEach(b => {
-        b.period = `'${b.period}`;
+        const rawPeriod = String(b.period || '');
+        if (!rawPeriod.startsWith("'")) {
+          b.period = `'${rawPeriod}`;
+        }
       });
 
       // Сохраняем бюджеты
