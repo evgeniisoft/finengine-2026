@@ -188,6 +188,8 @@ export class FinancialCalculator {
     const taxCalc = taxEngine.calculateTax(company, transactions, accounts, periodStart, periodEnd);
     const taxesAmount = taxCalc.total_tax;
 
+    taxes = taxesAmount;
+
     const grossProfit = revenue - costOfGoodsSold;
     const netProfit = grossProfit - operatingExpenses - depreciation - taxesAmount;
 
