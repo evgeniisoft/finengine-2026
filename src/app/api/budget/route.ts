@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     if (action === 'close_month') {
       const { companyId, period, scenario } = body;
 
-      // Получаем бюджеты за период
+      // Получаем бюджеты
       const budgets = await gasGet('Budgets');
       const monthBudgets = budgets.filter((b: any) =>
         b.company_id === companyId &&
@@ -145,15 +145,28 @@ export async function POST(request: NextRequest) {
         updated++;
       }
 
-      // Добавляем новый месяц (13-й)
-      const lastMonth = `${parseInt(period.substring(0, 4))}-${String(parseInt(period.substring(5, 7)) + 12).padStart(2, '0')}`;
-      // Упрощённо: следующий год, тот же месяц
-      const nextYear = String(parseInt(period.substring(0, 4)) + 1);
-      const newPeriod = `${nextYear}-${period.substring(5, 7)}`;
+      // Находим последний месяц в горизонте
+      const allPeriods = budgets
+        .filter((b: any) => b.company_id === companyId && b.scenario === scenario)
+        .map((b: any) => String(b.period || '').replace(/^'/, '').substring(0, 7))
+        .sort();
+
+      const lastPeriod = allPeriods[allPeriods.length - 1];
+      const lastYear = parseInt(lastPeriod.substring(0, 4));
+      const lastMonth = parseInt(lastPeriod.substring(5, 7));
+
+      let newYear = lastYear;
+      let newMonthNum = lastMonth + 1;
+      if (newMonthNum > 12) {
+        newMonthNum = 1;
+        newYear = lastYear + 1;
+      }
+
+      const newPeriod = `${newYear}-${String(newMonthNum).padStart(2, '0')}`;
 
       // Создаём пустые бюджеты на новый месяц
       const accounts = await gasGet('Accounts');
-      const incomeExpenseAccounts = accounts.filter(a => a.type === 'I' || a.type === 'X');
+      const incomeExpenseAccounts = accounts.filter((a: any) => a.type === 'I' || a.type === 'X');
 
       for (const account of incomeExpenseAccounts) {
         const newBudget = {
@@ -179,7 +192,6 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ success: true, updated, new_period: newPeriod });
     }
-
     if (action === 'update_cell') {
       const { companyId, categoryId, period, plannedAmount, scenario } = body;
 
