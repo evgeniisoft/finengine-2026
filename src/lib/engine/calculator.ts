@@ -13,6 +13,7 @@ import {
   BalanceSheet,
   JournalEntry
 } from './types';
+import { taxEngine } from './tax';
 
 export class FinancialCalculator {
 
@@ -128,7 +129,7 @@ export class FinancialCalculator {
       investing_outflow: investingOutflow,
       financing_inflow: financingInflow,
       financing_outflow: financingOutflow,
-      ending_balance: endingBalance
+      ending_balance: endingBalance,
     };
   }
 
@@ -140,7 +141,8 @@ export class FinancialCalculator {
     accounts: Account[],
     companyId: string,
     periodStart: string,
-    periodEnd: string
+    periodEnd: string,
+    company?: any
   ): PnLReport {
 
     const filtered = transactions.filter(t => {
@@ -182,8 +184,12 @@ export class FinancialCalculator {
       }
     }
 
+    // Налоги берём из taxEngine
+    const taxCalc = taxEngine.calculateTax(company, transactions, accounts, periodStart, periodEnd);
+    const taxesAmount = taxCalc.total_tax;
+
     const grossProfit = revenue - costOfGoodsSold;
-    const netProfit = grossProfit - operatingExpenses - depreciation - taxes;
+    const netProfit = grossProfit - operatingExpenses - depreciation - taxesAmount;
 
     return {
       period_start: periodStart,
@@ -194,7 +200,7 @@ export class FinancialCalculator {
       gross_profit: grossProfit,
       operating_expenses: operatingExpenses,
       depreciation,
-      taxes,
+      taxes: taxes,
       net_profit: netProfit
     };
   }
