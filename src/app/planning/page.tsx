@@ -142,7 +142,7 @@ export default function PlanningPage() {
     const catId = budget.category_id || budget.account_id;
     const rawPeriod = budget.period || '';
     // Если period — дата, конвертируем в YYYY-MM по московскому времени
-    let month = rawPeriod.substring(5, 7);
+    let month = rawPeriod.replace(/^'/, '').substring(5, 7);
     if (rawPeriod.includes('T')) {
       const date = new Date(rawPeriod);
       const localDate = new Date(date.getTime() + 3 * 60 * 60 * 1000);
