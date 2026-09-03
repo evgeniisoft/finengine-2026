@@ -65,7 +65,12 @@ export async function GET(request: NextRequest) {
     for (const tx of transactions) {
       const txDate = typeof tx.date === 'string' ? tx.date.split('T')[0] : String(tx.date || '').split('T')[0];
       const month = txDate.substring(0, 7);
-      const catId = tx.debit_account_id || tx.credit_account_id;
+      // Для доходов — берём credit_account_id, для расходов — debit_account_id
+      const catId = tx.type === 'income'
+        ? tx.credit_account_id
+        : tx.type === 'expense'
+          ? tx.debit_account_id
+          : '';
 
       if (!actualsByCategory.has(catId)) {
         actualsByCategory.set(catId, new Map());
