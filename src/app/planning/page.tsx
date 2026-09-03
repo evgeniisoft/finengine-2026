@@ -72,6 +72,8 @@ export default function PlanningPage() {
     }
   };
 
+  const [savingCell, setSavingCell] = useState(false);
+
   const handleSaveCell = async () => {
     if (!editingCell) return;
 
@@ -82,6 +84,7 @@ export default function PlanningPage() {
     }
 
     try {
+      setSavingCell(true);
       const response = await fetch('/api/budget', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -96,15 +99,19 @@ export default function PlanningPage() {
       });
 
       const result = await response.json();
+
       if (result.success) {
         setEditingCell(null);
-        loadData();
+        setSavingCell(false);
+        await loadData();
       } else {
-        alert('Ошибка: ' + result.error);
+        alert('Ошибка: ' + (result.error || 'Не удалось сохранить'));
       }
     } catch (error) {
       console.error('Ошибка:', error);
       alert('Ошибка при сохранении');
+    } finally {
+      setSavingCell(false);
     }
   };
 
@@ -194,10 +201,11 @@ export default function PlanningPage() {
                               />
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleSaveCell(); }}
-                                className="p-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                disabled={savingCell}
+                                className="p-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
                                 title="Сохранить"
                               >
-                                ✓
+                                {savingCell ? '...' : '✓'}
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setEditingCell(null); }}
@@ -255,10 +263,11 @@ export default function PlanningPage() {
                               />
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleSaveCell(); }}
-                                className="p-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                disabled={savingCell}
+                                className="p-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
                                 title="Сохранить"
                               >
-                                ✓
+                                {savingCell ? '...' : '✓'}
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setEditingCell(null); }}

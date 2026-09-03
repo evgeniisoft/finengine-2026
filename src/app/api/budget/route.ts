@@ -45,6 +45,19 @@ export async function GET(request: NextRequest) {
     );
     if (companyId) {
       filteredBudgets = filteredBudgets.filter((b: any) => b.company_id === companyId);
+    } else {
+      // Если компания не выбрана — агрегируем по всем компаниям
+      const aggregated = new Map<string, any>();
+      for (const budget of filteredBudgets) {
+        const key = `${budget.category_id}_${budget.period}`;
+        if (!aggregated.has(key)) {
+          aggregated.set(key, { ...budget });
+        } else {
+          aggregated.get(key).planned_amount += budget.planned_amount;
+          aggregated.get(key).actual_amount += budget.actual_amount;
+        }
+      }
+      filteredBudgets = Array.from(aggregated.values());
     }
 
     return NextResponse.json({
