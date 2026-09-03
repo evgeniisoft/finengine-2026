@@ -178,7 +178,7 @@ export default function PlanningPage() {
   const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
   // Группируем бюджеты по статьям
-  const budgetByCategory = new Map<string, Map<string, { amount: number, id: string }>>();
+  const budgetByCategory = new Map<string, Map<string, { amount: number, id: string, status: string }>>();
   for (const budget of budgets) {
     const catId = budget.category_id || budget.account_id;
     const rawPeriod = String(budget.period || '');
@@ -196,7 +196,11 @@ export default function PlanningPage() {
     if (!budgetByCategory.has(catId)) {
       budgetByCategory.set(catId, new Map());
     }
-    budgetByCategory.get(catId)!.set(month, { amount: budget.planned_amount, id: budget.id });
+    budgetByCategory.get(catId)!.set(month, {
+      amount: budget.planned_amount,
+      id: budget.id,
+      status: budget.status || 'draft'
+    });
   }
 
   return (
@@ -285,7 +289,7 @@ export default function PlanningPage() {
                       {/* Заголовок группы */}
                       <tr className="bg-blue-50">
                         <td colSpan={13} className="px-4 py-2 text-xs font-semibold text-blue-800 uppercase bg-blue-50">
-                          <div className="sticky left-0">{groupName}</div>
+                          {groupName}
                         </td>
                       </tr>
 
@@ -296,12 +300,23 @@ export default function PlanningPage() {
                           {months.map(m => {
                             const cellData = budgetByCategory.get(acc.id)?.get(m);
                             const amount = cellData?.amount;
+                            {
+                              cellData?.status === 'closed' && (
+                                <div className="text-xs text-gray-500 mt-1">✓ закрыт</div>
+                              )
+                            }
                             return (
                               <td
                                 key={m}
-                                className={`px-4 py-3 text-sm text-right whitespace-nowrap ${selectedCompany && viewMode === 'plan' ? 'text-gray-900 cursor-pointer hover:bg-blue-50' : 'text-gray-400'}`}
+                                className={`px-4 py-3 text-sm text-right whitespace-nowrap ${cellData?.status === 'closed'
+                                  ? 'bg-gray-100 cursor-not-allowed'
+                                  : selectedCompany && viewMode === 'plan'
+                                    ? 'text-gray-900 cursor-pointer hover:bg-blue-50'
+                                    : 'text-gray-400'
+                                  }`}
                                 onClick={() => {
                                   if (viewMode !== 'plan') return;
+                                  if (cellData?.status === 'closed') return;
                                   if (!selectedCompany) { alert('Выберите компанию'); return; }
                                   setEditingCell({ categoryId: acc.id, month: m });
                                   setEditValue(amount ? amount.toString() : '');
@@ -344,12 +359,23 @@ export default function PlanningPage() {
                           {months.map(m => {
                             const cellData = budgetByCategory.get(acc.id)?.get(m);
                             const amount = cellData?.amount;
+                            {
+                              cellData?.status === 'closed' && (
+                                <div className="text-xs text-gray-500 mt-1">✓ закрыт</div>
+                              )
+                            }
                             return (
                               <td
                                 key={m}
-                                className={`px-4 py-3 text-sm text-right whitespace-nowrap ${selectedCompany && viewMode === 'plan' ? 'text-red-600 cursor-pointer hover:bg-blue-50' : 'text-gray-400'}`}
+                                className={`px-4 py-3 text-sm text-right whitespace-nowrap ${cellData?.status === 'closed'
+                                  ? 'bg-gray-100 cursor-not-allowed text-gray-500'
+                                  : selectedCompany && viewMode === 'plan'
+                                    ? 'text-red-600 cursor-pointer hover:bg-blue-50'
+                                    : 'text-gray-400'
+                                  }`}
                                 onClick={() => {
                                   if (viewMode !== 'plan') return;
+                                  if (cellData?.status === 'closed') return;
                                   if (!selectedCompany) { alert('Выберите компанию'); return; }
                                   setEditingCell({ categoryId: acc.id, month: m });
                                   setEditValue(amount ? amount.toString() : '');
