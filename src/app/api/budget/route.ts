@@ -108,7 +108,77 @@ export async function POST(request: NextRequest) {
       const result = await gasCreate('Budgets', body.data);
       return NextResponse.json(result);
     }
+    if (action === 'close_month') {
+      const { companyId, period, scenario } = body;
 
+      // Получаем бюджеты за период
+      const budgets = await gasGet('Budgets');
+      const monthBudgets = budgets.filter((b: any) =>
+        b.company_id === companyId &&
+        String(b.period || '').replace(/^'/, '').substring(0, 7) === period &&
+        b.scenario === scenario &&
+        b.status !== 'closed'
+      );
+
+      // Получаем транзакции за период
+      const transactions = await gasGet('Transactions');
+      const monthTx = transactions.filter(t => {
+        const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+        return t.company_id === companyId && txDate.substring(0, 7) === period;
+      });
+
+      let updated = 0;
+
+      for (const budget of monthBudgets) {
+        const catId = budget.category_id || budget.account_id;
+        const actualTx = monthTx.filter(t =>
+          t.debit_account_id === catId || t.credit_account_id === catId
+        );
+        const actualAmount = actualTx.reduce((s, t) => s + parseFloat(String(t.amount || 0)), 0);
+
+        const updateUrl = `${GAS_URL}?action=update&sheet=Budgets&id=${budget.id}&data=${encodeURIComponent(JSON.stringify({
+          ...budget,
+          actual_amount: actualAmount,
+          status: 'closed'
+        }))}`;
+        await fetch(updateUrl);
+        updated++;
+      }
+
+      // Добавляем новый месяц (13-й)
+      const lastMonth = `${parseInt(period.substring(0, 4))}-${String(parseInt(period.substring(5, 7)) + 12).padStart(2, '0')}`;
+      // Упрощённо: следующий год, тот же месяц
+      const nextYear = String(parseInt(period.substring(0, 4)) + 1);
+      const newPeriod = `${nextYear}-${period.substring(5, 7)}`;
+
+      // Создаём пустые бюджеты на новый месяц
+      const accounts = await gasGet('Accounts');
+      const incomeExpenseAccounts = accounts.filter(a => a.type === 'I' || a.type === 'X');
+
+      for (const account of incomeExpenseAccounts) {
+        const newBudget = {
+          id: '',
+          tenant_id: 'tenant-1',
+          company_id: companyId,
+          category_id: account.id,
+          account_id: account.id,
+          period: `'${newPeriod}`,
+          planned_amount: 0,
+          actual_amount: 0,
+          record_type: 'pnl',
+          scenario: scenario,
+          status: 'draft',
+          payment_delay_days: 0,
+          is_deleted: '',
+          deleted_at: '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        await gasCreate('Budgets', newBudget);
+      }
+
+      return NextResponse.json({ success: true, updated, new_period: newPeriod });
+    }
 
     if (action === 'update_cell') {
       const { companyId, categoryId, period, plannedAmount, scenario } = body;

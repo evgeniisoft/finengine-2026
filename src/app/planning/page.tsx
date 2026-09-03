@@ -122,6 +122,47 @@ export default function PlanningPage() {
       setSavingCell(false);
     }
   };
+  const handleCloseMonth = async () => {
+    if (!selectedCompany) {
+      alert('Выберите компанию');
+      return;
+    }
+
+    // Определяем текущий месяц для закрытия (предыдущий от текущего)
+    const now = new Date();
+    const closeMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const closePeriod = `${closeMonth.getFullYear()}-${String(closeMonth.getMonth() + 1).padStart(2, '0')}`;
+
+    if (!confirm(`Закрыть месяц ${closePeriod}? Фактические данные будут зафиксированы.`)) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch('/api/budget', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'close_month',
+          companyId: selectedCompany,
+          period: closePeriod,
+          scenario: selectedScenario
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`Месяц ${closePeriod} закрыт. Обновлено записей: ${result.updated}`);
+        loadData();
+      } else {
+        alert('Ошибка: ' + (result.error || 'Не удалось закрыть'));
+      }
+    } catch (error) {
+      console.error('Ошибка:', error);
+      alert('Ошибка при закрытии месяца');
+    } finally {
+      setLoading(false);
+    }
+  };
   const groupedAccounts = () => {
     const groups = new Map<string, any[]>();
     for (const acc of accounts) {
@@ -185,6 +226,12 @@ export default function PlanningPage() {
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
             >
               Автозаполнить
+            </button>
+            <button
+              onClick={handleCloseMonth}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+            >
+              Закрыть месяц
             </button>
           </div>
 
