@@ -39,13 +39,19 @@ export class BudgetEngine {
         (t.debit_account_id || t.credit_account_id);
     });
 
-    // Вариант 2: если прошлого года нет — используем все данные до сентября текущего года
-    if (historicalTx.length === 0) {
+    // Проверяем, есть ли данные по доходным/расходным счетам
+    const hasIncomeExpenseData = historicalTx.some(t => {
+      const account = accounts.find(a => a.id === t.debit_account_id || a.id === t.credit_account_id);
+      return account && (account.type === 'I' || account.type === 'X');
+    });
+
+    if (!hasIncomeExpenseData) {
+      const currentMonth = now.toISOString().substring(0, 7);
       historicalTx = transactions.filter(t => {
         const txDate = this.getDateStr(t.date);
         return t.company_id === companyId &&
           txDate.startsWith(year) &&
-          txDate <= `${year}-08-31` &&
+          txDate < currentMonth &&
           (t.debit_account_id || t.credit_account_id);
       });
     }
