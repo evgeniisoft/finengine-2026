@@ -140,14 +140,18 @@ export default function PlanningPage() {
   const budgetByCategory = new Map<string, Map<string, { amount: number, id: string }>>();
   for (const budget of budgets) {
     const catId = budget.category_id || budget.account_id;
-    const rawPeriod = budget.period || '';
-    // Если period — дата, конвертируем в YYYY-MM по московскому времени
-    let month = rawPeriod.replace(/^'/, '').substring(5, 7);
+    const rawPeriod = String(budget.period || '');
+
+    let month = '';
+
     if (rawPeriod.includes('T')) {
       const date = new Date(rawPeriod);
       const localDate = new Date(date.getTime() + 3 * 60 * 60 * 1000);
       month = localDate.toISOString().substring(5, 7);
+    } else {
+      month = rawPeriod.replace(/^'/, '').substring(5, 7);
     }
+
     if (!budgetByCategory.has(catId)) {
       budgetByCategory.set(catId, new Map());
     }
@@ -368,7 +372,7 @@ export default function PlanningPage() {
                     );
                   })}
                 </tr>
-                
+
                 {/* Итого расходы */}
                 <tr className="bg-gray-50">
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого расходы</td>
