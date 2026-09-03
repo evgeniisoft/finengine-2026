@@ -14,6 +14,7 @@ export default function PlanningPage() {
   const [selectedYear, setSelectedYear] = useState('2026');
   const [editingCell, setEditingCell] = useState<{ categoryId: string, month: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [viewMode, setViewMode] = useState<'plan' | 'actual' | 'deviation'>('plan');
 
   useEffect(() => {
     loadData();
@@ -163,6 +164,26 @@ export default function PlanningPage() {
             <option value="">Все компании</option>
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('plan')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${viewMode === 'plan' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+            >
+              План
+            </button>
+            <button
+              onClick={() => setViewMode('actual')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${viewMode === 'actual' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+            >
+              Факт
+            </button>
+            <button
+              onClick={() => setViewMode('deviation')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${viewMode === 'deviation' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+            >
+              Отклонение
+            </button>
+          </div>
           <button
             onClick={handleAutoFill}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
