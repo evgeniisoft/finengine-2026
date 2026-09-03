@@ -26,12 +26,12 @@ export default function RootLayout({
                 Управленческий учёт
               </p>
             </div>
-            
+
             <Navigation />
           </aside>
 
           {/* Основной контент */}
-          <main className="flex-1 ml-64 p-8 bg-gray-50">
+          <main className="flex-1 ml-64 p-8 bg-gray-50 overflow-x-hidden">
             {children}
           </main>
         </div>
