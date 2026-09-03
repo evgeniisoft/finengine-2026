@@ -60,11 +60,26 @@ export async function GET(request: NextRequest) {
       filteredBudgets = Array.from(aggregated.values());
     }
 
+    // Считаем фактические данные по месяцам
+    const actualsByCategory = new Map<string, Map<string, number>>();
+    for (const tx of transactions) {
+      const txDate = typeof tx.date === 'string' ? tx.date.split('T')[0] : String(tx.date || '').split('T')[0];
+      const month = txDate.substring(0, 7);
+      const catId = tx.debit_account_id || tx.credit_account_id;
+
+      if (!actualsByCategory.has(catId)) {
+        actualsByCategory.set(catId, new Map());
+      }
+      const currentAmount = actualsByCategory.get(catId)!.get(month) || 0;
+      actualsByCategory.get(catId)!.set(month, currentAmount + parseFloat(String(tx.amount || 0)));
+    }
+
     return NextResponse.json({
       budgets: filteredBudgets,
       transactions,
       accounts,
-      companies
+      companies,
+      actualsByCategory: Object.fromEntries(actualsByCategory)
     });
 
   } catch (error) {
@@ -87,7 +102,7 @@ export async function POST(request: NextRequest) {
     if (action === 'update_cell') {
       const { companyId, categoryId, period, plannedAmount, scenario } = body;
 
-      
+
       // Если передан budgetId — обновляем по ID напрямую
       if (body.budgetId) {
         const updateUrl = `${GAS_URL}?action=update&sheet=Budgets&id=${body.budgetId}&data=${encodeURIComponent(JSON.stringify({ planned_amount: plannedAmount }))}`;

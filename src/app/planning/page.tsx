@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 
 export default function PlanningPage() {
   const [budgets, setBudgets] = useState<any[]>([]);
+  const [actualsByCategory, setActualsByCategory] = useState<{ [key: string]: { [key: string]: number } }>({});
   const [companies, setCompanies] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,7 @@ export default function PlanningPage() {
       const response = await fetch(url);
       const data = await response.json();
       setBudgets(data.budgets || []);
+      setActualsByCategory(data.actualsByCategory || {});
     } catch (error) {
       console.error('Ошибка:', error);
     } finally {
@@ -232,7 +234,24 @@ export default function PlanningPage() {
                               </button>
                             </div>
                           ) : (
-                            amount ? amount.toLocaleString('ru-RU') : '—'
+                            (() => {
+                              const actual = actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
+                              const planned = amount || 0;
+                              const deviation = planned - actual;
+                              const isOver = deviation < 0;
+                              const isUnder = deviation > 0;
+
+                              return (
+                                <div>
+                                  <div>{planned ? planned.toLocaleString('ru-RU') : '—'}</div>
+                                  {actual > 0 && (
+                                    <div className={`text-xs ${isOver ? 'text-red-600' : isUnder ? 'text-green-600' : 'text-gray-400'}`}>
+                                      Факт: {actual.toLocaleString('ru-RU')}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()
                           )}
                         </td>
                       );
@@ -300,7 +319,24 @@ export default function PlanningPage() {
                               </button>
                             </div>
                           ) : (
-                            amount ? amount.toLocaleString('ru-RU') : '—'
+                            (() => {
+                              const actual = actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
+                              const planned = amount || 0;
+                              const deviation = planned - actual;
+                              const isOver = deviation < 0;
+                              const isUnder = deviation > 0;
+
+                              return (
+                                <div>
+                                  <div>{planned ? planned.toLocaleString('ru-RU') : '—'}</div>
+                                  {actual > 0 && (
+                                    <div className={`text-xs ${isOver ? 'text-red-600' : isUnder ? 'text-green-600' : 'text-gray-400'}`}>
+                                      Факт: {actual.toLocaleString('ru-RU')}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()
                           )}
                         </td>
                       );
