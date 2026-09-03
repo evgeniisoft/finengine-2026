@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Фильтруем бюджеты
     let filteredBudgets = budgets.filter((b: any) => {
       const cleanPeriod = String(b.period || '').replace(/^'/, '');
-      return cleanPeriod.startsWith(year) && b.scenario === scenario;
+      return b.scenario === scenario;
     });
     if (companyId) {
       filteredBudgets = filteredBudgets.filter((b: any) => b.company_id === companyId);
