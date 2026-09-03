@@ -25,10 +25,18 @@ export class BudgetEngine {
   ): Budget[] {
 
     const budgets: Budget[] = [];
-    const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+    // Скользящее планирование: 12 месяцев от текущего
+    const now = new Date();
+    const months: string[] = [];
+    for (let i = 1; i <= 12; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      months.push(`${y}-${m}`);
+    }
 
     // Определяем дату, до которой считаем данные "историческими"
-    const now = new Date();
+    
     const previousYear = String(parseInt(year) - 1);
 
     // Вариант 1: прошлый год
@@ -100,7 +108,7 @@ export class BudgetEngine {
           company_id: companyId,
           category_id: account.id,
           account_id: account.id,
-          period: `${year}-${month}`,
+          period: month,
           planned_amount: Math.round(plannedAmount * 100) / 100,
           actual_amount: 0,
           record_type: 'pnl',

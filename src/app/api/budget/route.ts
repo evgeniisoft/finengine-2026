@@ -113,6 +113,24 @@ export async function POST(request: NextRequest) {
 
       // Получаем бюджеты
       const budgets = await gasGet('Budgets');
+      // Проверяем, что предыдущий месяц закрыт
+      const periodDate = new Date(period + '-01');
+      const prevDate = new Date(periodDate.getFullYear(), periodDate.getMonth() - 1, 1);
+      const prevPeriod = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+
+      const prevBudgets = budgets.filter((b: any) =>
+        b.company_id === companyId &&
+        String(b.period || '').replace(/^'/, '').substring(0, 7) === prevPeriod &&
+        b.scenario === scenario
+      );
+
+      const prevClosed = prevBudgets.length === 0 || prevBudgets.every((b: any) => b.status === 'closed');
+
+      if (!prevClosed) {
+        return NextResponse.json({
+          error: `Сначала закройте ${prevPeriod}`
+        }, { status: 400 });
+      }
       const monthBudgets = budgets.filter((b: any) =>
         b.company_id === companyId &&
         String(b.period || '').replace(/^'/, '').substring(0, 7) === period &&
