@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { budgetEngine } from '@/lib/engine/budget';
+import { taxEngine } from '@/lib/engine/tax';
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
@@ -169,12 +170,47 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Не указана компания' }, { status: 400 });
       }
 
-      const [transactions, accounts] = await Promise.all([
+      const [transactions, accounts, companies] = await Promise.all([
         gasGet('Transactions'),
-        gasGet('Accounts')
+        gasGet('Accounts'),
+        gasGet('Companies')
       ]);
 
       const budgets = budgetEngine.autoFillBudget(companyId, year, accounts, transactions);
+
+      // Получаем компанию
+      const company = companies.find((c: any) => c.id === companyId);
+      if (company) {
+        // Налоговый календарь
+        const taxCalendar = taxEngine.getMonthlyTaxCalendar(company, year, budgets);
+
+        // Добавляем налоговые статьи в бюджеты
+        for (const monthData of taxCalendar) {
+          for (const [taxAccountId, taxAmount] of Object.entries(monthData.taxes)) {
+            if (taxAmount > 0) {
+              budgets.push({
+                id: '',
+                tenant_id: 'tenant-1',
+                company_id: companyId,
+                category_id: taxAccountId,
+                account_id: taxAccountId,
+                period: `'${monthData.month}`,
+                planned_amount: taxAmount,
+                actual_amount: 0,
+                record_type: 'pnl',
+                scenario: 'base',
+                status: 'draft',
+                payment_delay_days: 0,
+                is_deleted: '',
+                deleted_at: '',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+            }
+          }
+        }
+      }
+
       // Защищаем period от преобразования в дату
       budgets.forEach(b => {
         b.period = `'${b.period}`;
