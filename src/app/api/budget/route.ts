@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { budgetEngine } from '@/lib/engine/budget';
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
@@ -15,7 +16,12 @@ async function gasCreate(sheet: string, data: any): Promise<any> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'create', sheet, data })
   });
-  return await response.json();
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { success: true };
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -33,30 +39,24 @@ export async function GET(request: NextRequest) {
     ]);
     
     // Фильтруем бюджеты
-    let filteredBudgets = budgets.filter(b => 
+    let filteredBudgets = budgets.filter((b: any) => 
       b.period?.startsWith(year) && 
       b.scenario === scenario
     );
     if (companyId) {
-      filteredBudgets = filteredBudgets.filter(b => b.company_id === companyId);
+      filteredBudgets = filteredBudgets.filter((b: any) => b.company_id === companyId);
     }
-    
-    // Считаем фактические данные
-    const actuals = transactions.filter(t => {
-      const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
-      return txDate.startsWith(year);
-    });
     
     return NextResponse.json({
       budgets: filteredBudgets,
-      actuals,
+      transactions,
       accounts,
       companies
     });
     
   } catch (error) {
     console.error('Ошибка API:', error);
-    return NextResponse.json({ error: 'Внутренняя ошибка' }, { status: 500 });
+    return NextResponse.json({ error: 'Внутренняя ошибка: ' + (error as Error).message }, { status: 500 });
   }
 }
 
@@ -71,20 +71,32 @@ export async function POST(request: NextRequest) {
     }
     
     if (action === 'auto_fill') {
-      // Автозаполнение на основе прошлых данных
-      const { transactions, accounts, companyId, year } = body;
-      const budgets: any[] = [];
+      const companyId = body.companyId;
+      const year = body.year || '2026';
       
-      // Логика автозаполнения
-      // ...
+      if (!companyId) {
+        return NextResponse.json({ error: 'Не указана компания' }, { status: 400 });
+      }
       
-      return NextResponse.json({ budgets });
+      const [transactions, accounts] = await Promise.all([
+        gasGet('Transactions'),
+        gasGet('Accounts')
+      ]);
+      
+      const budgets = budgetEngine.autoFillBudget(companyId, year, accounts, transactions);
+      
+      // Сохраняем бюджеты
+      for (const budget of budgets) {
+        await gasCreate('Budgets', budget);
+      }
+      
+      return NextResponse.json({ success: true, count: budgets.length });
     }
     
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     
   } catch (error) {
     console.error('Ошибка API:', error);
-    return NextResponse.json({ error: 'Внутренняя ошибка' }, { status: 500 });
+    return NextResponse.json({ error: 'Внутренняя ошибка: ' + (error as Error).message }, { status: 500 });
   }
 }

@@ -69,6 +69,94 @@ export class BudgetEngine {
   }
 
   /**
+ * Автозаполнение бюджета на основе исторических данных
+ */
+  autoFillBudget(
+    companyId: string,
+    year: string,
+    accounts: Account[],
+    transactions: Transaction[]
+  ): Budget[] {
+
+    const budgets: Budget[] = [];
+    const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+
+    // Считаем среднемесячные значения за прошлые периоды
+    for (const account of accounts) {
+      if (account.type !== 'I' && account.type !== 'X') continue;
+
+      // Исторические данные по счёту
+      const historicalTx = transactions.filter(t => {
+        const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+        return t.company_id === companyId &&
+          (t.debit_account_id === account.id || t.credit_account_id === account.id) &&
+          txDate < `${year}-01-01`;
+      });
+
+      if (historicalTx.length === 0) continue;
+
+      // Среднемесячное значение
+      const monthlyGroups = new Map<string, number>();
+      for (const tx of historicalTx) {
+        const txDate = typeof tx.date === 'string' ? tx.date.split('T')[0] : String(tx.date || '').split('T')[0];
+        const month = txDate.substring(0, 7);
+        const amount = parseFloat(String(tx.amount || 0));
+        monthlyGroups.set(month, (monthlyGroups.get(month) || 0) + amount);
+      }
+
+      const averages = Array.from(monthlyGroups.values());
+      if (averages.length === 0) continue;
+
+      const avg = averages.reduce((s, v) => s + v, 0) / averages.length;
+
+      // Сезонные коэффициенты
+      const seasonality = this.calculateSeasonality(monthlyGroups);
+
+      // Создаём бюджеты на 12 месяцев
+      for (const month of months) {
+        const monthNum = parseInt(month);
+        const seasonalFactor = seasonality[monthNum] || 1;
+        const plannedAmount = avg * seasonalFactor;
+
+        budgets.push({
+          id: this.generateId(),
+          tenant_id: 'tenant-1',
+          company_id: companyId,
+          category_id: account.id,
+          account_id: account.id,
+          period: `${year}-${month}`,
+          planned_amount: Math.round(plannedAmount * 100) / 100,
+          actual_amount: 0,
+          record_type: 'pnl',
+          scenario: 'base',
+          status: 'draft',
+          payment_delay_days: 0,
+          is_deleted: '',
+          deleted_at: '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      }
+    }
+
+    return budgets;
+  }
+
+  /**
+   * Расчёт сезонных коэффициентов
+   */
+  private calculateSeasonality(monthlyGroups: Map<string, number>): { [month: number]: number } {
+    const values = Array.from(monthlyGroups.values());
+    const avg = values.reduce((s, v) => s + v, 0) / values.length;
+
+    const factors: { [month: number]: number } = {};
+    for (const [monthStr, value] of monthlyGroups) {
+      const month = parseInt(monthStr.split('-')[1]);
+      factors[month] = avg > 0 ? value / avg : 1;
+    }
+    return factors;
+  }
+  /**
    * Расчёт базовой суммы для бюджета на основе историчности
    */
   private calculateBaseAmount(
