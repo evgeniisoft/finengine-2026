@@ -298,7 +298,7 @@ export interface Budget {
   tenant_id: string;
   company_id: string;
   category_id: string;
-  period: string; // YYYY-MM
+  period: string;
   planned_amount: number;
   actual_amount: number;
   record_type: 'pnl' | 'cashflow';
@@ -309,4 +309,5 @@ export interface Budget {
   deleted_at: string;
   created_at: string;
   updated_at: string;
+  account_id: string;
 }
