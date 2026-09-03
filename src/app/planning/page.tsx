@@ -183,15 +183,30 @@ export default function PlanningPage() {
                           }}
                         >
                           {editingCell?.categoryId === acc.id && editingCell?.month === m ? (
-                            <input
-                              type="number"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={handleSaveCell}
-                              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCell(); if (e.key === 'Escape') setEditingCell(null); }}
-                              className="w-24 px-2 py-1 border border-blue-500 rounded text-right"
-                              autoFocus
-                            />
+                            <div className="flex items-center justify-end gap-1">
+                              <input
+                                type="number"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCell(); if (e.key === 'Escape') setEditingCell(null); }}
+                                className="w-24 px-2 py-1 border border-blue-500 rounded text-right"
+                                autoFocus
+                              />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleSaveCell(); }}
+                                className="p-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                title="Сохранить"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingCell(null); }}
+                                className="p-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300"
+                                title="Отмена"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           ) : (
                             amount ? amount.toLocaleString('ru-RU') : '—'
                           )}
@@ -229,15 +244,30 @@ export default function PlanningPage() {
                           }}
                         >
                           {editingCell?.categoryId === acc.id && editingCell?.month === m ? (
-                            <input
-                              type="number"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={handleSaveCell}
-                              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCell(); if (e.key === 'Escape') setEditingCell(null); }}
-                              className="w-24 px-2 py-1 border border-blue-500 rounded text-right"
-                              autoFocus
-                            />
+                            <div className="flex items-center justify-end gap-1">
+                              <input
+                                type="number"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCell(); if (e.key === 'Escape') setEditingCell(null); }}
+                                className="w-24 px-2 py-1 border border-blue-500 rounded text-right"
+                                autoFocus
+                              />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleSaveCell(); }}
+                                className="p-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                title="Сохранить"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingCell(null); }}
+                                className="p-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300"
+                                title="Отмена"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           ) : (
                             amount ? amount.toLocaleString('ru-RU') : '—'
                           )}
