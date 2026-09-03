@@ -18,7 +18,7 @@ import { calculator } from './calculator';
 import { Account } from './types';
 
 export class ConsolidationEngine {
-  
+
   /**
    * Консолидация ДДС по холдингу
    */
@@ -29,13 +29,13 @@ export class ConsolidationEngine {
     periodStart: string,
     periodEnd: string
   ): CashFlowReport {
-    
+
     // Фильтруем внутригрупповые операции
     const externalTransactions = this.excludeIntercompany(
       transactions,
       companies
     );
-    
+
     // Суммируем по всем компаниям
     let consolidated: CashFlowReport = {
       period_start: periodStart,
@@ -50,7 +50,7 @@ export class ConsolidationEngine {
       financing_outflow: 0,
       ending_balance: 0
     };
-    
+
     for (const company of companies) {
       const report = calculator.calculateCashFlow(
         externalTransactions,
@@ -59,7 +59,7 @@ export class ConsolidationEngine {
         periodStart,
         periodEnd
       );
-      
+
       consolidated.starting_balance += report.starting_balance;
       consolidated.operating_inflow += report.operating_inflow;
       consolidated.operating_outflow += report.operating_outflow;
@@ -69,10 +69,10 @@ export class ConsolidationEngine {
       consolidated.financing_outflow += report.financing_outflow;
       consolidated.ending_balance += report.ending_balance;
     }
-    
+
     return consolidated;
   }
-  
+
   /**
    * Консолидация ОПиУ по холдингу
    */
@@ -83,12 +83,12 @@ export class ConsolidationEngine {
     periodStart: string,
     periodEnd: string
   ): PnLReport {
-    
+
     const externalTransactions = this.excludeIntercompany(
       transactions,
       companies
     );
-    
+
     let consolidated: PnLReport = {
       period_start: periodStart,
       period_end: periodEnd,
@@ -101,16 +101,17 @@ export class ConsolidationEngine {
       taxes: 0,
       net_profit: 0
     };
-    
+
     for (const company of companies) {
       const report = calculator.calculatePnL(
         externalTransactions,
         accounts,
         company.id,
         periodStart,
-        periodEnd
+        periodEnd,
+        company  // ← передаём company
       );
-      
+
       consolidated.revenue += report.revenue;
       consolidated.cost_of_goods_sold += report.cost_of_goods_sold;
       consolidated.gross_profit += report.gross_profit;
@@ -119,10 +120,10 @@ export class ConsolidationEngine {
       consolidated.taxes += report.taxes;
       consolidated.net_profit += report.net_profit;
     }
-    
+
     return consolidated;
   }
-  
+
   /**
    * Консолидация Баланса по холдингу
    */
@@ -132,12 +133,12 @@ export class ConsolidationEngine {
     accounts: Account[],
     date: string
   ): BalanceSheet {
-    
+
     const externalTransactions = this.excludeIntercompany(
       transactions,
       companies
     );
-    
+
     let consolidated: BalanceSheet = {
       date,
       company_id: 'HOLDING',
@@ -159,7 +160,7 @@ export class ConsolidationEngine {
         total: 0
       }
     };
-    
+
     for (const company of companies) {
       const report = calculator.calculateBalanceSheet(
         externalTransactions,
@@ -167,25 +168,25 @@ export class ConsolidationEngine {
         company.id,
         date
       );
-      
+
       consolidated.assets.cash += report.assets.cash;
       consolidated.assets.accounts_receivable += report.assets.accounts_receivable;
       consolidated.assets.inventory += report.assets.inventory;
       consolidated.assets.fixed_assets += report.assets.fixed_assets;
       consolidated.assets.total += report.assets.total;
-      
+
       consolidated.liabilities.accounts_payable += report.liabilities.accounts_payable;
       consolidated.liabilities.loans += report.liabilities.loans;
       consolidated.liabilities.total += report.liabilities.total;
-      
+
       consolidated.equity.capital += report.equity.capital;
       consolidated.equity.retained_earnings += report.equity.retained_earnings;
       consolidated.equity.total += report.equity.total;
     }
-    
+
     return consolidated;
   }
-  
+
   /**
    * Исключение внутригрупповых операций
    */
@@ -193,9 +194,9 @@ export class ConsolidationEngine {
     transactions: Transaction[],
     companies: Company[]
   ): Transaction[] {
-    
+
     const companyIds = new Set(companies.map(c => c.id));
-    
+
     // Фильтруем операции, где обе стороны внутри группы
     return transactions.filter(t => {
       // Если операция внутри одной компании — оставляем
