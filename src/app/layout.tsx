@@ -20,7 +20,7 @@ export default function RootLayout({
           <aside className="w-64 bg-white border-r border-gray-200 fixed h-full shadow-sm">
             <div className="p-6 border-b border-gray-200">
               <h1 className="text-xl font-bold text-gray-900">
-                FinEngine <span className="text-blue-600">2026</span>
+                FinJir <span className="text-blue-600">2026</span>
               </h1>
               <p className="text-xs text-gray-500 mt-1">
                 Управленческий учёт

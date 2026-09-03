@@ -74,7 +74,7 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">
-            FinEngine <span className="text-blue-600">2026</span>
+            FinJir <span className="text-blue-600">2026</span>
           </h1>
           <p className="text-gray-500 mt-2">
             Управленческий учёт
