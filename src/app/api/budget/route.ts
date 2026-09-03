@@ -90,10 +90,12 @@ export async function POST(request: NextRequest) {
       // Найти существующую запись
       const budgets = await gasGet('Budgets');
       const cleanPeriod = period.startsWith("'") ? period.slice(1) : period;
+      // Нормализуем period — берём только YYYY-MM
+      const normalizedSearchPeriod = cleanPeriod.substring(0, 7);
       const existing = budgets.find((b: any) =>
         b.company_id === companyId &&
         b.category_id === categoryId &&
-        (b.period || '').replace(/^'/, '') === cleanPeriod &&
+        (b.period || '').replace(/^'/, '').substring(0, 7) === normalizedSearchPeriod &&
         b.scenario === scenario
       );
 
