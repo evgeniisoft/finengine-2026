@@ -38,9 +38,6 @@ export interface TaxCalculation {
 
 export class TaxEngine {
 
-  /**
-   * Расчёт налогов для компании за период
-   */
   calculateTax(
     company: Company,
     transactions: Transaction[],
@@ -50,7 +47,7 @@ export class TaxEngine {
   ): TaxCalculation {
 
     const companyTx = transactions.filter(t => {
-      const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+      const txDate = this.getDateStr(t.date);
       return t.company_id === company.id && txDate >= periodStart && txDate <= periodEnd;
     });
 
@@ -90,9 +87,7 @@ export class TaxEngine {
         const taxBase = Math.max(0, revenue - expenses);
         incomeTaxAmount = taxBase * incomeTaxRate;
         const minimumTax = revenue * 0.01;
-        if (incomeTaxAmount < minimumTax) {
-          incomeTaxAmount = minimumTax;
-        }
+        if (incomeTaxAmount < minimumTax) incomeTaxAmount = minimumTax;
         break;
 
       case 'OSNO':
@@ -103,13 +98,11 @@ export class TaxEngine {
         break;
     }
 
-    // Страховые взносы
     const insurance = this.calculateInsuranceContributions(company, revenue);
     const insuranceAmount = insurance.annual_contributions;
     const ndflAmount = insurance.ndfl_annual || 0;
     const totalPayrollCost = insurance.total_payroll_cost || 0;
 
-    // УСН 6% уменьшается на взносы
     let finalIncomeTax = incomeTaxAmount;
     if (company.tax_system === 'USN_6') {
       const isIndividual = Boolean(company.is_individual);
@@ -150,55 +143,51 @@ export class TaxEngine {
 
   /**
    * Налоговый календарь на год (помесячно)
+   * Принимает budgetMonths — реальные месяцы горизонта планирования
    */
   getMonthlyTaxCalendar(
     company: Company,
     year: string,
-    budgets: Budget[]
+    budgets: Budget[],
+    budgetMonths?: string[]
   ): { month: string; taxes: { [key: string]: number } }[] {
 
-    const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+    const months = budgetMonths && budgetMonths.length > 0
+      ? budgetMonths.map(m => this.getDateStr(m).substring(0, 7))
+      : Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+
     const calendar: { month: string; taxes: { [key: string]: number } }[] = [];
 
-    // Плановая выручка по месяцам из бюджета
     const revenueByMonth = new Map<string, number>();
     for (const budget of budgets) {
       if (budget.company_id !== company.id) continue;
       const accountId = budget.category_id || budget.account_id;
       if (accountId !== 'acc-in-revenue') continue;
-      const rawPeriod = String(budget.period || '');
-      const month = rawPeriod.replace(/^'/, '').substring(0, 7);
+      const rawPeriod = String(budget.period || '').replace(/^'/, '');
+      const month = rawPeriod.substring(0, 7);
       revenueByMonth.set(month, (revenueByMonth.get(month) || 0) + budget.planned_amount);
     }
 
-    // Ежемесячные налоги (взносы, НДФЛ)
     const insurance = this.calculateInsuranceContributions(company, 0);
     const monthlyInsurance = insurance.monthly_contributions;
     const monthlyNdfl = insurance.ndfl_monthly || 0;
-
-    // Взносы ИП
     const ipFixed = company.is_individual ? 57390 : 0;
 
-    for (const month of months) {
+    for (const monthKey of months) {
       const taxes: { [key: string]: number } = {};
-      const monthKey = `${year}-${month}`;
       const monthRevenue = revenueByMonth.get(monthKey) || 0;
+      const monthNum = parseInt(monthKey.substring(5, 7));
 
-      // Ежемесячные
       if (company.has_employees || company.monthly_payroll > 0) {
         taxes['acc-tax-insurance'] = Math.round(monthlyInsurance * 100) / 100;
         taxes['acc-tax-ndfl'] = Math.round(monthlyNdfl * 100) / 100;
       }
 
-      // Квартальные (апрель, июль, октябрь)
-      if (month === '04' || month === '07' || month === '10') {
-        // НДС
-        const vatRate = this.getVatRateForUSN(monthRevenue * 3); // квартальная выручка
+      if (monthNum === 4 || monthNum === 7 || monthNum === 10) {
+        const vatRate = this.getVatRateForUSN(monthRevenue * 3);
         if (vatRate > 0) {
           taxes['acc-tax-vat'] = Math.round((monthRevenue * 3 * vatRate) * 100) / 100;
         }
-
-        // УСН аванс или налог на прибыль
         if (company.tax_system === 'USN_6') {
           taxes['acc-tax-usn'] = Math.round((monthRevenue * 3 * 0.06) * 100) / 100;
         } else if (company.tax_system === 'USN_15') {
@@ -208,8 +197,7 @@ export class TaxEngine {
         }
       }
 
-      // Декабрь — взносы ИП
-      if (month === '12' && company.is_individual) {
+      if (monthNum === 12 && company.is_individual) {
         taxes['acc-tax-ip'] = ipFixed;
       }
 
@@ -219,9 +207,6 @@ export class TaxEngine {
     return calendar;
   }
 
-  /**
-   * Расчёт страховых взносов
-   */
   calculateInsuranceContributions(company: Company, revenue: number = 0): {
     annual_contributions: number;
     monthly_contributions: number;
@@ -257,8 +242,7 @@ export class TaxEngine {
       const threshold = mrot * 1.5;
       const monthlyBase = Math.min(payroll, threshold);
       const excess = Math.max(0, payroll - threshold);
-      const monthlyContributions = monthlyBase * 0.30 + excess * 0.15;
-      contributions = monthlyContributions * 12;
+      contributions = (monthlyBase * 0.30 + excess * 0.15) * 12;
       rate = 15;
     } else {
       const limit = 2979000;
@@ -271,7 +255,6 @@ export class TaxEngine {
       }
     }
 
-    // НДФЛ
     const ndflLimit = 5000000;
     let ndfl = 0;
     if (annualPayroll <= ndflLimit) {
@@ -290,24 +273,13 @@ export class TaxEngine {
     };
   }
 
-  /**
-   * Определение ставки НДС для УСН по выручке
-   */
   private getVatRateForUSN(revenue: number): number {
-    if (revenue <= 20000000) {
-      return 0;
-    } else if (revenue <= 250000000) {
-      return 0.05;
-    } else if (revenue <= 490500000) {
-      return 0.07;
-    } else {
-      return 0.22;
-    }
+    if (revenue <= 20000000) return 0;
+    else if (revenue <= 250000000) return 0.05;
+    else if (revenue <= 490500000) return 0.07;
+    else return 0.22;
   }
 
-  /**
-   * Проверка лимитов УСН
-   */
   checkUSNLimits(company: Company, transactions: Transaction[]): {
     current_revenue: number;
     limit: number;
@@ -317,7 +289,7 @@ export class TaxEngine {
   } {
     const currentYear = new Date().getFullYear().toString();
     const yearTx = transactions.filter(t => {
-      const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+      const txDate = this.getDateStr(t.date);
       return t.company_id === company.id && txDate.startsWith(currentYear);
     });
 
@@ -325,16 +297,20 @@ export class TaxEngine {
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + parseFloat(String(t.amount || 0)), 0);
 
-    const limit = 490500000;
-    const vatThreshold = 20000000;
-
     return {
       current_revenue: revenue,
-      limit,
-      percentage: Math.round((revenue / limit) * 100 * 100) / 100,
-      vat_required: revenue > vatThreshold,
+      limit: 490500000,
+      percentage: Math.round((revenue / 490500000) * 10000) / 100,
+      vat_required: revenue > 20000000,
       vat_rate: this.getVatRateForUSN(revenue)
     };
+  }
+
+  private getDateStr(date: any): string {
+    if (!date) return '';
+    if (typeof date === 'string') return date.split('T')[0];
+    if (date instanceof Date) return date.toISOString().split('T')[0];
+    return String(date).split('T')[0];
   }
 }
 

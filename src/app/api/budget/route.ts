@@ -275,7 +275,9 @@ export async function POST(request: NextRequest) {
       const company = companies.find((c: any) => c.id === companyId);
       if (company) {
         // Налоговый календарь
-        const taxCalendar = taxEngine.getMonthlyTaxCalendar(company, year, budgets);
+        // Налоговый календарь на основе реальных месяцев бюджета
+        const budgetMonths = budgets.map(b => String(b.period || '').replace(/^'/, ''));
+        const taxCalendar = taxEngine.getMonthlyTaxCalendar(company, year, budgets, budgetMonths);
 
         // Добавляем налоговые статьи в бюджеты
         for (const monthData of taxCalendar) {
