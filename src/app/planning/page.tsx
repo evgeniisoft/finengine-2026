@@ -223,6 +223,7 @@ export default function PlanningPage() {
                           key={m}
                           className={`px-4 py-3 text-sm text-right whitespace-nowrap ${selectedCompany ? 'text-gray-900 cursor-pointer hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'}`}
                           onClick={() => {
+                            if (viewMode !== 'plan') return;
                             if (!selectedCompany) {
                               alert('Выберите конкретную компанию для редактирования');
                               return;
@@ -261,20 +262,22 @@ export default function PlanningPage() {
                             (() => {
                               const actual = actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
                               const planned = amount || 0;
-                              const deviation = planned - actual;
-                              const isOver = deviation < 0;
-                              const isUnder = deviation > 0;
 
-                              return (
-                                <div>
-                                  <div>{planned ? planned.toLocaleString('ru-RU') : '—'}</div>
-                                  {actual > 0 && (
-                                    <div className={`text-xs ${isOver ? 'text-red-600' : isUnder ? 'text-green-600' : 'text-gray-400'}`}>
-                                      Факт: {actual.toLocaleString('ru-RU')}
-                                    </div>
-                                  )}
-                                </div>
-                              );
+                              if (viewMode === 'actual') {
+                                return actual ? actual.toLocaleString('ru-RU') : '—';
+                              }
+
+                              if (viewMode === 'deviation') {
+                                if (!planned || !actual) return '—';
+                                const dev = ((actual - planned) / planned) * 100;
+                                return (
+                                  <span className={dev > 0 ? 'text-red-600' : dev < 0 ? 'text-green-600' : 'text-gray-400'}>
+                                    {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
+                                  </span>
+                                );
+                              }
+
+                              return planned ? planned.toLocaleString('ru-RU') : '—';
                             })()
                           )}
                         </td>
@@ -308,6 +311,7 @@ export default function PlanningPage() {
                           key={m}
                           className={`px-4 py-3 text-sm text-right whitespace-nowrap ${selectedCompany ? 'text-red-600 cursor-pointer hover:bg-blue-50' : 'text-gray-400 cursor-not-allowed'}`}
                           onClick={() => {
+                            if (viewMode !== 'plan') return;
                             if (!selectedCompany) {
                               alert('Выберите конкретную компанию для редактирования');
                               return;
@@ -346,20 +350,22 @@ export default function PlanningPage() {
                             (() => {
                               const actual = actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
                               const planned = amount || 0;
-                              const deviation = planned - actual;
-                              const isOver = deviation < 0;
-                              const isUnder = deviation > 0;
 
-                              return (
-                                <div>
-                                  <div>{planned ? planned.toLocaleString('ru-RU') : '—'}</div>
-                                  {actual > 0 && (
-                                    <div className={`text-xs ${isOver ? 'text-red-600' : isUnder ? 'text-green-600' : 'text-gray-400'}`}>
-                                      Факт: {actual.toLocaleString('ru-RU')}
-                                    </div>
-                                  )}
-                                </div>
-                              );
+                              if (viewMode === 'actual') {
+                                return actual ? actual.toLocaleString('ru-RU') : '—';
+                              }
+
+                              if (viewMode === 'deviation') {
+                                if (!planned || !actual) return '—';
+                                const dev = ((actual - planned) / planned) * 100;
+                                return (
+                                  <span className={dev > 0 ? 'text-red-600' : dev < 0 ? 'text-green-600' : 'text-gray-400'}>
+                                    {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
+                                  </span>
+                                );
+                              }
+
+                              return planned ? planned.toLocaleString('ru-RU') : '—';
                             })()
                           )}
                         </td>
