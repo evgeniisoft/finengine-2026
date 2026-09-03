@@ -26,11 +26,11 @@ export class BudgetEngine {
 
     const budgets: Budget[] = [];
     const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
-    
+
     // Определяем дату, до которой считаем данные "историческими"
     const now = new Date();
     const previousYear = String(parseInt(year) - 1);
-    
+
     // Вариант 1: прошлый год
     let historicalTx = transactions.filter(t => {
       const txDate = this.getDateStr(t.date);
@@ -38,34 +38,33 @@ export class BudgetEngine {
         txDate.startsWith(previousYear) &&
         (t.debit_account_id || t.credit_account_id);
     });
-    
-    // Вариант 2: если прошлого года нет — текущий год до текущего месяца
+
+    // Вариант 2: если прошлого года нет — используем все данные до сентября текущего года
     if (historicalTx.length === 0) {
-      const currentMonth = now.toISOString().substring(0, 7);
       historicalTx = transactions.filter(t => {
         const txDate = this.getDateStr(t.date);
         return t.company_id === companyId &&
           txDate.startsWith(year) &&
-          txDate < currentMonth &&
+          txDate <= `${year}-08-31` &&
           (t.debit_account_id || t.credit_account_id);
       });
     }
-    
+
     if (historicalTx.length === 0) {
       return []; // Нет данных — пользователь заполнит вручную
     }
-    
+
     // Для каждой статьи считаем средние значения
     for (const account of accounts) {
       if (account.type !== 'I' && account.type !== 'X') continue;
-      
+
       // Операции по конкретному счёту
       const accountTx = historicalTx.filter(t =>
         t.debit_account_id === account.id || t.credit_account_id === account.id
       );
-      
+
       if (accountTx.length === 0) continue;
-      
+
       // Группируем по месяцам
       const monthlyGroups = new Map<string, number>();
       for (const tx of accountTx) {
@@ -74,21 +73,21 @@ export class BudgetEngine {
         const amount = parseFloat(String(tx.amount || 0));
         monthlyGroups.set(month, (monthlyGroups.get(month) || 0) + amount);
       }
-      
+
       const averages = Array.from(monthlyGroups.values());
       if (averages.length === 0) continue;
-      
+
       const avg = averages.reduce((s, v) => s + v, 0) / averages.length;
-      
+
       // Сезонные коэффициенты
       const seasonality = this.calculateSeasonality(monthlyGroups);
-      
+
       // Создаём бюджеты на 12 месяцев
       for (const month of months) {
         const monthNum = parseInt(month);
         const seasonalFactor = seasonality[monthNum] || 1;
         const plannedAmount = avg * seasonalFactor;
-        
+
         budgets.push({
           id: this.generateId(),
           tenant_id: 'tenant-1',
@@ -109,7 +108,7 @@ export class BudgetEngine {
         });
       }
     }
-    
+
     return budgets;
   }
 
