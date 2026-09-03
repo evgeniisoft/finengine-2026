@@ -341,9 +341,9 @@ export default function PlanningPage() {
                                     const dev = planned && actual ? ((actual - planned) / planned) * 100 : 0;
                                     return (
                                       <div>
-                                        <div className="font-medium">{planned ? planned.toLocaleString('ru-RU') : '—'}</div>
+                                        <div className="font-medium">{planned ? Math.round(planned).toLocaleString('ru-RU') : '—'}</div>
                                         {viewMode === 'actual' && actual > 0 && (
-                                          <div className={`text-xs ${actual >= planned ? 'text-green-600' : 'text-red-600'}`}>{actual.toLocaleString('ru-RU')}</div>
+                                          <div className={`text-xs ${actual >= planned ? 'text-green-600' : 'text-red-600'}`}>{Math.round(actual).toLocaleString('ru-RU')}</div>
                                         )}
                                         {viewMode === 'deviation' && actual > 0 && (
                                           <div className={`text-xs ${dev >= 0 ? 'text-green-600' : 'text-red-600'}`}>{dev > 0 ? '+' : ''}{dev.toFixed(1)}%</div>
@@ -400,9 +400,9 @@ export default function PlanningPage() {
                                     const dev = planned && actual ? ((actual - planned) / planned) * 100 : 0;
                                     return (
                                       <div>
-                                        <div className="font-medium">{planned ? planned.toLocaleString('ru-RU') : '—'}</div>
+                                        <div className="font-medium">{planned ? Math.round(planned).toLocaleString('ru-RU') : '—'}</div>
                                         {viewMode === 'actual' && actual > 0 && (
-                                          <div className={`text-xs ${actual <= planned ? 'text-green-600' : 'text-red-600'}`}>{actual.toLocaleString('ru-RU')}</div>
+                                          <div className={`text-xs ${actual <= planned ? 'text-green-600' : 'text-red-600'}`}>{Math.round(actual).toLocaleString('ru-RU')}</div>
                                         )}
                                         {viewMode === 'deviation' && actual > 0 && (
                                           <div className={`text-xs ${dev <= 0 ? 'text-green-600' : 'text-red-600'}`}>{dev > 0 ? '+' : ''}{dev.toFixed(1)}%</div>
@@ -436,10 +436,10 @@ export default function PlanningPage() {
 
                     return (
                       <td key={m} className="px-4 py-3 text-sm text-right font-bold text-gray-900">
-                        <div>{totalPlan ? totalPlan.toLocaleString('ru-RU') : '—'}</div>
+                        <div>{totalPlan ? Math.round(totalPlan).toLocaleString('ru-RU') : '—'}</div>
                         {viewMode === 'actual' && totalActual > 0 && (
                           <div className={`text-xs ${totalActual >= totalPlan ? 'text-green-600' : 'text-red-600'}`}>
-                            {totalActual.toLocaleString('ru-RU')}
+                            {Math.round(totalPlan).toLocaleString('ru-RU')}
                           </div>
                         )}
                         {viewMode === 'deviation' && totalActual > 0 && (
@@ -468,10 +468,10 @@ export default function PlanningPage() {
 
                     return (
                       <td key={m} className="px-4 py-3 text-sm text-right font-bold text-red-600">
-                        <div>-{totalPlan ? totalPlan.toLocaleString('ru-RU') : '—'}</div>
+                        <div>-{totalPlan ? Math.round(totalPlan).toLocaleString('ru-RU') : '—'}</div>
                         {viewMode === 'actual' && totalActual > 0 && (
                           <div className={`text-xs ${totalActual <= totalPlan ? 'text-green-600' : 'text-red-600'}`}>
-                            -{totalActual.toLocaleString('ru-RU')}
+                           {Math.round(totalActual).toLocaleString('ru-RU')}
                           </div>
                         )}
                         {viewMode === 'deviation' && totalActual > 0 && (
