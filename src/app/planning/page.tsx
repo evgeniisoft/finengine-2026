@@ -237,8 +237,8 @@ export default function PlanningPage() {
                     <React.Fragment key={groupName}>
                       {/* Заголовок группы */}
                       <tr className="bg-blue-50">
-                        <td colSpan={13} className="px-4 py-2 text-xs font-semibold text-blue-800 uppercase sticky left-0 bg-blue-50">
-                          {groupName}
+                        <td colSpan={13} className="px-4 py-2 text-xs font-semibold text-blue-800 uppercase bg-blue-50">
+                          <div className="sticky left-0">{groupName}</div>
                         </td>
                       </tr>
 
