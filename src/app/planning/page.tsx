@@ -274,26 +274,49 @@ export default function PlanningPage() {
       company_id: budget.company_id
     });
   }
-  // Функция получения суммы с учётом отсрочки
-  const getShiftedAmount = (accountId: string, month: string): number => {
-    const companiesList = selectedCompany
-      ? [selectedCompany]
-      : companies.map((c: any) => c.id);
+  // Кэш: Компания -> Статья -> Месяц -> Сумма
+  const rawBudgetsMap = new Map<string, Map<string, Map<string, number>>>();
+  budgets.forEach((b: any) => {
+    const companyId = b.company_id;
+    const accountId = b.category_id || b.account_id;
+    const month = String(b.period || '').replace(/^'/, '').substring(0, 7);
+    const amount = b.planned_amount || 0;
 
-    let total = 0;
+    if (!rawBudgetsMap.has(companyId)) {
+      rawBudgetsMap.set(companyId, new Map());
+    }
+    const compMap = rawBudgetsMap.get(companyId)!;
+
+    if (!compMap.has(accountId)) {
+      compMap.set(accountId, new Map());
+    }
+    const accMap = compMap.get(accountId)!;
+
+    accMap.set(month, (accMap.get(month) || 0) + amount);
+  });
+  // Функция получения суммы с учётом отсрочки
+  const getShiftedAmount = (accountId: string, targetMonth: string): number => {
+    const companiesList = selectedCompany && selectedCompany !== 'all'
+      ? [selectedCompany]
+      : Object.keys(paymentDelaysByCompany);
+
+    let totalShiftedAmount = 0;
+    const targetMonthIdx = months.indexOf(targetMonth);
 
     companiesList.forEach((compId: string) => {
-      const delayMonths = Math.ceil((paymentDelaysByCompany[compId]?.[accountId] || 0) / 30);
-      const sourceIdx = months.indexOf(month) - delayMonths;
+      const delayDays = paymentDelaysByCompany[compId]?.[accountId] || 0;
+      const delayMonths = Math.ceil(delayDays / 30);
+      const sourceIdx = targetMonthIdx - delayMonths;
 
-      if (delayMonths === 0) {
-        total += budgetByCategory.get(accountId)?.get(month)?.amount || 0;
-      } else if (sourceIdx >= 0) {
-        total += budgetByCategory.get(accountId)?.get(months[sourceIdx])?.amount || 0;
-      }
+      if (sourceIdx < 0) return;
+
+      const sourceMonth = months[sourceIdx];
+      const companyAmount = rawBudgetsMap.get(compId)?.get(accountId)?.get(sourceMonth) || 0;
+
+      totalShiftedAmount += companyAmount;
     });
 
-    return total;
+    return totalShiftedAmount;
   };
 
   return (
