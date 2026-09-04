@@ -8,6 +8,7 @@ export default function PlanningPage() {
   const [actualsByCategory, setActualsByCategory] = useState<{ [key: string]: { [key: string]: number } }>({});
   const [companies, setCompanies] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
+  const [totalCash, setTotalCash] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [selectedScenario, setSelectedScenario] = useState<'base' | 'optimistic' | 'pessimistic'>('base');
@@ -24,10 +25,16 @@ export default function PlanningPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [companiesData, accountsData] = await Promise.all([
+      const [companiesData, accountsData, balanceData] = await Promise.all([
         api.getAll('Companies'),
-        api.getAll('Accounts')
+        api.getAll('Accounts'),
+        fetch('/api/reports?type=balance').then(r => r.json())
       ]);
+
+      // Считаем общий остаток денег
+      const balanceArray = Array.isArray(balanceData) ? balanceData : [];
+      const cash = balanceArray.reduce((sum, b) => sum + (b.report?.assets?.cash || 0), 0);
+      setTotalCash(cash);
       setCompanies(companiesData);
       setAccounts(accountsData);
 
@@ -169,11 +176,7 @@ export default function PlanningPage() {
     for (const acc of accounts) {
       const group = acc.group_name || 'ПРОЧЕЕ';
 
-      // Для БДДС — исключаем неденежные статьи
-      if (budgetType === 'cashflow') {
-        if (group === 'АМОРТИЗАЦИЯ') continue;
-        if (acc.type === 'X' && group !== 'НАЛОГИ И ВЗНОСЫ' && group !== 'ФИНАНСОВЫЕ РАСХОДЫ') continue;
-      }
+
 
       if (!groups.has(group)) {
         groups.set(group, []);
@@ -305,6 +308,20 @@ export default function PlanningPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
+                {budgetType === 'cashflow' && (
+                  <tr className="bg-gray-100">
+                    <td className="px-4 py-2 text-xs font-semibold text-gray-700 uppercase sticky left-0 bg-gray-100">Остаток на начало</td>
+                    {months.map((m, idx) => {
+                      // Начальный остаток — из баланса или 0 для первого месяца
+                      const balance = idx === 0 ? totalCash : 0;
+                      return (
+                        <td key={m} className="px-4 py-2 text-sm text-right font-bold text-gray-900">
+                          {idx === 0 ? Math.round(totalCash).toLocaleString('ru-RU') : '—'}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
                 {/* Доходные статьи */}
                 {Array.from(groupedAccounts().entries()).map(([groupName, groupAccounts]) => {
                   const incomeAccounts = groupAccounts.filter(a => a.type === 'I');
@@ -532,6 +549,36 @@ export default function PlanningPage() {
                     );
                   })}
                 </tr>
+                {budgetType === 'cashflow' && (
+                  <tr className="bg-blue-100">
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-blue-100">Остаток на конец</td>
+                    {months.map((m, idx) => {
+                      let inflow = 0;
+                      let outflow = 0;
+
+                      accounts.filter(a => a.type === 'I').forEach(acc => {
+                        const cellData = budgetByCategory.get(acc.id)?.get(m);
+                        inflow += cellData?.amount || 0;
+                      });
+                      accounts.filter(a => a.type === 'X').forEach(acc => {
+                        const cellData = budgetByCategory.get(acc.id)?.get(m);
+                        outflow += cellData?.amount || 0;
+                      });
+
+                      // Кумулятивный остаток
+                      const prevBalance = idx === 0 ? totalCash : 0;
+                      const endingBalance = prevBalance + inflow - outflow;
+
+                      return (
+                        <td key={m} className="px-4 py-3 text-sm text-right font-bold">
+                          <div className={endingBalance >= 0 ? 'text-gray-900' : 'text-red-600'}>
+                            {Math.round(endingBalance).toLocaleString('ru-RU')}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
