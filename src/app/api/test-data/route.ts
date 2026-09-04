@@ -172,8 +172,6 @@ export async function POST(request: NextRequest) {
       // АМОРТИЗАЦИЯ
       { id: 'acc-depreciation-os', code: 'A-001', name: 'Амортизация ОС', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'АМОРТИЗАЦИЯ', source_code: '02', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
 
-      // ФИНАНСОВЫЕ РАСХОДЫ
-      { id: 'acc-fin-interest', code: 'F-001', name: 'Проценты по кредитам', type: 'X', is_cash_flow: 'false', activity_type: 'financing', parent_id: '', group_name: 'ФИНАНСОВЫЕ РАСХОДЫ', source_code: '91.02', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
 
       // ДЕНЕЖНЫЕ СЧЕТА
       { id: 'acc-bank-001', code: 'CA-001', name: 'Альфа-Банк', type: 'A', is_cash_flow: 'true', activity_type: '', parent_id: '', group_name: 'АКТИВЫ', source_code: '51', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
@@ -190,13 +188,10 @@ export async function POST(request: NextRequest) {
       // НЕРАСПРЕДЕЛЁННОЕ
       { id: 'acc-unclassified', code: 'O-999', name: 'Требует уточнения', type: 'X', is_cash_flow: 'false', activity_type: 'operating', parent_id: '', group_name: 'ОПЕРАЦИОННЫЕ РАСХОДЫ', source_code: '', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
 
-      // для инвестиционной деятельности
-      { id: 'acc-fa-001', code: 'FA-001', name: 'Основные средства', type: 'A', is_cash_flow: 'false', activity_type: 'investing', parent_id: '', group_name: 'АКТИВЫ', source_code: '01', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-      { id: 'acc-capex-001', code: 'CAPEX', name: 'Капитальные затраты', type: 'X', is_cash_flow: 'false', activity_type: 'investing', parent_id: '', group_name: 'ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ', source_code: '', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
-
       // ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ
       { id: 'acc-in-invest-sale', code: 'INV-001', name: 'Продажа ОС', type: 'I', is_cash_flow: 'false', activity_type: 'investing', parent_id: '', group_name: 'ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ', source_code: '91.01', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
       { id: 'acc-out-capex', code: 'INV-002', name: 'Покупка ОС (CAPEX)', type: 'X', is_cash_flow: 'false', activity_type: 'investing', parent_id: '', group_name: 'ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ', source_code: '08', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-fa-001', code: 'FA-001', name: 'Основные средства', type: 'A', is_cash_flow: 'false', activity_type: 'investing', parent_id: '', group_name: 'АКТИВЫ', source_code: '01', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
 
       // ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ
       { id: 'acc-in-loan', code: 'FIN-001', name: 'Получение кредитов', type: 'I', is_cash_flow: 'false', activity_type: 'financing', parent_id: '', group_name: 'ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ', source_code: '66', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },

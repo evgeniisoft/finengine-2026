@@ -196,9 +196,16 @@ export default function PlanningPage() {
       return groups;
     }
 
-    // Для БДР — по group_name
+    // Для БДР — только операционные счета
     const groups = new Map<string, any[]>();
     for (const acc of accounts) {
+      const activity = acc.activity_type || 'operating';
+
+      // Исключаем инвестиционные и финансовые счета из БДР
+      if (activity === 'investing' || activity === 'financing') continue;
+      // Исключаем активы/пассивы/капитал
+      if (acc.type === 'A' || acc.type === 'L' || acc.type === 'E') continue;
+
       const group = acc.group_name || 'ПРОЧЕЕ';
       if (!groups.has(group)) {
         groups.set(group, []);
