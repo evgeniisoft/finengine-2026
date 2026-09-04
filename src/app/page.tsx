@@ -329,7 +329,7 @@ export default function Dashboard() {
       {diagnostics && diagnostics.critical > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 cursor-pointer" onClick={() => window.location.href = '/diagnostics'}>
           <h3 className="font-semibold text-red-700 mb-2">
-            🔴 {diagnostics.critical} критичных проблем
+            {diagnostics.critical} критичных проблем
           </h3>
           {diagnostics.checks.filter((c: any) => c.severity === 'critical').slice(0, 3).map((c: any) => (
             <p key={c.id} className="text-sm text-red-600">{c.message}</p>
