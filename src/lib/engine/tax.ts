@@ -59,11 +59,11 @@ export class TaxEngine {
       return t.company_id === company.id && txDate >= periodStart && txDate <= periodEnd;
     });
 
-    // Определяем количество месяцев в периоде
+    // Определяем долю периода в году
     const startDate = new Date(periodStart);
     const endDate = new Date(periodEnd);
-    const monthsInPeriod = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)));
-    const periodFraction = monthsInPeriod / 12; // Доля года
+    const daysInPeriod = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    const periodFraction = daysInPeriod / 365; // Доля года
 
     const revenue = companyTx
       .filter(t => {
@@ -88,7 +88,8 @@ export class TaxEngine {
 
     switch (company.tax_system) {
       case 'USN_6':
-        vatRate = this.getVatRateForUSN(revenue / periodFraction); // Годовая выручка для определения ставки НДС
+        // Для определения ставки НДС используем годовую выручку
+        vatRate = this.getVatRateForUSN(revenue / periodFraction);
         vatAmount = revenue * vatRate;
         incomeTaxRate = parseFloat(this.settings['usn_6'] || '0.06');
         incomeTaxAmount = revenue * incomeTaxRate;

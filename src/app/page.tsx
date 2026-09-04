@@ -110,9 +110,13 @@ export default function Dashboard() {
   const daysInPeriod = Math.max(1, Math.round((new Date(period.end).getTime() - new Date(period.start).getTime()) / (1000 * 60 * 60 * 24)) + 1);
   const today = new Date();
   const periodStartDate = new Date(period.start);
-  const daysPassedInPeriod = Math.min(daysInPeriod, Math.max(1, Math.round((today.getTime() - periodStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1));
-  const runRate = daysPassedInPeriod > 0 ? (totalRevenue / daysPassedInPeriod) * daysInPeriod : 0;
 
+  // Сколько дней прошло с начала периода
+  const daysPassedInPeriod = Math.min(daysInPeriod, Math.max(1, Math.round((today.getTime() - periodStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1));
+
+  // Приводим к месячному Run Rate
+  const daysInMonth = 30;
+  const runRate = daysPassedInPeriod > 0 ? (totalRevenue / daysPassedInPeriod) * daysInMonth : 0;
   const totalTaxData = reportsArray.map(r => r.tax).filter(Boolean);
   const totalIncomeTax = totalTaxData.reduce((s, t) => s + (t.income_tax_amount || 0), 0);
   const totalInsurance = totalTaxData.reduce((s, t) => s + (t.insurance_amount || 0), 0);
