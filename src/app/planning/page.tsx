@@ -15,6 +15,7 @@ export default function PlanningPage() {
   const [editingCell, setEditingCell] = useState<{ categoryId: string, month: string } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [viewMode, setViewMode] = useState<'plan' | 'actual' | 'deviation'>('plan');
+  const [budgetType, setBudgetType] = useState<'pnl' | 'cashflow'>('pnl');
 
   useEffect(() => {
     loadData();
@@ -167,6 +168,13 @@ export default function PlanningPage() {
     const groups = new Map<string, any[]>();
     for (const acc of accounts) {
       const group = acc.group_name || 'ПРОЧЕЕ';
+
+      // Для БДДС — исключаем неденежные статьи
+      if (budgetType === 'cashflow') {
+        if (group === 'АМОРТИЗАЦИЯ') continue;
+        if (acc.type === 'X' && group !== 'НАЛОГИ И ВЗНОСЫ' && group !== 'ФИНАНСОВЫЕ РАСХОДЫ') continue;
+      }
+
       if (!groups.has(group)) {
         groups.set(group, []);
       }
@@ -245,6 +253,20 @@ export default function PlanningPage() {
             </button>
           </div>
 
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+            <button
+              onClick={() => setBudgetType('pnl')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${budgetType === 'pnl' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+            >
+              БДР (P&L)
+            </button>
+            <button
+              onClick={() => setBudgetType('cashflow')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${budgetType === 'cashflow' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+            >
+              БДДС (Cash Flow)
+            </button>
+          </div>
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
             <button
               onClick={() => setViewMode('plan')}
@@ -504,7 +526,7 @@ export default function PlanningPage() {
                     return (
                       <td key={m} className="px-4 py-3 text-sm text-right font-bold">
                         <div className={profit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {profit > 0 ? '+' : ''}{profit.toLocaleString('ru-RU')}
+                          {profit > 0 ? '+' : ''}{Math.round(profit).toLocaleString('ru-RU')}
                         </div>
                       </td>
                     );
