@@ -5,6 +5,9 @@ import { useEffect, useState } from 'react';
 export default function TaxesSettingsPage() {
   const [settings, setSettings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   useEffect(() => {
     loadSettings();
@@ -12,8 +15,10 @@ export default function TaxesSettingsPage() {
 
   const loadSettings = async () => {
     try {
+      const session = JSON.parse(localStorage.getItem('finengine_session') || '{}');
+      const dbUrl = session.dbUrl || '';
       const response = await fetch('/api/data?action=getAll&sheet=Settings', {
-        headers: { 'X-DB-URL': JSON.parse(localStorage.getItem('finengine_session') || '{}').dbUrl || '' }
+        headers: { 'X-DB-URL': dbUrl }
       });
       const data = await response.json();
       setSettings(Array.isArray(data) ? data : []);
@@ -24,11 +29,34 @@ export default function TaxesSettingsPage() {
     }
   };
 
-  const taxSettings = settings.filter(s => s.category === 'taxes');
-  const limitSettings = settings.filter(s => s.category === 'limits');
-  const insuranceSettings = settings.filter(s => s.category === 'insurance');
-  const ndflSettings = settings.filter(s => s.category === 'ndfl');
-  const ipSettings = settings.filter(s => s.category === 'ip');
+  const handleSave = async (setting: any) => {
+    const newValue = parseFloat(editValue.replace(',', '.'));
+    if (isNaN(newValue)) {
+      alert('Введите число');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const session = JSON.parse(localStorage.getItem('finengine_session') || '{}');
+      const dbUrl = session.dbUrl || '';
+      
+      const url = `${dbUrl}?action=update&sheet=Settings&id=${setting.id}&data=${encodeURIComponent(JSON.stringify({
+        ...setting,
+        value: String(newValue)
+      }))}`;
+      
+      await fetch(url);
+      
+      setEditingId(null);
+      loadSettings();
+    } catch (error) {
+      console.error('Ошибка:', error);
+      alert('Ошибка при сохранении');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const formatLabel = (key: string) => {
     const labels: { [key: string]: string } = {
@@ -59,66 +87,91 @@ export default function TaxesSettingsPage() {
     return labels[key] || key;
   };
 
-  const formatValue = (setting: any) => {
+  const isPercent = (key: string) => {
+    return !key.includes('limit') && key !== 'mrot' && key !== 'ndfl_limit' && key !== 'ip_fixed' && key !== 'ip_additional_max';
+  };
+
+  const displayValue = (setting: any) => {
     const value = parseFloat(setting.value);
-    if (setting.key.includes('limit') || setting.key === 'mrot' || setting.key === 'ndfl_limit' || setting.key === 'ip_fixed' || setting.key === 'ip_additional_max') {
-      return value.toLocaleString('ru-RU');
+    if (isPercent(setting.key)) {
+      return (value * 100).toFixed(value < 0.1 ? 1 : 0) + '%';
     }
-    return (value * 100).toFixed(value < 0.1 ? 1 : 0) + '%';
+    return value.toLocaleString('ru-RU');
+  };
+
+  const getInputValue = (setting: any) => {
+    const value = parseFloat(setting.value);
+    if (isPercent(setting.key)) {
+      return String(value * 100);
+    }
+    return String(value);
   };
 
   if (loading) {
     return <div className="text-center py-12">Загрузка...</div>;
   }
 
+  const groups = [
+    { title: 'Налоговые ставки', category: 'taxes' },
+    { title: 'Лимиты УСН', category: 'limits' },
+    { title: 'Страховые взносы', category: 'insurance' },
+    { title: 'НДФЛ', category: 'ndfl' },
+    { title: 'Взносы ИП', category: 'ip' },
+  ];
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Налоговые параметры</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Налоговые ставки</h3>
-          {taxSettings.map(s => (
-            <div key={s.id} className="flex justify-between py-2 border-b last:border-0">
-              <span className="text-sm text-gray-600">{formatLabel(s.key)}</span>
-              <span className="text-sm font-medium">{formatValue(s)}</span>
+        {groups.map(group => {
+          const groupSettings = settings.filter(s => s.category === group.category);
+          if (groupSettings.length === 0) return null;
+          
+          return (
+            <div key={group.category} className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">{group.title}</h3>
+              {groupSettings.map(s => (
+                <div key={s.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <span className="text-sm text-gray-600">{formatLabel(s.key)}</span>
+                  
+                  {editingId === s.id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="w-28 px-2 py-1 border border-blue-500 rounded text-right"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSave(s);
+                          if (e.key === 'Escape') setEditingId(null);
+                        }}
+                      />
+                      {isPercent(s.key) && <span className="text-xs text-gray-400">%</span>}
+                      <button onClick={() => handleSave(s)} disabled={saving} className="p-1 bg-green-600 text-white rounded hover:bg-green-700">{saving ? '...' : '✓'}</button>
+                      <button onClick={() => setEditingId(null)} className="p-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300">✕</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setEditingId(s.id);
+                        setEditValue(getInputValue(s));
+                      }}
+                      className="text-sm font-medium cursor-pointer hover:text-blue-600 hover:underline"
+                    >
+                      {displayValue(s)}
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Лимиты УСН</h3>
-          {limitSettings.map(s => (
-            <div key={s.id} className="flex justify-between py-2 border-b last:border-0">
-              <span className="text-sm text-gray-600">{formatLabel(s.key)}</span>
-              <span className="text-sm font-medium">{formatValue(s)}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Страховые взносы</h3>
-          {insuranceSettings.map(s => (
-            <div key={s.id} className="flex justify-between py-2 border-b last:border-0">
-              <span className="text-sm text-gray-600">{formatLabel(s.key)}</span>
-              <span className="text-sm font-medium">{formatValue(s)}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">НДФЛ и ИП</h3>
-          {[...ndflSettings, ...ipSettings].map(s => (
-            <div key={s.id} className="flex justify-between py-2 border-b last:border-0">
-              <span className="text-sm text-gray-600">{formatLabel(s.key)}</span>
-              <span className="text-sm font-medium">{formatValue(s)}</span>
-            </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
       
       <p className="text-xs text-gray-400 mt-4">
-        Для изменения параметров — редактируйте лист Settings в Google Sheets
+        Нажмите на значение, чтобы изменить. Enter — сохранить, Esc — отмена.
       </p>
     </div>
   );
