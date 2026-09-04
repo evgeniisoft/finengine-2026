@@ -9,7 +9,7 @@ export default function PlanningPage() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [totalCash, setTotalCash] = useState(0);
-  const [paymentDelays, setPaymentDelays] = useState<{ [key: string]: number }>({});
+  const [paymentDelaysByCompany, setPaymentDelaysByCompany] = useState<{ [companyId: string]: { [accountId: string]: number } }>({});
   const [loading, setLoading] = useState(true);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [selectedScenario, setSelectedScenario] = useState<'base' | 'optimistic' | 'pessimistic'>('base');
@@ -46,14 +46,17 @@ export default function PlanningPage() {
         headers: { 'X-DB-URL': JSON.parse(localStorage.getItem('finengine_session') || '{}').dbUrl || '' }
       });
       const settingsData = await settingsRes.json();
-      const delaysMap: { [key: string]: number } = {};
+      const delaysMap: { [companyId: string]: { [accountId: string]: number } } = {};
       for (const s of Array.isArray(settingsData) ? settingsData : []) {
         if (s.category === 'payment_delay' && s.key.startsWith(`payment_delay_${selectedCompany}_`)) {
           const accountId = s.key.replace(`payment_delay_${selectedCompany}_`, '');
-          delaysMap[accountId] = parseFloat(s.value || '0');
+          if (!delaysMap[selectedCompany]) {
+            delaysMap[selectedCompany] = {};
+          }
+          delaysMap[selectedCompany][accountId] = parseFloat(s.value || '0');
         }
       }
-      setPaymentDelays(delaysMap);
+      setPaymentDelaysByCompany(delaysMap);
 
       const url = `/api/budget?year=${selectedYear}&scenario=${selectedScenario}${selectedCompany ? `&company_id=${selectedCompany}` : ''}`;
       const response = await fetch(url);
@@ -242,7 +245,7 @@ export default function PlanningPage() {
   }
 
   // Группируем бюджеты по статьям
-  const budgetByCategory = new Map<string, Map<string, { amount: number, id: string, status: string }>>();
+  const budgetByCategory = new Map<string, Map<string, { amount: number, id: string, status: string, company_id: string }>>();
   for (const budget of budgets) {
     const catId = budget.category_id || budget.account_id;
     const rawPeriod = String(budget.period || '');
@@ -260,7 +263,12 @@ export default function PlanningPage() {
     if (!budgetByCategory.has(catId)) {
       budgetByCategory.set(catId, new Map());
     }
-    budgetByCategory.get(catId)!.set(rawPeriod.replace(/^'/, '').substring(0, 7), { amount: budget.planned_amount, id: budget.id, status: budget.status || 'draft' });
+    budgetByCategory.get(catId)!.set(rawPeriod.replace(/^'/, '').substring(0, 7), {
+      amount: budget.planned_amount,
+      id: budget.id,
+      status: budget.status || 'draft',
+      company_id: budget.company_id
+    });
   }
 
   return (
@@ -366,7 +374,7 @@ export default function PlanningPage() {
                           let mOutflow = 0;
 
                           accounts.forEach((acc: any) => {
-                            const delayMonths = Math.ceil((paymentDelays[acc.id] || 0) / 30);
+                            const delayMonths = Math.ceil(((paymentDelaysByCompany[selectedCompany]?.[acc.id] || 0) || 0) / 30);
                             const sourceIdx = months.indexOf(currentMonth) - delayMonths;
 
                             if (delayMonths === 0) {
@@ -433,7 +441,7 @@ export default function PlanningPage() {
                                     let amount = cellData?.amount;
 
                                     if (budgetType === 'cashflow') {
-                                      const delayDays = paymentDelays[acc.id] || 0;
+                                      const delayDays = (paymentDelaysByCompany[selectedCompany]?.[acc.id] || 0) || 0;
                                       const delayMonths = Math.ceil(delayDays / 30);
 
                                       if (delayMonths > 0) {
@@ -509,7 +517,7 @@ export default function PlanningPage() {
                             let secOutflow = 0;
 
                             sectionAccounts.filter((a: any) => a.type === 'I').forEach((acc: any) => {
-                              const delayMonths = Math.ceil((paymentDelays[acc.id] || 0) / 30);
+                              const delayMonths = Math.ceil(((paymentDelaysByCompany[selectedCompany]?.[acc.id] || 0) || 0) / 30);
                               const sourceIdx = months.indexOf(m) - delayMonths;
                               if (delayMonths === 0) {
                                 secInflow += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
@@ -519,7 +527,7 @@ export default function PlanningPage() {
                             });
 
                             sectionAccounts.filter((a: any) => a.type === 'X').forEach((acc: any) => {
-                              const delayMonths = Math.ceil((paymentDelays[acc.id] || 0) / 30);
+                              const delayMonths = Math.ceil(((paymentDelaysByCompany[selectedCompany]?.[acc.id] || 0) || 0) / 30);
                               const sourceIdx = months.indexOf(m) - delayMonths;
                               if (delayMonths === 0) {
                                 secOutflow += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
@@ -547,7 +555,8 @@ export default function PlanningPage() {
                         let outflow = 0;
 
                         accounts.forEach((acc: any) => {
-                          const delayMonths = Math.ceil((paymentDelays[acc.id] || 0) / 30);
+                          const companyId = selectedCompany || accounts[0]?.company_id || '';
+                          const delayMonths = Math.ceil((paymentDelaysByCompany[companyId]?.[acc.id] || 0) / 30);
                           const sourceIdx = months.indexOf(m) - delayMonths;
 
                           if (delayMonths === 0) {
@@ -582,7 +591,7 @@ export default function PlanningPage() {
                           let mOutflow = 0;
 
                           accounts.forEach((acc: any) => {
-                            const delayMonths = Math.ceil((paymentDelays[acc.id] || 0) / 30);
+                            const delayMonths = Math.ceil(((paymentDelaysByCompany[selectedCompany]?.[acc.id] || 0) || 0) / 30);
                             const sourceIdx = months.indexOf(currentMonth) - delayMonths;
 
                             if (delayMonths === 0) {
