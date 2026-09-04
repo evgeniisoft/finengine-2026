@@ -42,6 +42,20 @@ export async function GET(request: NextRequest) {
     // Инициализация переменных для расчётов
     const revenueByCompany = new Map<string, number>();
     const expensesByCompany = new Map<string, number>();
+
+    // Заполняем данными по всем компаниям
+    for (const company of companies) {
+      const companyTx = transactions.filter(t => t.company_id === company.id);
+      const revenue = companyTx
+        .filter(t => accounts.find(a => a.id === t.credit_account_id)?.type === 'I')
+        .reduce((sum, t) => sum + amountOf(t), 0);
+      const expenses = companyTx
+        .filter(t => accounts.find(a => a.id === t.debit_account_id)?.type === 'X')
+        .reduce((sum, t) => sum + amountOf(t), 0);
+
+      revenueByCompany.set(company.id, revenue);
+      expensesByCompany.set(company.id, expenses);
+    }
     // ============ ВСПОМОГАТЕЛЬНЫЕ ============
     const getDateStr = (d: any) => {
       if (!d) return '';
@@ -408,22 +422,6 @@ export async function GET(request: NextRequest) {
     // ============================================
     // БЛОК 3: ФИНАНСОВЫЕ РАСЧЁТЫ
     // ============================================
-
-    // 3.1 ОПиУ - сверка выручки
-    
-
-    for (const company of companies) {
-      const companyTx = transactions.filter(t => t.company_id === company.id);
-      const revenue = companyTx
-        .filter(t => accounts.find(a => a.id === t.credit_account_id)?.type === 'I')
-        .reduce((sum, t) => sum + amountOf(t), 0);
-      const expenses = companyTx
-        .filter(t => accounts.find(a => a.id === t.debit_account_id)?.type === 'X')
-        .reduce((sum, t) => sum + amountOf(t), 0);
-
-      revenueByCompany.set(company.id, revenue);
-      expensesByCompany.set(company.id, expenses);
-    }
 
     const totalRevenue = Array.from(revenueByCompany.values()).reduce((s, v) => s + v, 0);
     const allTransactionsRevenue = transactions
