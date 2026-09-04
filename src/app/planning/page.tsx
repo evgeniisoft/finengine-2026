@@ -173,7 +173,6 @@ export default function PlanningPage() {
   };
   const groupedAccounts = () => {
     if (budgetType === 'cashflow') {
-      // Для БДДС группируем по activity_type
       const groups = new Map<string, any[]>();
 
       const sections = [
@@ -183,10 +182,11 @@ export default function PlanningPage() {
       ];
 
       for (const section of sections) {
-        const sectionAccounts = accounts.filter(a =>
-          (a.activity_type || 'operating') === section.key ||
-          (section.key === 'operating' && !a.activity_type)
-        );
+        const sectionAccounts = accounts.filter((a: any) => {
+          const activity = a.activity_type || 'operating';
+          return activity === section.key;
+        });
+
         if (sectionAccounts.length > 0) {
           groups.set(section.label, sectionAccounts);
         }
@@ -344,9 +344,12 @@ export default function PlanningPage() {
                   </tr>
                 )}
                 {/* Доходные статьи */}
-                {Array.from(groupedAccounts().entries()).map(([groupName, groupAccounts]) => {
-                  const incomeAccounts = groupAccounts.filter(a => a.type === 'I');
-                  const expenseAccounts = groupAccounts.filter(a => a.type === 'X');
+                {(budgetType === 'pnl'
+                  ? Array.from(groupedAccounts().entries())
+                  : []
+                ).map(([groupName, groupAccounts]) => {
+                  const incomeAccounts = groupAccounts.filter((a: any) => a.type === 'I');
+                  const expenseAccounts = groupAccounts.filter((a: any) => a.type === 'X');
 
                   if (incomeAccounts.length === 0 && expenseAccounts.length === 0) return null;
 
