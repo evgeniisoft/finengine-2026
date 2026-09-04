@@ -142,7 +142,16 @@ export async function GET(request: NextRequest) {
         amount: amountOf(t),
         description: t.description || '(нет описания)'
       })),
-      recommendation: unclassified.length > 0 ? 'Присвойте категории операциям' : null
+      recommendation: unclassified.length > 0 ? 'Присвойте категории операциям' : null,
+      auto_fix: unclassified.length > 0,
+      auto_fix_action: 'categorize_unclassified',
+      auto_fix_data: unclassified.slice(0, 20).map(t => t.id),
+      auto_fix_info: {
+        title: 'Категоризировать операции',
+        description: 'Операциям будет присвоен счёт "Прочие расходы" (acc-out-other)',
+        impact: 'Операции попадут в структуру расходов. Отчёты пересчитаются.',
+        risk: 'Средний риск. Категория "Прочие расходы" может не отражать реальную суть операции.'
+      }
     });
 
     // 2.2 Операции без даты
@@ -211,7 +220,26 @@ export async function GET(request: NextRequest) {
           missing_accounts: Array.from(usedAccounts).filter(accId => !accounts.some(a => a.id === accId))
         };
       }),
-      recommendation: companiesWithBadAccounts.length > 0 ? 'Исправьте привязку счетов' : null
+      recommendation: companiesWithBadAccounts.length > 0 ? 'Исправьте привязку счетов' : null,
+      auto_fix: companiesWithBadAccounts.length > 0,
+      auto_fix_action: 'create_missing_account',
+      auto_fix_data: Array.from(new Set(
+        companiesWithBadAccounts.flatMap(c => {
+          const companyTx = transactions.filter(t => t.company_id === c.id);
+          const usedAccounts = new Set<string>();
+          companyTx.forEach(t => {
+            usedAccounts.add(t.debit_account_id);
+            usedAccounts.add(t.credit_account_id);
+          });
+          return Array.from(usedAccounts).filter(accId => !accounts.some(a => a.id === accId));
+        })
+      )),
+      auto_fix_info: {
+        title: 'Создать недостающие счета',
+        description: 'Будут созданы счета, на которые ссылаются операции, но которые отсутствуют в справочнике',
+        impact: 'Операции начнут корректно учитываться в отчётах. Баланс и ОПиУ пересчитаются.',
+        risk: 'Низкий риск. Счета создаются на основе используемых ID в операциях.'
+      }
     });
 
     // 2.5 Аномалии - выбросы в операциях
@@ -1061,7 +1089,16 @@ export async function GET(request: NextRequest) {
         period: String(b.period || '').replace(/^'/, '').substring(0, 7),
         category: b.category_id
       })),
-      recommendation: emptyBudgets.length > 0 ? 'Заполните пустые статьи' : null
+      recommendation: emptyBudgets.length > 0 ? 'Заполните пустые статьи' : null,
+      auto_fix: emptyBudgets.length > 0,
+      auto_fix_action: 'fill_empty_budgets',
+      auto_fix_data: emptyBudgets.slice(0, 50).map(b => b.id),
+      auto_fix_info: {
+        title: 'Заполнить пустые статьи нулями',
+        description: 'Пустые статьи бюджета будут заполнены нулевыми значениями',
+        impact: 'Бюджет будет считаться заполненным. На финансовые показатели не повлияет.',
+        risk: 'Низкий риск. Нулевые значения не искажают отчёты.'
+      }
     });
 
     // 5.2 Отклонения план/факт
@@ -1297,6 +1334,11 @@ export async function GET(request: NextRequest) {
     // Если дата в будущем — это ошибка данных
     const isFutureDate = lastTransactionDate && lastTxTime > nowTime;
 
+    const futureDateTransactions = transactions.filter(t => {
+      const txDate = getDateStr(t.date);
+      return txDate && new Date(txDate).getTime() > new Date().getTime();
+    });
+
     checks.push({
       id: 'data_currency',
       category: 'processes',
@@ -1310,9 +1352,23 @@ export async function GET(request: NextRequest) {
       details: {
         last_transaction: lastTransactionDate,
         days_ago: daysSinceLastTx,
-        is_future_date: isFutureDate
+        is_future_date: isFutureDate,
+        future_dates: futureDateTransactions.slice(0, 10).map(t => ({
+          id: t.id,
+          date: getDateStr(t.date),
+          description: t.description
+        }))
       },
-      recommendation: isFutureDate ? 'Исправьте дату операции' : daysSinceLastTx > 30 ? 'Обновите данные' : null
+      recommendation: isFutureDate ? 'Исправьте дату операции' : daysSinceLastTx > 30 ? 'Обновите данные' : null,
+      auto_fix: isFutureDate,
+      auto_fix_action: 'fix_future_dates',
+      auto_fix_data: futureDateTransactions.map(t => t.id),
+      auto_fix_info: {
+        title: 'Исправить будущие даты',
+        description: 'Даты будут заменены на текущую дату',
+        impact: 'Операции попадут в текущий месяц. Отчёты за прошлые периоды не изменятся.',
+        risk: 'Высокий риск. Операция может относиться к другому периоду.'
+      }
     });
 
     // ============ ИТОГ ============

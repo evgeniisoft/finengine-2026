@@ -17,6 +17,12 @@ interface DiagnosticCheck {
   auto_fix?: boolean;
   auto_fix_action?: string;
   auto_fix_data?: any[];
+  auto_fix_info?: {
+    title: string;
+    description: string;
+    impact: string;
+    risk: string;
+  };
 }
 
 interface DiagnosticsData {
@@ -39,6 +45,9 @@ export default function DiagnosticsPage() {
   const [showOnlyProblems, setShowOnlyProblems] = useState(false);
   const [autoFixing, setAutoFixing] = useState<string | null>(null);
   const [autoFixMessage, setAutoFixMessage] = useState<string | null>(null);
+  const [pendingFixes, setPendingFixes] = useState<DiagnosticCheck[]>([]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [fixProgress, setFixProgress] = useState<{ current: number; total: number; results: string[] } | null>(null);
 
   useEffect(() => {
     loadDiagnostics();
@@ -394,12 +403,12 @@ export default function DiagnosticsPage() {
         <button
           onClick={() => {
             const fixableChecks = checks.filter(c => c.auto_fix && c.auto_fix_action);
-            fixableChecks.forEach(check => handleAutoFix(check));
+            setPendingFixes(fixableChecks);
+            setShowConfirmModal(true);
           }}
-          disabled={autoFixing !== null}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
         >
-          {autoFixing !== null ? 'Исправление...' : 'Исправить автоматически'}
+          Исправить автоматически ({checks.filter(c => c.auto_fix && c.auto_fix_action).length})
         </button>
       </div>
 
@@ -475,6 +484,116 @@ export default function DiagnosticsPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Модальное окно подтверждения автоисправлений */}
+      {showConfirmModal && pendingFixes.length > 0 && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Подтверждение автоисправления
+              </h3>
+
+              <p className="text-sm text-gray-600 mb-4">
+                Будут выполнены следующие действия:
+              </p>
+
+              <div className="space-y-3 mb-6">
+                {pendingFixes.map((check, idx) => (
+                  <div key={check.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-gray-900">
+                        {idx + 1}. {check.auto_fix_info?.title || check.name}
+                      </span>
+                      <span className={`text-xs font-medium ${check.auto_fix_info?.risk?.includes('Низкий') ? 'text-green-600' :
+                        check.auto_fix_info?.risk?.includes('Средний') ? 'text-yellow-600' :
+                          'text-red-600'
+                        }`}>
+                        {check.auto_fix_info?.risk || 'Не определён'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">{check.auto_fix_info?.description}</p>
+                    <p className="text-xs text-gray-500 mt-2">{check.auto_fix_info?.impact}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setPendingFixes([]);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
+                >
+                  Отменить
+                </button>
+                <button
+                  onClick={async () => {
+                    setShowConfirmModal(false);
+                    setFixProgress({ current: 0, total: pendingFixes.length, results: [] });
+
+                    for (const check of pendingFixes) {
+                      setFixProgress(prev => ({
+                        current: (prev?.current || 0) + 1,
+                        total: pendingFixes.length,
+                        results: [...(prev?.results || []), `Выполняется: ${check.auto_fix_info?.title || check.name}...`]
+                      }));
+
+                      await handleAutoFix(check);
+
+                      setFixProgress(prev => ({
+                        current: prev?.current || 0,
+                        total: pendingFixes.length,
+                        results: [...(prev?.results || []), `✓ ${check.auto_fix_info?.title || check.name}`]
+                      }));
+                    }
+
+                    setTimeout(() => {
+                      setFixProgress(null);
+                      setPendingFixes([]);
+                      loadDiagnostics();
+                    }, 2000);
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                >
+                  Подтвердить исправления
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно прогресса */}
+      {fixProgress && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Выполнение исправлений...
+              </h3>
+
+              <div className="mb-4">
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all"
+                    style={{ width: `${(fixProgress.current / fixProgress.total) * 100}%` }}
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  {fixProgress.current} из {fixProgress.total}
+                </p>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {fixProgress.results.map((result, idx) => (
+                  <p key={idx} className="text-sm text-gray-600">{result}</p>
+                ))}
+              </div>
             </div>
           </div>
         </div>
