@@ -522,33 +522,90 @@ export default function PlanningPage() {
                     );
                   })}
                 </tr>
-                {/* Чистая прибыль */}
-                <tr className="bg-green-50">
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-green-50">Чистая прибыль</td>
-                  {months.map(m => {
-                    let totalIncome = 0;
-                    let totalExpense = 0;
+                {budgetType === 'cashflow' && (
+                  <tr className="bg-gray-50">
+                    <td className="px-4 py-2 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Операционный денежный поток</td>
+                    {months.map(m => {
+                      let inflow = 0;
+                      let outflow = 0;
 
-                    accounts.filter(a => a.type === 'I').forEach(acc => {
-                      const cellData = budgetByCategory.get(acc.id)?.get(m);
-                      totalIncome += cellData?.amount || 0;
-                    });
-                    accounts.filter(a => a.type === 'X').forEach(acc => {
-                      const cellData = budgetByCategory.get(acc.id)?.get(m);
-                      totalExpense += cellData?.amount || 0;
-                    });
+                      accounts.filter(a => a.type === 'I').forEach(acc => {
+                        const cellData = budgetByCategory.get(acc.id)?.get(m);
+                        inflow += cellData?.amount || 0;
+                      });
+                      accounts.filter(a => a.type === 'X').forEach(acc => {
+                        const cellData = budgetByCategory.get(acc.id)?.get(m);
+                        outflow += cellData?.amount || 0;
+                      });
 
-                    const profit = totalIncome - totalExpense;
+                      const netFlow = inflow - outflow;
 
-                    return (
-                      <td key={m} className="px-4 py-3 text-sm text-right font-bold">
-                        <div className={profit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {profit > 0 ? '+' : ''}{Math.round(profit).toLocaleString('ru-RU')}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
+                      return (
+                        <td key={m} className="px-4 py-2 text-sm text-right font-bold">
+                          <span className={netFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {netFlow > 0 ? '+' : ''}{Math.round(netFlow).toLocaleString('ru-RU')}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
+                {budgetType === 'pnl' && (
+                  <tr className="bg-green-50">
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-green-50">Чистая прибыль</td>
+                    {months.map(m => {
+                      let totalIncome = 0;
+                      let totalExpense = 0;
+
+                      accounts.filter(a => a.type === 'I').forEach(acc => {
+                        const cellData = budgetByCategory.get(acc.id)?.get(m);
+                        totalIncome += cellData?.amount || 0;
+                      });
+                      accounts.filter(a => a.type === 'X').forEach(acc => {
+                        const cellData = budgetByCategory.get(acc.id)?.get(m);
+                        totalExpense += cellData?.amount || 0;
+                      });
+
+                      const profit = totalIncome - totalExpense;
+
+                      return (
+                        <td key={m} className="px-4 py-3 text-sm text-right font-bold">
+                          <div className={profit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {profit > 0 ? '+' : ''}{Math.round(profit).toLocaleString('ru-RU')}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
+                {budgetType === 'cashflow' && (
+                  <tr className="bg-gray-100">
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-100">Чистый денежный поток</td>
+                    {months.map(m => {
+                      let inflow = 0;
+                      let outflow = 0;
+
+                      accounts.filter(a => a.type === 'I').forEach(acc => {
+                        const cellData = budgetByCategory.get(acc.id)?.get(m);
+                        inflow += cellData?.amount || 0;
+                      });
+                      accounts.filter(a => a.type === 'X').forEach(acc => {
+                        const cellData = budgetByCategory.get(acc.id)?.get(m);
+                        outflow += cellData?.amount || 0;
+                      });
+
+                      const netFlow = inflow - outflow;
+
+                      return (
+                        <td key={m} className="px-4 py-3 text-sm text-right font-bold">
+                          <span className={netFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {netFlow > 0 ? '+' : ''}{Math.round(netFlow).toLocaleString('ru-RU')}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
                 {budgetType === 'cashflow' && (
                   <tr className="bg-blue-100">
                     <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-blue-100">Остаток на конец</td>
