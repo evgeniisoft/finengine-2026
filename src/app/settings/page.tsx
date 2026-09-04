@@ -200,6 +200,7 @@ export default function SettingsPage() {
         { id: 'sources', label: 'Источники данных' },
         { id: 'mappings', label: 'Маппинги' },
         { id: 'taxes', label: 'Налоги' },
+        { id: 'payment_delays', label: 'Отсрочки платежей' },
         { id: 'users', label: 'Пользователи' },
         { id: 'notifications', label: 'Уведомления' },
     ];
@@ -229,6 +230,8 @@ export default function SettingsPage() {
                                         window.location.href = '/settings/balances';
                                     } else if (section.id === 'taxes') {
                                         window.location.href = '/settings/taxes';
+                                    } else if (section.id === 'payment_delays') {
+                                        window.location.href = '/settings/payment-delays';
                                     } else {
                                         setActiveSection(section.id);
                                     }
