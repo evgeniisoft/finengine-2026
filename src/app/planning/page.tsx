@@ -274,6 +274,27 @@ export default function PlanningPage() {
       company_id: budget.company_id
     });
   }
+  // Функция получения суммы с учётом отсрочки
+  const getShiftedAmount = (accountId: string, month: string): number => {
+    const companiesList = selectedCompany
+      ? [selectedCompany]
+      : companies.map((c: any) => c.id);
+
+    let total = 0;
+
+    companiesList.forEach((compId: string) => {
+      const delayMonths = Math.ceil((paymentDelaysByCompany[compId]?.[accountId] || 0) / 30);
+      const sourceIdx = months.indexOf(month) - delayMonths;
+
+      if (delayMonths === 0) {
+        total += budgetByCategory.get(accountId)?.get(month)?.amount || 0;
+      } else if (sourceIdx >= 0) {
+        total += budgetByCategory.get(accountId)?.get(months[sourceIdx])?.amount || 0;
+      }
+    });
+
+    return total;
+  };
 
   return (
     <div>
@@ -524,7 +545,7 @@ export default function PlanningPage() {
                               const delayMonths = Math.ceil(((paymentDelaysByCompany[selectedCompany]?.[acc.id] || 0) || 0) / 30);
                               const sourceIdx = months.indexOf(m) - delayMonths;
                               if (delayMonths === 0) {
-                                secInflow += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                                secInflow += getShiftedAmount(acc.id, m);
                               } else if (sourceIdx >= 0) {
                                 secInflow += budgetByCategory.get(acc.id)?.get(months[sourceIdx])?.amount || 0;
                               }
@@ -534,7 +555,7 @@ export default function PlanningPage() {
                               const delayMonths = Math.ceil(((paymentDelaysByCompany[selectedCompany]?.[acc.id] || 0) || 0) / 30);
                               const sourceIdx = months.indexOf(m) - delayMonths;
                               if (delayMonths === 0) {
-                                secOutflow += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                                secOutflow += getShiftedAmount(acc.id, m);
                               } else if (sourceIdx >= 0) {
                                 secOutflow += budgetByCategory.get(acc.id)?.get(months[sourceIdx])?.amount || 0;
                               }
@@ -564,7 +585,7 @@ export default function PlanningPage() {
                           const sourceIdx = months.indexOf(m) - delayMonths;
 
                           if (delayMonths === 0) {
-                            const amount = budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                            const amount = getShiftedAmount(acc.id, m);
                             if (acc.type === 'I') inflow += amount;
                             if (acc.type === 'X') outflow += amount;
                           } else if (sourceIdx >= 0) {
