@@ -172,12 +172,33 @@ export default function PlanningPage() {
     }
   };
   const groupedAccounts = () => {
+    if (budgetType === 'cashflow') {
+      // Для БДДС группируем по activity_type
+      const groups = new Map<string, any[]>();
+
+      const sections = [
+        { key: 'operating', label: 'ОПЕРАЦИОННАЯ ДЕЯТЕЛЬНОСТЬ' },
+        { key: 'investing', label: 'ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ' },
+        { key: 'financing', label: 'ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ' },
+      ];
+
+      for (const section of sections) {
+        const sectionAccounts = accounts.filter(a =>
+          (a.activity_type || 'operating') === section.key ||
+          (section.key === 'operating' && !a.activity_type)
+        );
+        if (sectionAccounts.length > 0) {
+          groups.set(section.label, sectionAccounts);
+        }
+      }
+
+      return groups;
+    }
+
+    // Для БДР — по group_name
     const groups = new Map<string, any[]>();
     for (const acc of accounts) {
       const group = acc.group_name || 'ПРОЧЕЕ';
-
-
-
       if (!groups.has(group)) {
         groups.set(group, []);
       }
