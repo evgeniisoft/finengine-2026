@@ -22,11 +22,13 @@ export default function Dashboard() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+  const [diagnostics, setDiagnostics] = useState<any>(null);
+
   const [period, setPeriod] = useState({ start: '2026-01-01', end: '2026-12-31' });
   const [activePeriod, setActivePeriod] = useState<'month' | 'quarter' | 'year' | 'custom'>('year');
   const [periodLabel, setPeriodLabel] = useState('2026 год');
-  const [expandedPanels, setExpandedPanels] = useState<{[key: string]: boolean}>({});
+  const [expandedPanels, setExpandedPanels] = useState<{ [key: string]: boolean }>({});
+
 
   useEffect(() => {
     if (!isAuthenticated()) { router.push('/login'); return; }
@@ -49,6 +51,10 @@ export default function Dashboard() {
       setBalanceData(Array.isArray(balanceResponse) ? balanceResponse : []);
       setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
       setAccounts(Array.isArray(accountsData) ? accountsData : []);
+      // Загружаем диагностику
+      const diagnosticsRes = await fetch('/api/diagnostics');
+      const diagnosticsData = await diagnosticsRes.json();
+      setDiagnostics(diagnosticsData);
       setError(null);
     } catch (err) {
       setError('Ошибка при загрузке данных');
@@ -66,7 +72,7 @@ export default function Dashboard() {
       const m = now.getMonth();
       start = `${year}-${String(m + 1).padStart(2, '0')}-01`;
       end = `${year}-${String(m + 1).padStart(2, '0')}-${String(new Date(year, m + 1, 0).getDate()).padStart(2, '0')}`;
-      const monthNames = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+      const monthNames = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
       label = `${monthNames[m]} ${year}`;
     } else if (type === 'quarter') {
       const q = Math.floor(now.getMonth() / 3);
@@ -88,14 +94,14 @@ export default function Dashboard() {
 
   const reportsArray = Array.isArray(reports) ? reports : [];
   const balanceArray = Array.isArray(balanceData) ? balanceData : [];
-  
+
   const totalRevenue = reportsArray.reduce((s, r) => s + (r.report?.revenue || 0), 0);
   const totalExpenses = reportsArray.reduce((s, r) => s + (r.report?.operating_expenses || 0), 0);
   const totalProfit = totalRevenue - totalExpenses;
   const totalCash = balanceArray.reduce((s, r) => s + (r.report?.assets?.cash || 0), 0);
   const margin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
   const ebitda = totalProfit + reportsArray.reduce((s, r) => s + (r.report?.depreciation || 0), 0) + reportsArray.reduce((s, r) => s + (r.report?.taxes || 0), 0);
-  
+
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysPassed = now.getDate();
@@ -170,9 +176,9 @@ export default function Dashboard() {
           <button onClick={() => applyPeriod('month')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Месяц</button>
           <button onClick={() => applyPeriod('quarter')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'quarter' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Квартал</button>
           <button onClick={() => applyPeriod('year')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Год</button>
-          <input type="date" value={period.start} onChange={(e) => { setPeriod({...period, start: e.target.value}); setActivePeriod('custom'); setPeriodLabel(`Произвольный: ${e.target.value} — ${period.end}`); }} className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs" />
+          <input type="date" value={period.start} onChange={(e) => { setPeriod({ ...period, start: e.target.value }); setActivePeriod('custom'); setPeriodLabel(`Произвольный: ${e.target.value} — ${period.end}`); }} className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs" />
           <span className="text-gray-400 text-xs">—</span>
-          <input type="date" value={period.end} onChange={(e) => { setPeriod({...period, end: e.target.value}); setActivePeriod('custom'); setPeriodLabel(`Произвольный: ${period.start} — ${e.target.value}`); }} className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs" />
+          <input type="date" value={period.end} onChange={(e) => { setPeriod({ ...period, end: e.target.value }); setActivePeriod('custom'); setPeriodLabel(`Произвольный: ${period.start} — ${e.target.value}`); }} className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs" />
           <button onClick={() => { setLoading(true); setTimeout(() => loadData(), 100); }} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700">OK</button>
         </div>
       </div>
@@ -319,6 +325,18 @@ export default function Dashboard() {
           {totalAP > 0 && <p className="text-sm text-yellow-600">Кредиторская задолженность: {totalAP.toLocaleString('ru-RU')} ₽</p>}
         </div>
       )}
+      {/* Диагностика */}
+      {diagnostics && diagnostics.critical > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 cursor-pointer" onClick={() => window.location.href = '/diagnostics'}>
+          <h3 className="font-semibold text-red-700 mb-2">
+            🔴 {diagnostics.critical} критичных проблем
+          </h3>
+          {diagnostics.checks.filter((c: any) => c.severity === 'critical').slice(0, 3).map((c: any) => (
+            <p key={c.id} className="text-sm text-red-600">{c.message}</p>
+          ))}
+          <p className="text-xs text-red-400 mt-2">Нажмите для полной диагностики →</p>
+        </div>
+      )}
 
       {/* Структура расходов + Компании */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -333,7 +351,7 @@ export default function Dashboard() {
                     <span className="text-gray-600">{exp.name}</span>
                     <span className="font-medium">{exp.amount.toLocaleString('ru-RU')} ₽ ({Math.round(pct)}%)</span>
                   </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{width: `${pct}%`}} /></div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} /></div>
                   {expandedPanels[`expense_${exp.id}`] && (
                     <div className="mt-2 ml-4 space-y-1">
                       {periodTx.filter(t => t.debit_account_id === exp.id).slice(0, 10).map(t => (
