@@ -9,6 +9,7 @@ export default function PlanningPage() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [totalCash, setTotalCash] = useState(0);
+  const [paymentDelays, setPaymentDelays] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [selectedScenario, setSelectedScenario] = useState<'base' | 'optimistic' | 'pessimistic'>('base');
@@ -40,6 +41,19 @@ export default function PlanningPage() {
       setTotalCash(cash);
       setCompanies(companiesData);
       setAccounts(accountsData);
+      // Загружаем отсрочки
+      const settingsRes = await fetch('/api/data?action=getAll&sheet=Settings', {
+        headers: { 'X-DB-URL': JSON.parse(localStorage.getItem('finengine_session') || '{}').dbUrl || '' }
+      });
+      const settingsData = await settingsRes.json();
+      const delaysMap: { [key: string]: number } = {};
+      for (const s of Array.isArray(settingsData) ? settingsData : []) {
+        if (s.category === 'payment_delay' && s.key.startsWith(`payment_delay_${selectedCompany}_`)) {
+          const accountId = s.key.replace(`payment_delay_${selectedCompany}_`, '');
+          delaysMap[accountId] = parseFloat(s.value || '0');
+        }
+      }
+      setPaymentDelays(delaysMap);
 
       const url = `/api/budget?year=${selectedYear}&scenario=${selectedScenario}${selectedCompany ? `&company_id=${selectedCompany}` : ''}`;
       const response = await fetch(url);
@@ -387,8 +401,28 @@ export default function PlanningPage() {
                                 <tr key={acc.id} className="hover:bg-gray-50">
                                   <td className="px-4 py-3 text-sm text-gray-600 sticky left-0 bg-white">{acc.name}</td>
                                   {months.map((m: string) => {
-                                    const cellData = budgetByCategory.get(acc.id)?.get(m);
-                                    const amount = cellData?.amount;
+                                    // Для БДДС — учитываем отсрочку
+                                    let cellData = budgetByCategory.get(acc.id)?.get(m);
+                                    let amount = cellData?.amount;
+
+                                    if (budgetType === 'cashflow') {
+                                      const delayDays = paymentDelays[acc.id] || 0;
+                                      const delayMonths = Math.ceil(delayDays / 30);
+
+                                      if (delayMonths > 0) {
+                                        // Находим месяц на delayMonths раньше
+                                        const currentIdx = months.indexOf(m);
+                                        const sourceIdx = currentIdx - delayMonths;
+
+                                        if (sourceIdx >= 0) {
+                                          const sourceMonth = months[sourceIdx];
+                                          cellData = budgetByCategory.get(acc.id)?.get(sourceMonth);
+                                          amount = cellData?.amount;
+                                        } else {
+                                          amount = 0;
+                                        }
+                                      }
+                                    }
                                     return (
                                       <td key={m} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">
                                         {amount ? Math.round(amount).toLocaleString('ru-RU') : '—'}
