@@ -193,6 +193,16 @@ export async function POST(request: NextRequest) {
       // для инвестиционной деятельности
       { id: 'acc-fa-001', code: 'FA-001', name: 'Основные средства', type: 'A', is_cash_flow: 'false', activity_type: 'investing', parent_id: '', group_name: 'АКТИВЫ', source_code: '01', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
       { id: 'acc-capex-001', code: 'CAPEX', name: 'Капитальные затраты', type: 'X', is_cash_flow: 'false', activity_type: 'investing', parent_id: '', group_name: 'ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ', source_code: '', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ
+      { id: 'acc-in-invest-sale', code: 'INV-001', name: 'Продажа ОС', type: 'I', is_cash_flow: 'false', activity_type: 'investing', parent_id: '', group_name: 'ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ', source_code: '91.01', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-out-capex', code: 'INV-002', name: 'Покупка ОС (CAPEX)', type: 'X', is_cash_flow: 'false', activity_type: 'investing', parent_id: '', group_name: 'ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ', source_code: '08', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+
+      // ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ
+      { id: 'acc-in-loan', code: 'FIN-001', name: 'Получение кредитов', type: 'I', is_cash_flow: 'false', activity_type: 'financing', parent_id: '', group_name: 'ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ', source_code: '66', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-out-loan-principal', code: 'FIN-002', name: 'Погашение тела кредита', type: 'X', is_cash_flow: 'false', activity_type: 'financing', parent_id: '', group_name: 'ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ', source_code: '66', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-out-loan-interest', code: 'FIN-003', name: 'Проценты по кредитам', type: 'X', is_cash_flow: 'false', activity_type: 'financing', parent_id: '', group_name: 'ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ', source_code: '91.02', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
+      { id: 'acc-out-dividends', code: 'FIN-004', name: 'Дивиденды', type: 'X', is_cash_flow: 'false', activity_type: 'financing', parent_id: '', group_name: 'ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ', source_code: '84', is_deleted: '', deleted_at: '', created_at: now, updated_at: now },
     ];
 
     // ============================================

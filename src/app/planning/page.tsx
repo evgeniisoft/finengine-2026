@@ -420,7 +420,41 @@ export default function PlanningPage() {
                         </React.Fragment>
                       );
                     })}
+                    {/* Подытоги по секциям */}
+                    {[
+                      { key: 'operating', label: 'ОПЕРАЦИОННАЯ ДЕЯТЕЛЬНОСТЬ' },
+                      { key: 'investing', label: 'ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ' },
+                      { key: 'financing', label: 'ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ' },
+                    ].map(section => {
+                      const sectionAccounts = accounts.filter((a: any) => {
+                        const activity = a.activity_type || 'operating';
+                        return activity === section.key;
+                      });
 
+                      return (
+                        <tr key={section.key} className="bg-gray-50">
+                          <td className="px-4 py-2 text-xs font-semibold text-gray-900 sticky left-0 bg-gray-50">
+                            {section.label} — поток
+                          </td>
+                          {months.map((m: string) => {
+                            let secInflow = 0;
+                            let secOutflow = 0;
+                            sectionAccounts.filter((a: any) => a.type === 'I').forEach((acc: any) => {
+                              secInflow += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                            });
+                            sectionAccounts.filter((a: any) => a.type === 'X').forEach((acc: any) => {
+                              secOutflow += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                            });
+                            const net = secInflow - secOutflow;
+                            return (
+                              <td key={m} className={`px-4 py-2 text-sm text-right font-bold ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {net > 0 ? '+' : ''}{Math.round(net).toLocaleString('ru-RU')}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
                     {/* Чистый денежный поток */}
                     <tr className="bg-gray-100">
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-100">Чистый денежный поток</td>
