@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       return isNaN(val) ? defaultVal : val;
     };
 
-   // ============ ВСПОМОГАТЕЛЬНЫЕ ============
+    // ============ ВСПОМОГАТЕЛЬНЫЕ ============
     const getDateStr = (d: any) => {
       if (!d) return '';
       if (typeof d === 'string') return d.split('T')[0];
@@ -283,10 +283,32 @@ export async function GET(request: NextRequest) {
         })
         .reduce((sum, t) => sum + amountOf(t), 0);
 
-      // Налоги как в calculatePnL (из taxEngine)
+      // Налоги с учётом уменьшения для УСН 6%
       let calculatedTax = 0;
       if (company.tax_system === 'USN_6') {
-        calculatedTax = dashboardRevenue * getRate('usn_6', 0.06);
+        const baseTax = dashboardRevenue * getRate('usn_6', 0.06);
+
+        // Рассчитываем страховые взносы для уменьшения
+        let insuranceForReduction = 0;
+        if (company.is_individual) {
+          insuranceForReduction = 57390;
+          if (dashboardRevenue > 300000) {
+            insuranceForReduction += Math.min((dashboardRevenue - 300000) * 0.01, 321818);
+          }
+        } else {
+          const annualPayroll = (company.monthly_payroll || 0) * 12;
+          const limit = getRate('insurance_limit', 2979000);
+          const baseRate = getRate('insurance_base_rate', 0.30);
+          const reducedRate = getRate('insurance_reduced_rate', 0.151);
+          if (annualPayroll <= limit) {
+            insuranceForReduction = annualPayroll * baseRate;
+          } else {
+            insuranceForReduction = limit * baseRate + (annualPayroll - limit) * reducedRate;
+          }
+        }
+
+        const maxReduction = company.is_individual ? baseTax : baseTax * 0.5;
+        calculatedTax = Math.max(baseTax - Math.min(insuranceForReduction, maxReduction), 0);
       } else if (company.tax_system === 'USN_15') {
         calculatedTax = Math.max(0, dashboardRevenue - dashboardExpenses) * getRate('usn_15', 0.15);
       } else if (company.tax_system === 'OSNO') {
@@ -395,8 +417,28 @@ export async function GET(request: NextRequest) {
       if (!company) return sum;
       const rev = revenueByCompany.get(companyId) || 0;
       const exp = expensesByCompany.get(companyId) || 0;
+
       if (company.tax_system === 'USN_6') {
-        return sum + rev * getRate('usn_6', 0.06);
+        const baseTax = rev * getRate('usn_6', 0.06);
+        let insuranceForReduction = 0;
+        if (company.is_individual) {
+          insuranceForReduction = 57390;
+          if (rev > 300000) {
+            insuranceForReduction += Math.min((rev - 300000) * 0.01, 321818);
+          }
+        } else {
+          const annualPayroll = (company.monthly_payroll || 0) * 12;
+          const limit = getRate('insurance_limit', 2979000);
+          const baseRate = getRate('insurance_base_rate', 0.30);
+          const reducedRate = getRate('insurance_reduced_rate', 0.151);
+          if (annualPayroll <= limit) {
+            insuranceForReduction = annualPayroll * baseRate;
+          } else {
+            insuranceForReduction = limit * baseRate + (annualPayroll - limit) * reducedRate;
+          }
+        }
+        const maxReduction = company.is_individual ? baseTax : baseTax * 0.5;
+        return sum + Math.max(baseTax - Math.min(insuranceForReduction, maxReduction), 0);
       } else if (company.tax_system === 'USN_15') {
         return sum + Math.max(0, rev - exp) * getRate('usn_15', 0.15);
       } else {
@@ -636,20 +678,41 @@ export async function GET(request: NextRequest) {
     // БЛОК 3.5: СВЕРКА ПРИБЫЛИ И НАЛОГОВ
     // ============================================
 
-    // 3.5.1 Проверка: Чистая прибыль = Выручка - Расходы - Налоги - Амортизация
+    // 3.5.1 Проверка: Корректность расчёта чистой прибыли
     for (const company of companies) {
       const rev = revenueByCompany.get(company.id) || 0;
       const exp = expensesByCompany.get(company.id) || 0;
-      const profit = rev - exp;
 
-      // Налоги
+      // Налоги с учётом уменьшения для УСН 6%
       let incomeTax = 0;
       if (company.tax_system === 'USN_6') {
-        incomeTax = rev * getRate('usn_6', 0.06);
+        const baseTax = rev * getRate('usn_6', 0.06);
+        let insuranceForReduction = 0;
+        if (company.is_individual) {
+          insuranceForReduction = 57390;
+          if (rev > 300000) {
+            insuranceForReduction += Math.min((rev - 300000) * 0.01, 321818);
+          }
+        } else {
+          const annualPayroll = (company.monthly_payroll || 0) * 12;
+          const limit = getRate('insurance_limit', 2979000);
+          const baseRate = getRate('insurance_base_rate', 0.30);
+          const reducedRate = getRate('insurance_reduced_rate', 0.151);
+          if (annualPayroll <= limit) {
+            insuranceForReduction = annualPayroll * baseRate;
+          } else {
+            insuranceForReduction = limit * baseRate + (annualPayroll - limit) * reducedRate;
+          }
+        }
+        const maxReduction = company.is_individual ? baseTax : baseTax * 0.5;
+        incomeTax = Math.max(baseTax - Math.min(insuranceForReduction, maxReduction), 0);
       } else if (company.tax_system === 'USN_15') {
-        incomeTax = Math.max(0, profit) * getRate('usn_15', 0.15);
+        const taxBase = Math.max(0, rev - exp);
+        const calculatedTax = taxBase * getRate('usn_15', 0.15);
+        const minimumTax = rev * getRate('usn_min_tax', 0.01);
+        incomeTax = Math.max(calculatedTax, minimumTax);
       } else if (company.tax_system === 'OSNO') {
-        incomeTax = Math.max(0, profit) * getRate('profit_tax', 0.25);
+        incomeTax = Math.max(0, rev - exp) * getRate('profit_tax', 0.25);
       }
 
       // Страховые взносы
@@ -678,35 +741,43 @@ export async function GET(request: NextRequest) {
         .filter(t => accounts.find(a => a.id === t.debit_account_id)?.code === 'DEPRECIATION')
         .reduce((sum, t) => sum + amountOf(t), 0);
 
-      // Расходы включают налоги и амортизацию?
-      const expensesWithTaxes = exp + insurance;
+      // Чистая прибыль = Выручка - Операционные расходы - Взносы - Налог - Амортизация
+      const calculatedNetProfit = rev - exp - insurance - incomeTax - depreciation;
 
-      const calculatedNetProfit = rev - expensesWithTaxes - incomeTax - depreciation;
+      // Операционная прибыль (для сравнения)
+      const operatingProfit = rev - exp;
+
+      // Рентабельность
+      const netMargin = rev > 0 ? (calculatedNetProfit / rev) * 100 : 0;
+      const operatingMargin = rev > 0 ? (operatingProfit / rev) * 100 : 0;
 
       checks.push({
         id: `profit_check_${company.id}`,
         category: 'financial',
-        severity: Math.abs(profit - calculatedNetProfit) > 100 ? 'warning' : 'ok',
+        severity: calculatedNetProfit < 0 ? 'warning' : 'ok',
         name: `Проверка прибыли: ${company.name}`,
-        message: Math.abs(profit - calculatedNetProfit) > 100
-          ? `Расхождение: операционная прибыль ${profit.toLocaleString('ru-RU')} ₽, чистая прибыль ${calculatedNetProfit.toLocaleString('ru-RU')} ₽`
-          : `Прибыль рассчитана корректно (${profit.toLocaleString('ru-RU')} ₽)`,
+        message: calculatedNetProfit < 0
+          ? `Чистый убыток: ${calculatedNetProfit.toLocaleString('ru-RU')} ₽`
+          : `Чистая прибыль: ${calculatedNetProfit.toLocaleString('ru-RU')} ₽ (рентабельность ${netMargin.toFixed(1)}%)`,
         details: {
           revenue: rev,
           operating_expenses: exp,
+          operating_profit: operatingProfit,
+          operating_margin: Math.round(operatingMargin * 10) / 10,
           insurance,
           income_tax: incomeTax,
           depreciation,
-          operating_profit: profit,
-          calculated_net_profit: calculatedNetProfit,
-          difference: Math.abs(profit - calculatedNetProfit)
+          net_profit: Math.round(calculatedNetProfit * 100) / 100,
+          net_margin: Math.round(netMargin * 10) / 10,
+          tax_burden_percent: rev > 0 ? Math.round(((insurance + incomeTax) / rev) * 1000) / 10 : 0
         },
-        recommendation: Math.abs(profit - calculatedNetProfit) > 100
-          ? 'Проверьте классификацию расходов (включены ли налоги в расходы)'
-          : null
+        recommendation: calculatedNetProfit < 0
+          ? 'Компания убыточна. Проанализируйте структуру расходов и налоговую нагрузку.'
+          : netMargin < 5
+            ? 'Низкая рентабельность. Рассмотрите оптимизацию расходов.'
+            : null
       });
     }
-
     // 3.5.2 Сверка налогов: Сумма налогов по компаниям = Общей сумме
     let totalIncomeTax = 0;
     let totalInsurance = 0;
@@ -719,7 +790,26 @@ export async function GET(request: NextRequest) {
 
       let incomeTax = 0;
       if (company.tax_system === 'USN_6') {
-        incomeTax = rev * getRate('usn_6', 0.06);
+        const baseTax = rev * getRate('usn_6', 0.06);
+        let insuranceForReduction = 0;
+        if (company.is_individual) {
+          insuranceForReduction = 57390;
+          if (rev > 300000) {
+            insuranceForReduction += Math.min((rev - 300000) * 0.01, 321818);
+          }
+        } else {
+          const annualPayroll = (company.monthly_payroll || 0) * 12;
+          const limit = getRate('insurance_limit', 2979000);
+          const baseRate = getRate('insurance_base_rate', 0.30);
+          const reducedRate = getRate('insurance_reduced_rate', 0.151);
+          if (annualPayroll <= limit) {
+            insuranceForReduction = annualPayroll * baseRate;
+          } else {
+            insuranceForReduction = limit * baseRate + (annualPayroll - limit) * reducedRate;
+          }
+        }
+        const maxReduction = company.is_individual ? baseTax : baseTax * 0.5;
+        incomeTax = Math.max(baseTax - Math.min(insuranceForReduction, maxReduction), 0);
       } else if (company.tax_system === 'USN_15') {
         incomeTax = Math.max(0, profit) * getRate('usn_15', 0.15);
       } else if (company.tax_system === 'OSNO') {
@@ -814,7 +904,27 @@ export async function GET(request: NextRequest) {
       // 4.1 УСН
       if (company.tax_system === 'USN_6') {
         const expectedTax = rev * getRate('usn_6', 0.06);
-        const insurance = company.monthly_payroll * 12 * getRate('insurance_base_rate', 0.30);
+
+        // Рассчитываем страховые взносы корректно
+        let insurance = 0;
+        if (company.is_individual) {
+          insurance = 57390;
+          if (rev > 300000) {
+            insurance += Math.min((rev - 300000) * 0.01, 321818);
+          }
+        } else {
+          const payroll = company.monthly_payroll || 0;
+          const annualPayroll = payroll * 12;
+          const limit = getRate('insurance_limit', 2979000);
+          const baseRate = getRate('insurance_base_rate', 0.30);
+          const reducedRate = getRate('insurance_reduced_rate', 0.151);
+          if (annualPayroll <= limit) {
+            insurance = annualPayroll * baseRate;
+          } else {
+            insurance = limit * baseRate + (annualPayroll - limit) * reducedRate;
+          }
+        }
+
         const maxReduction = company.is_individual ? expectedTax : expectedTax * 0.5;
         const actualTax = Math.max(expectedTax - Math.min(insurance, maxReduction), 0);
 
@@ -1025,11 +1135,14 @@ export async function GET(request: NextRequest) {
     // ============================================
 
     // 6.1 ВГО (внутригрупповые операции)
+    // ВГО — это операции, где контрагент является компанией холдинга
+    const companyIds = new Set(companies.map(c => c.id));
     const intercompanyTx = transactions.filter(t => {
-      const companyIds = new Set(companies.map(c => c.id));
-      return t.company_id && t.counterparty_id && companyIds.has(t.company_id);
+      // Операция ВГО, если контрагент — другая компания холдинга
+      return t.counterparty_id &&
+        companyIds.has(t.counterparty_id) &&
+        t.counterparty_id !== t.company_id;
     });
-
     checks.push({
       id: 'intercompany_check',
       category: 'consolidation',
@@ -1175,23 +1288,31 @@ export async function GET(request: NextRequest) {
       .sort()
       .reverse()[0];
 
+    const nowTime = new Date().getTime();
+    const lastTxTime = lastTransactionDate ? new Date(lastTransactionDate).getTime() : 0;
     const daysSinceLastTx = lastTransactionDate
-      ? Math.floor((new Date().getTime() - new Date(lastTransactionDate).getTime()) / (1000 * 60 * 60 * 24))
+      ? Math.floor((nowTime - lastTxTime) / (1000 * 60 * 60 * 24))
       : 999;
+
+    // Если дата в будущем — это ошибка данных
+    const isFutureDate = lastTransactionDate && lastTxTime > nowTime;
 
     checks.push({
       id: 'data_currency',
       category: 'processes',
-      severity: daysSinceLastTx > 30 ? 'warning' : daysSinceLastTx > 7 ? 'info' : 'ok',
+      severity: isFutureDate ? 'critical' : daysSinceLastTx > 30 ? 'warning' : daysSinceLastTx > 7 ? 'info' : 'ok',
       name: 'Актуальность данных',
-      message: daysSinceLastTx > 0
-        ? `Последняя операция: ${daysSinceLastTx} дн. назад (${lastTransactionDate})`
-        : 'Данные актуальны',
+      message: isFutureDate
+        ? `Обнаружена операция с будущей датой: ${lastTransactionDate}`
+        : daysSinceLastTx > 0
+          ? `Последняя операция: ${daysSinceLastTx} дн. назад (${lastTransactionDate})`
+          : 'Данные актуальны',
       details: {
         last_transaction: lastTransactionDate,
-        days_ago: daysSinceLastTx
+        days_ago: daysSinceLastTx,
+        is_future_date: isFutureDate
       },
-      recommendation: daysSinceLastTx > 30 ? 'Обновите данные' : null
+      recommendation: isFutureDate ? 'Исправьте дату операции' : daysSinceLastTx > 30 ? 'Обновите данные' : null
     });
 
     // ============ ИТОГ ============
