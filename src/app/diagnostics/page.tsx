@@ -50,7 +50,7 @@ export default function DiagnosticsPage() {
     } else {
       setLoading(true);
     }
-    
+
     try {
       const response = await fetch('/api/diagnostics');
       const data = await response.json();
@@ -77,10 +77,10 @@ export default function DiagnosticsPage() {
 
   const handleAutoFix = async (check: DiagnosticCheck) => {
     if (!check.auto_fix || !check.auto_fix_action) return;
-    
+
     setAutoFixing(check.id);
     setAutoFixMessage(null);
-    
+
     try {
       const response = await fetch('/api/diagnostics/fix', {
         method: 'POST',
@@ -91,9 +91,9 @@ export default function DiagnosticsPage() {
           data: check.auto_fix_data
         })
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         setAutoFixMessage(`Исправлено: ${result.message || 'Операция выполнена'}`);
         setTimeout(() => loadDiagnostics(), 1000);
@@ -139,7 +139,7 @@ export default function DiagnosticsPage() {
     'processes': 'Процессы'
   };
 
-  const healthScore = diagnostics 
+  const healthScore = diagnostics
     ? Math.round(((diagnostics.ok + diagnostics.warnings * 0.5) / diagnostics.total_checks) * 100)
     : 0;
 
@@ -156,10 +156,11 @@ export default function DiagnosticsPage() {
     return <div className="text-center py-12 text-gray-500">Нет данных</div>;
   }
 
-  const criticalChecks = diagnostics.checks.filter(c => c.severity === 'critical');
-  const warningChecks = diagnostics.checks.filter(c => c.severity === 'warning');
-  
-  const groupedByCategory = diagnostics.checks.reduce((groups: any, check) => {
+  const checks = diagnostics.checks || [];
+  const criticalChecks = checks.filter(c => c.severity === 'critical');
+  const warningChecks = checks.filter(c => c.severity === 'warning');
+
+  const groupedByCategory = checks.reduce((groups: any, check) => {
     const category = check.category;
     if (!groups[category]) {
       groups[category] = [];
@@ -185,7 +186,7 @@ export default function DiagnosticsPage() {
               Выполнено за {(diagnostics.execution_time / 1000).toFixed(2)} сек
             </p>
           </div>
-          
+
           <button
             onClick={() => loadDiagnostics(true)}
             disabled={refreshing}
@@ -205,12 +206,11 @@ export default function DiagnosticsPage() {
             <span className="text-sm font-bold text-gray-900">{healthScore}/100</span>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div 
-              className={`h-full rounded-full ${
-                healthScore >= 80 ? 'bg-green-500' : 
-                healthScore >= 50 ? 'bg-yellow-500' : 
-                'bg-red-500'
-              }`}
+            <div
+              className={`h-full rounded-full ${healthScore >= 80 ? 'bg-green-500' :
+                healthScore >= 50 ? 'bg-yellow-500' :
+                  'bg-red-500'
+                }`}
               style={{ width: `${healthScore}%` }}
             />
           </div>
@@ -224,9 +224,8 @@ export default function DiagnosticsPage() {
 
       {/* Сообщение об автоисправлении */}
       {autoFixMessage && (
-        <div className={`mb-4 p-4 rounded-lg ${
-          autoFixMessage.startsWith('Исправлено') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-        }`}>
+        <div className={`mb-4 p-4 rounded-lg ${autoFixMessage.startsWith('Исправлено') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          }`}>
           {autoFixMessage}
         </div>
       )}
@@ -235,17 +234,15 @@ export default function DiagnosticsPage() {
       <div className="mb-6 flex items-center gap-3">
         <button
           onClick={() => setShowOnlyProblems(false)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-            !showOnlyProblems ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium ${!showOnlyProblems ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
         >
           Все проверки ({diagnostics.total_checks})
         </button>
         <button
           onClick={() => setShowOnlyProblems(true)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-            showOnlyProblems ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium ${showOnlyProblems ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
         >
           Только проблемы ({criticalChecks.length + warningChecks.length})
         </button>
@@ -319,13 +316,13 @@ export default function DiagnosticsPage() {
             const criticalCount = categoryChecks.filter((c: any) => c.severity === 'critical').length;
             const warningCount = categoryChecks.filter((c: any) => c.severity === 'warning').length;
             const okCount = categoryChecks.filter((c: any) => c.severity === 'ok' || c.severity === 'info').length;
-            
+
             const visibleChecks = showOnlyProblems
               ? categoryChecks.filter((c: any) => c.severity === 'critical' || c.severity === 'warning')
               : categoryChecks;
-            
+
             if (visibleChecks.length === 0) return null;
-            
+
             return (
               <div key={category} className="border border-gray-200 rounded-lg overflow-hidden">
                 <button
@@ -350,7 +347,7 @@ export default function DiagnosticsPage() {
                     <span className="text-gray-400">{okCount} ОК</span>
                   </div>
                 </button>
-                
+
                 {isExpanded && (
                   <div className="divide-y divide-gray-100">
                     {visibleChecks.map((check: DiagnosticCheck) => (
@@ -396,7 +393,7 @@ export default function DiagnosticsPage() {
         </button>
         <button
           onClick={() => {
-            const fixableChecks = diagnostics.checks.filter(c => c.auto_fix && c.auto_fix_action);
+            const fixableChecks = checks.filter(c => c.auto_fix && c.auto_fix_action);
             fixableChecks.forEach(check => handleAutoFix(check));
           }}
           disabled={autoFixing !== null}
