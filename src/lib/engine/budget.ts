@@ -28,7 +28,7 @@ export class BudgetEngine {
     // Скользящее планирование: 12 месяцев от текущего
     const now = new Date();
     const months: string[] = [];
-    for (let i = 1; i <= 12; i++) {
+    for (let i = 0; i < 12; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const y = date.getFullYear();
       const m = String(date.getMonth() + 1).padStart(2, '0');

@@ -179,7 +179,7 @@ export default function PlanningPage() {
   const monthNamesRu = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
   const now = new Date();
-  for (let i = 1; i <= 12; i++) {
+  for (let i = 0; i < 12; i++) {
     const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -471,7 +471,7 @@ export default function PlanningPage() {
                         <div>-{totalPlan ? Math.round(totalPlan).toLocaleString('ru-RU') : '—'}</div>
                         {viewMode === 'actual' && totalActual > 0 && (
                           <div className={`text-xs ${totalActual <= totalPlan ? 'text-green-600' : 'text-red-600'}`}>
-                           {Math.round(totalActual).toLocaleString('ru-RU')}
+                            {Math.round(totalActual).toLocaleString('ru-RU')}
                           </div>
                         )}
                         {viewMode === 'deviation' && totalActual > 0 && (
