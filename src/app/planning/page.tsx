@@ -25,11 +25,17 @@ export default function PlanningPage() {
   const loadData = async () => {
     try {
       setLoading(true);
+      const session = JSON.parse(localStorage.getItem('finengine_session') || '{}');
+      const dbUrl = session.dbUrl || '';
+
       const [companiesData, accountsData, balanceData] = await Promise.all([
-        api.getAll('Companies'),
-        api.getAll('Accounts'),
+        fetch('/api/data?action=getAll&sheet=Companies', { headers: { 'X-DB-URL': dbUrl } }).then(r => r.json()),
+        fetch('/api/data?action=getAll&sheet=Accounts', { headers: { 'X-DB-URL': dbUrl } }).then(r => r.json()),
         fetch('/api/reports?type=balance').then(r => r.json())
       ]);
+
+      setCompanies(Array.isArray(companiesData) ? companiesData : []);
+      setAccounts(Array.isArray(accountsData) ? accountsData : []);
 
       // Считаем общий остаток денег
       const balanceArray = Array.isArray(balanceData) ? balanceData : [];
