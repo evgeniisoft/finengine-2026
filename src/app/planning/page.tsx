@@ -461,7 +461,7 @@ export default function PlanningPage() {
                         </React.Fragment>
                       );
                     })}
-                    {/* Подытоги по секциям */}
+                    {/* Подытоги по секциям с учётом отсрочек */}
                     {[
                       { key: 'operating', label: 'ОПЕРАЦИОННАЯ ДЕЯТЕЛЬНОСТЬ' },
                       { key: 'investing', label: 'ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ' },
@@ -480,12 +480,27 @@ export default function PlanningPage() {
                           {months.map((m: string) => {
                             let secInflow = 0;
                             let secOutflow = 0;
+
                             sectionAccounts.filter((a: any) => a.type === 'I').forEach((acc: any) => {
-                              secInflow += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                              const delayMonths = Math.ceil((paymentDelays[acc.id] || 0) / 30);
+                              const sourceIdx = months.indexOf(m) - delayMonths;
+                              if (delayMonths === 0) {
+                                secInflow += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                              } else if (sourceIdx >= 0) {
+                                secInflow += budgetByCategory.get(acc.id)?.get(months[sourceIdx])?.amount || 0;
+                              }
                             });
+
                             sectionAccounts.filter((a: any) => a.type === 'X').forEach((acc: any) => {
-                              secOutflow += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                              const delayMonths = Math.ceil((paymentDelays[acc.id] || 0) / 30);
+                              const sourceIdx = months.indexOf(m) - delayMonths;
+                              if (delayMonths === 0) {
+                                secOutflow += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                              } else if (sourceIdx >= 0) {
+                                secOutflow += budgetByCategory.get(acc.id)?.get(months[sourceIdx])?.amount || 0;
+                              }
                             });
+
                             const net = secInflow - secOutflow;
                             return (
                               <td key={m} className={`px-4 py-2 text-sm text-right font-bold ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -496,17 +511,29 @@ export default function PlanningPage() {
                         </tr>
                       );
                     })}
-                    {/* Чистый денежный поток */}
+
+                    {/* Чистый денежный поток с учётом отсрочек */}
                     <tr className="bg-gray-100">
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-100">Чистый денежный поток</td>
                       {months.map((m: string) => {
                         let inflow = 0;
                         let outflow = 0;
+
                         accounts.forEach((acc: any) => {
-                          const amount = budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
-                          if (acc.type === 'I') inflow += amount;
-                          if (acc.type === 'X') outflow += amount;
+                          const delayMonths = Math.ceil((paymentDelays[acc.id] || 0) / 30);
+                          const sourceIdx = months.indexOf(m) - delayMonths;
+
+                          if (delayMonths === 0) {
+                            const amount = budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                            if (acc.type === 'I') inflow += amount;
+                            if (acc.type === 'X') outflow += amount;
+                          } else if (sourceIdx >= 0) {
+                            const amount = budgetByCategory.get(acc.id)?.get(months[sourceIdx])?.amount || 0;
+                            if (acc.type === 'I') inflow += amount;
+                            if (acc.type === 'X') outflow += amount;
+                          }
                         });
+
                         const net = inflow - outflow;
                         return (
                           <td key={m} className={`px-4 py-3 text-sm text-right font-bold ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -516,18 +543,36 @@ export default function PlanningPage() {
                       })}
                     </tr>
 
-                    {/* Остаток на конец */}
+                    {/* Остаток на конец — кумулятивный с учётом отсрочек */}
                     <tr className="bg-blue-100">
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-blue-100">Остаток на конец</td>
                       {months.map((m: string, idx: number) => {
-                        let inflow = 0;
-                        let outflow = 0;
-                        accounts.forEach((acc: any) => {
-                          const amount = budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
-                          if (acc.type === 'I') inflow += amount;
-                          if (acc.type === 'X') outflow += amount;
-                        });
-                        const balance = (idx === 0 ? totalCash : 0) + inflow - outflow;
+                        let balance = totalCash;
+
+                        // Суммируем потоки с начала горизонта до текущего месяца
+                        for (let i = 0; i <= idx; i++) {
+                          const currentMonth = months[i];
+                          let mInflow = 0;
+                          let mOutflow = 0;
+
+                          accounts.forEach((acc: any) => {
+                            const delayMonths = Math.ceil((paymentDelays[acc.id] || 0) / 30);
+                            const sourceIdx = months.indexOf(currentMonth) - delayMonths;
+
+                            if (delayMonths === 0) {
+                              const amount = budgetByCategory.get(acc.id)?.get(currentMonth)?.amount || 0;
+                              if (acc.type === 'I') mInflow += amount;
+                              if (acc.type === 'X') mOutflow += amount;
+                            } else if (sourceIdx >= 0) {
+                              const amount = budgetByCategory.get(acc.id)?.get(months[sourceIdx])?.amount || 0;
+                              if (acc.type === 'I') mInflow += amount;
+                              if (acc.type === 'X') mOutflow += amount;
+                            }
+                          });
+
+                          balance += mInflow - mOutflow;
+                        }
+
                         return (
                           <td key={m} className={`px-4 py-3 text-sm text-right font-bold ${balance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
                             {Math.round(balance).toLocaleString('ru-RU')}
