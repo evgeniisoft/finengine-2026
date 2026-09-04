@@ -48,7 +48,7 @@ export default function PlanningPage() {
       const settingsData = await settingsRes.json();
       const delaysMap: { [companyId: string]: { [accountId: string]: number } } = {};
       for (const s of Array.isArray(settingsData) ? settingsData : []) {
-        if (s.category === 'payment_delay' && s.key.startsWith(`payment_delay_${selectedCompany}_`)) {
+        if (s.category === 'payment_delay' && s.key.startsWith('payment_delay_')) {
           const accountId = s.key.replace(`payment_delay_${selectedCompany}_`, '');
           if (!delaysMap[selectedCompany]) {
             delaysMap[selectedCompany] = {};
