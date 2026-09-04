@@ -227,6 +227,8 @@ export default function SettingsPage() {
                                         window.location.href = '/settings/mappings';
                                     } else if (section.id === 'balances') {
                                         window.location.href = '/settings/balances';
+                                    } else if (section.id === 'taxes') {
+                                        window.location.href = '/settings/taxes';
                                     } else {
                                         setActiveSection(section.id);
                                     }

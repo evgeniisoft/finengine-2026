@@ -38,6 +38,14 @@ export interface TaxCalculation {
 
 export class TaxEngine {
 
+  private settings: any = {};
+
+  async loadSettings(settings: any[]) {
+    for (const s of settings) {
+      this.settings[s.key] = s.value;
+    }
+  }
+
   calculateTax(
     company: Company,
     transactions: Transaction[],
@@ -76,24 +84,24 @@ export class TaxEngine {
       case 'USN_6':
         vatRate = this.getVatRateForUSN(revenue);
         vatAmount = revenue * vatRate;
-        incomeTaxRate = 0.06;
+        incomeTaxRate = parseFloat(this.settings['usn_6'] || '0.06');
         incomeTaxAmount = revenue * incomeTaxRate;
         break;
 
       case 'USN_15':
         vatRate = this.getVatRateForUSN(revenue);
         vatAmount = revenue * vatRate;
-        incomeTaxRate = 0.15;
+        incomeTaxRate = parseFloat(this.settings['usn_15'] || '0.15');
         const taxBase = Math.max(0, revenue - expenses);
         incomeTaxAmount = taxBase * incomeTaxRate;
-        const minimumTax = revenue * 0.01;
+        const minimumTax = revenue * parseFloat(this.settings['usn_min_tax'] || '0.01');
         if (incomeTaxAmount < minimumTax) incomeTaxAmount = minimumTax;
         break;
 
       case 'OSNO':
-        vatRate = 0.22;
+        vatRate = parseFloat(this.settings['vat_osno'] || '0.22');
         vatAmount = revenue * vatRate;
-        incomeTaxRate = 0.25;
+        incomeTaxRate = parseFloat(this.settings['profit_tax'] || '0.25');
         incomeTaxAmount = Math.max(0, profit) * incomeTaxRate;
         break;
     }
@@ -245,13 +253,15 @@ export class TaxEngine {
       contributions = (monthlyBase * 0.30 + excess * 0.15) * 12;
       rate = 15;
     } else {
-      const limit = 2979000;
+      const limit = parseFloat(this.settings['insurance_limit'] || '2979000');
+      const baseRate = parseFloat(this.settings['insurance_base_rate'] || '0.30');
+      const reducedRate = parseFloat(this.settings['insurance_reduced_rate'] || '0.151');
       if (annualPayroll <= limit) {
-        contributions = annualPayroll * 0.30;
-        rate = 30;
+        contributions = annualPayroll * baseRate;
+        rate = baseRate * 100;
       } else {
-        contributions = limit * 0.30 + (annualPayroll - limit) * 0.151;
-        rate = 15.1;
+        contributions = limit * baseRate + (annualPayroll - limit) * reducedRate;
+        rate = reducedRate * 100;
       }
     }
 
@@ -274,10 +284,17 @@ export class TaxEngine {
   }
 
   private getVatRateForUSN(revenue: number): number {
-    if (revenue <= 20000000) return 0;
-    else if (revenue <= 250000000) return 0.05;
-    else if (revenue <= 490500000) return 0.07;
-    else return 0.22;
+    const exemptLimit = parseFloat(this.settings['usn_vat_exempt_limit'] || '20000000');
+    const rate5Limit = parseFloat(this.settings['usn_vat_5_limit'] || '250000000');
+    const rate7Limit = parseFloat(this.settings['usn_vat_7_limit'] || '490500000');
+    const rate5 = parseFloat(this.settings['vat_usn_5'] || '0.05');
+    const rate7 = parseFloat(this.settings['vat_usn_7'] || '0.07');
+    const standardRate = parseFloat(this.settings['vat_osno'] || '0.22');
+
+    if (revenue <= exemptLimit) return 0;
+    else if (revenue <= rate5Limit) return rate5;
+    else if (revenue <= rate7Limit) return rate7;
+    else return standardRate;
   }
 
   checkUSNLimits(company: Company, transactions: Transaction[]): {

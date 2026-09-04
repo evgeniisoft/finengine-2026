@@ -20,11 +20,14 @@ export async function GET(request: NextRequest) {
     const periodStart = url.searchParams.get('period_start') || '2026-01-01';
     const periodEnd = url.searchParams.get('period_end') || '2026-12-31';
 
-    const [transactions, accounts, companies] = await Promise.all([
+    const [transactions, accounts, companies, settings] = await Promise.all([
       gasGet('Transactions'),
       gasGet('Accounts'),
-      gasGet('Companies')
+      gasGet('Companies'),
+      gasGet('Settings')
     ]);
+
+    await taxEngine.loadSettings(settings);
 
     console.log('Transactions:', transactions.length);
     console.log('Accounts:', accounts.length);
