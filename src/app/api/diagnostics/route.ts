@@ -39,8 +39,7 @@ export async function GET(request: NextRequest) {
       return isNaN(val) ? defaultVal : val;
     };
 
-
-    // ============ ВСПОМОГАТЕЛЬНЫЕ ============
+   // ============ ВСПОМОГАТЕЛЬНЫЕ ============
     const getDateStr = (d: any) => {
       if (!d) return '';
       if (typeof d === 'string') return d.split('T')[0];
