@@ -330,340 +330,298 @@ export default function PlanningPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {budgetType === 'cashflow' && (
-                  <tr className="bg-gray-100">
-                    <td className="px-4 py-2 text-xs font-semibold text-gray-700 uppercase sticky left-0 bg-gray-100">Остаток на начало</td>
-                    {months.map((m, idx) => {
-                      // Начальный остаток — из баланса или 0 для первого месяца
-                      const balance = idx === 0 ? totalCash : 0;
-                      return (
+                {/* ==================== БДДС ==================== */}
+                {budgetType === 'cashflow' ? (
+                  <>
+                    {/* Остаток на начало */}
+                    <tr className="bg-gray-100">
+                      <td className="px-4 py-2 text-xs font-semibold text-gray-700 uppercase sticky left-0 bg-gray-100">Остаток на начало</td>
+                      {months.map((m: string, idx: number) => (
                         <td key={m} className="px-4 py-2 text-sm text-right font-bold text-gray-900">
                           {idx === 0 ? Math.round(totalCash).toLocaleString('ru-RU') : '—'}
                         </td>
-                      );
-                    })}
-                  </tr>
-                )}
-                {/* Доходные статьи */}
-                {(budgetType === 'pnl'
-                  ? Array.from(groupedAccounts().entries())
-                  : []
-                ).map(([groupName, groupAccounts]) => {
-                  const incomeAccounts = groupAccounts.filter((a: any) => a.type === 'I');
-                  const expenseAccounts = groupAccounts.filter((a: any) => a.type === 'X');
-
-                  if (incomeAccounts.length === 0 && expenseAccounts.length === 0) return null;
-
-                  return (
-                    <React.Fragment key={groupName}>
-                      {/* Заголовок группы */}
-                      <tr className="bg-blue-50">
-                        <td colSpan={13} className="px-4 py-2 text-xs font-semibold text-blue-800 uppercase bg-blue-50 whitespace-nowrap">
-                          {groupName}
-                        </td>
-                      </tr>
-
-                      {/* Доходы группы */}
-                      {incomeAccounts.map(acc => (
-                        <tr key={acc.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">{acc.name}</td>
-                          {months.map(m => {
-                            const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
-                            const amount = cellData?.amount;
-                            {
-                              cellData?.status === 'closed' && (
-                                <div className="text-xs text-gray-500 mt-1">✓ закрыт</div>
-                              )
-                            }
-                            return (
-                              <td
-                                key={m}
-                                className={`px-4 py-3 text-sm text-right whitespace-nowrap ${cellData?.status === 'closed'
-                                  ? 'bg-gray-100 cursor-not-allowed'
-                                  : selectedCompany && viewMode === 'plan'
-                                    ? 'text-gray-900 cursor-pointer hover:bg-blue-50'
-                                    : 'text-gray-400'
-                                  }`}
-                                onClick={() => {
-                                  if (viewMode !== 'plan') return;
-                                  if (cellData?.status === 'closed') return;
-                                  if (!selectedCompany) { alert('Выберите компанию'); return; }
-                                  setEditingCell({ categoryId: acc.id, month: m });
-                                  setEditValue(amount ? amount.toString() : '');
-                                }}
-                              >
-                                {editingCell?.categoryId === acc.id && editingCell?.month === m ? (
-                                  <div className="flex items-center justify-end gap-1">
-                                    <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCell(); if (e.key === 'Escape') setEditingCell(null); }} className="w-24 px-2 py-1 border border-blue-500 rounded text-right" autoFocus />
-                                    <button onClick={(e) => { e.stopPropagation(); handleSaveCell(); }} disabled={savingCell} className="p-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">{savingCell ? '...' : '✓'}</button>
-                                    <button onClick={(e) => { e.stopPropagation(); setEditingCell(null); }} className="p-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300">✕</button>
-                                  </div>
-                                ) : (
-                                  (() => {
-                                    const actual = actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
-                                    const planned = amount || 0;
-                                    const dev = planned && actual ? ((actual - planned) / planned) * 100 : 0;
-                                    return (
-                                      <div>
-                                        <div className="font-medium">{planned ? Math.round(planned).toLocaleString('ru-RU') : '—'}</div>
-                                        {viewMode === 'actual' && actual > 0 && (
-                                          <div className={`text-xs ${actual >= planned ? 'text-green-600' : 'text-red-600'}`}>{Math.round(actual).toLocaleString('ru-RU')}</div>
-                                        )}
-                                        {viewMode === 'deviation' && actual > 0 && (
-                                          <div className={`text-xs ${dev >= 0 ? 'text-green-600' : 'text-red-600'}`}>{dev > 0 ? '+' : ''}{dev.toFixed(1)}%</div>
-                                        )}
-                                      </div>
-                                    );
-                                  })()
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
                       ))}
+                    </tr>
 
-                      {/* Расходы группы */}
-                      {expenseAccounts.map(acc => (
-                        <tr key={acc.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-gray-600 sticky left-0 bg-white">{acc.name}</td>
-                          {months.map(m => {
-                            const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
-                            const amount = cellData?.amount;
-                            {
-                              cellData?.status === 'closed' && (
-                                <div className="text-xs text-gray-500 mt-1">✓ закрыт</div>
-                              )
-                            }
-                            return (
-                              <td
-                                key={m}
-                                className={`px-4 py-3 text-sm text-right whitespace-nowrap ${cellData?.status === 'closed'
-                                  ? 'bg-gray-100 cursor-not-allowed text-gray-500'
-                                  : selectedCompany && viewMode === 'plan'
-                                    ? 'text-red-600 cursor-pointer hover:bg-blue-50'
-                                    : 'text-gray-400'
-                                  }`}
-                                onClick={() => {
-                                  if (viewMode !== 'plan') return;
-                                  if (cellData?.status === 'closed') return;
-                                  if (!selectedCompany) { alert('Выберите компанию'); return; }
-                                  setEditingCell({ categoryId: acc.id, month: m });
-                                  setEditValue(amount ? amount.toString() : '');
-                                }}
-                              >
-                                {editingCell?.categoryId === acc.id && editingCell?.month === m ? (
-                                  <div className="flex items-center justify-end gap-1">
-                                    <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCell(); if (e.key === 'Escape') setEditingCell(null); }} className="w-24 px-2 py-1 border border-blue-500 rounded text-right" autoFocus />
-                                    <button onClick={(e) => { e.stopPropagation(); handleSaveCell(); }} disabled={savingCell} className="p-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">{savingCell ? '...' : '✓'}</button>
-                                    <button onClick={(e) => { e.stopPropagation(); setEditingCell(null); }} className="p-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300">✕</button>
-                                  </div>
-                                ) : (
-                                  (() => {
-                                    const actual = actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
-                                    const planned = amount || 0;
-                                    const dev = planned && actual ? ((actual - planned) / planned) * 100 : 0;
+                    {/* Секции */}
+                    {[
+                      { key: 'operating', label: 'ОПЕРАЦИОННАЯ ДЕЯТЕЛЬНОСТЬ' },
+                      { key: 'investing', label: 'ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ' },
+                      { key: 'financing', label: 'ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ' },
+                    ].map(section => {
+                      const sectionAccounts = accounts.filter((a: any) => {
+                        const activity = a.activity_type || 'operating';
+                        return activity === section.key;
+                      });
+
+                      const inflowAccounts = sectionAccounts.filter((a: any) => a.type === 'I');
+                      const outflowAccounts = sectionAccounts.filter((a: any) => a.type === 'X');
+
+                      if (inflowAccounts.length === 0 && outflowAccounts.length === 0) return null;
+
+                      return (
+                        <React.Fragment key={section.key}>
+                          {/* Заголовок секции */}
+                          <tr className="bg-blue-100">
+                            <td colSpan={13} className="px-4 py-2 text-xs font-bold text-blue-900 uppercase bg-blue-100">
+                              {section.label}
+                            </td>
+                          </tr>
+
+                          {/* Поступления */}
+                          {inflowAccounts.length > 0 && (
+                            <>
+                              <tr className="bg-green-50">
+                                <td colSpan={13} className="px-4 py-1 text-xs font-semibold text-green-700 uppercase bg-green-50">
+                                  Поступления
+                                </td>
+                              </tr>
+                              {inflowAccounts.map((acc: any) => (
+                                <tr key={acc.id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3 text-sm text-gray-600 sticky left-0 bg-white">{acc.name}</td>
+                                  {months.map((m: string) => {
+                                    const cellData = budgetByCategory.get(acc.id)?.get(m);
+                                    const amount = cellData?.amount;
                                     return (
-                                      <div>
-                                        <div className="font-medium">{planned ? Math.round(planned).toLocaleString('ru-RU') : '—'}</div>
-                                        {viewMode === 'actual' && actual > 0 && (
-                                          <div className={`text-xs ${actual <= planned ? 'text-green-600' : 'text-red-600'}`}>{Math.round(actual).toLocaleString('ru-RU')}</div>
-                                        )}
-                                        {viewMode === 'deviation' && actual > 0 && (
-                                          <div className={`text-xs ${dev <= 0 ? 'text-green-600' : 'text-red-600'}`}>{dev > 0 ? '+' : ''}{dev.toFixed(1)}%</div>
-                                        )}
-                                      </div>
+                                      <td key={m} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">
+                                        {amount ? Math.round(amount).toLocaleString('ru-RU') : '—'}
+                                      </td>
                                     );
-                                  })()
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </React.Fragment>
-                  );
-                })}
-
-                {/* Итого доходы */}
-                {budgetType === 'pnl' && (
-                  <tr className="bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого доходы</td>
-                    {months.map(m => {
-                      let totalPlan = 0;
-                      let totalActual = 0;
-                      accounts.filter(a => a.type === 'I').forEach(acc => {
-                        const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
-                        totalPlan += cellData?.amount || 0;
-                        totalActual += actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
-                      });
-
-                      const dev = totalPlan && totalActual ? ((totalActual - totalPlan) / totalPlan) * 100 : 0;
-
-                      return (
-                        <td key={m} className="px-4 py-3 text-sm text-right font-bold text-gray-900">
-                          <div>{totalPlan ? Math.round(totalPlan).toLocaleString('ru-RU') : '—'}</div>
-                          {viewMode === 'actual' && totalActual > 0 && (
-                            <div className={`text-xs ${totalActual >= totalPlan ? 'text-green-600' : 'text-red-600'}`}>
-                              {Math.round(totalPlan).toLocaleString('ru-RU')}
-                            </div>
+                                  })}
+                                </tr>
+                              ))}
+                            </>
                           )}
-                          {viewMode === 'deviation' && totalActual > 0 && (
-                            <div className={`text-xs ${dev >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
-                            </div>
+
+                          {/* Выбытия */}
+                          {outflowAccounts.length > 0 && (
+                            <>
+                              <tr className="bg-red-50">
+                                <td colSpan={13} className="px-4 py-1 text-xs font-semibold text-red-700 uppercase bg-red-50">
+                                  Выбытия
+                                </td>
+                              </tr>
+                              {outflowAccounts.map((acc: any) => (
+                                <tr key={acc.id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3 text-sm text-gray-600 sticky left-0 bg-white">{acc.name}</td>
+                                  {months.map((m: string) => {
+                                    const cellData = budgetByCategory.get(acc.id)?.get(m);
+                                    const amount = cellData?.amount;
+                                    return (
+                                      <td key={m} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">
+                                        {amount ? '-' + Math.round(amount).toLocaleString('ru-RU') : '—'}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </>
                           )}
-                        </td>
+                        </React.Fragment>
                       );
                     })}
-                  </tr>
-                )}
 
-                {/* Итого расходы */}
-                {budgetType === 'pnl' && (
-                  <tr className="bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого расходы</td>
-                    {months.map(m => {
-                      let totalPlan = 0;
-                      let totalActual = 0;
-                      accounts.filter(a => a.type === 'X').forEach(acc => {
-                        const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
-                        totalPlan += cellData?.amount || 0;
-                        totalActual += actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
-                      });
+                    {/* Чистый денежный поток */}
+                    <tr className="bg-gray-100">
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-100">Чистый денежный поток</td>
+                      {months.map((m: string) => {
+                        let inflow = 0;
+                        let outflow = 0;
+                        accounts.forEach((acc: any) => {
+                          const amount = budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                          if (acc.type === 'I') inflow += amount;
+                          if (acc.type === 'X') outflow += amount;
+                        });
+                        const net = inflow - outflow;
+                        return (
+                          <td key={m} className={`px-4 py-3 text-sm text-right font-bold ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {net > 0 ? '+' : ''}{Math.round(net).toLocaleString('ru-RU')}
+                          </td>
+                        );
+                      })}
+                    </tr>
 
-                      const dev = totalPlan && totalActual ? ((totalActual - totalPlan) / totalPlan) * 100 : 0;
+                    {/* Остаток на конец */}
+                    <tr className="bg-blue-100">
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-blue-100">Остаток на конец</td>
+                      {months.map((m: string, idx: number) => {
+                        let inflow = 0;
+                        let outflow = 0;
+                        accounts.forEach((acc: any) => {
+                          const amount = budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                          if (acc.type === 'I') inflow += amount;
+                          if (acc.type === 'X') outflow += amount;
+                        });
+                        const balance = (idx === 0 ? totalCash : 0) + inflow - outflow;
+                        return (
+                          <td key={m} className={`px-4 py-3 text-sm text-right font-bold ${balance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                            {Math.round(balance).toLocaleString('ru-RU')}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </>
+                ) : (
+                  <>
+                    {/* ==================== БДР ==================== */}
+                    {Array.from(groupedAccounts().entries()).map(([groupName, groupAccounts]) => {
+                      const incomeAccounts = groupAccounts.filter((a: any) => a.type === 'I');
+                      const expenseAccounts = groupAccounts.filter((a: any) => a.type === 'X');
+
+                      if (incomeAccounts.length === 0 && expenseAccounts.length === 0) return null;
 
                       return (
-                        <td key={m} className="px-4 py-3 text-sm text-right font-bold text-red-600">
-                          <div>-{totalPlan ? Math.round(totalPlan).toLocaleString('ru-RU') : '—'}</div>
-                          {viewMode === 'actual' && totalActual > 0 && (
-                            <div className={`text-xs ${totalActual <= totalPlan ? 'text-green-600' : 'text-red-600'}`}>
-                              {Math.round(totalActual).toLocaleString('ru-RU')}
-                            </div>
-                          )}
-                          {viewMode === 'deviation' && totalActual > 0 && (
-                            <div className={`text-xs ${dev <= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
-                            </div>
-                          )}
-                        </td>
+                        <React.Fragment key={groupName}>
+                          <tr className="bg-blue-50">
+                            <td colSpan={13} className="px-4 py-2 text-xs font-semibold text-blue-800 uppercase bg-blue-50 whitespace-nowrap">
+                              {groupName}
+                            </td>
+                          </tr>
+
+                          {incomeAccounts.map((acc: any) => (
+                            <tr key={acc.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">{acc.name}</td>
+                              {months.map((m: string) => {
+                                const cellData = budgetByCategory.get(acc.id)?.get(m);
+                                const amount = cellData?.amount;
+                                return (
+                                  <td key={m}
+                                    className={`px-4 py-3 text-sm text-right whitespace-nowrap ${cellData?.status === 'closed'
+                                      ? 'bg-gray-100 cursor-not-allowed text-gray-500'
+                                      : selectedCompany && viewMode === 'plan'
+                                        ? 'text-gray-900 cursor-pointer hover:bg-blue-50'
+                                        : 'text-gray-400'
+                                      }`}
+                                    onClick={() => {
+                                      if (viewMode !== 'plan') return;
+                                      if (cellData?.status === 'closed') return;
+                                      if (!selectedCompany) { alert('Выберите компанию'); return; }
+                                      setEditingCell({ categoryId: acc.id, month: m });
+                                      setEditValue(amount ? amount.toString() : '');
+                                    }}>
+                                    {editingCell?.categoryId === acc.id && editingCell?.month === m ? (
+                                      <div className="flex items-center justify-end gap-1">
+                                        <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCell(); if (e.key === 'Escape') setEditingCell(null); }} className="w-24 px-2 py-1 border border-blue-500 rounded text-right" autoFocus />
+                                        <button onClick={(e) => { e.stopPropagation(); handleSaveCell(); }} disabled={savingCell} className="p-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">{savingCell ? '...' : '✓'}</button>
+                                        <button onClick={(e) => { e.stopPropagation(); setEditingCell(null); }} className="p-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300">✕</button>
+                                      </div>
+                                    ) : (
+                                      (() => {
+                                        const actual = actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
+                                        const planned = amount || 0;
+                                        const dev = planned && actual ? ((actual - planned) / planned) * 100 : 0;
+                                        return (
+                                          <div>
+                                            <div className="font-medium">{planned ? Math.round(planned).toLocaleString('ru-RU') : '—'}</div>
+                                            {viewMode === 'actual' && actual > 0 && (
+                                              <div className={`text-xs ${actual >= planned ? 'text-green-600' : 'text-red-600'}`}>{Math.round(actual).toLocaleString('ru-RU')}</div>
+                                            )}
+                                            {viewMode === 'deviation' && actual > 0 && (
+                                              <div className={`text-xs ${dev >= 0 ? 'text-green-600' : 'text-red-600'}`}>{dev > 0 ? '+' : ''}{dev.toFixed(1)}%</div>
+                                            )}
+                                            {cellData?.status === 'closed' && <div className="text-xs text-gray-500 mt-1">✓ закрыт</div>}
+                                          </div>
+                                        );
+                                      })()
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+
+                          {expenseAccounts.map((acc: any) => (
+                            <tr key={acc.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm text-gray-600 sticky left-0 bg-white">{acc.name}</td>
+                              {months.map((m: string) => {
+                                const cellData = budgetByCategory.get(acc.id)?.get(m);
+                                const amount = cellData?.amount;
+                                return (
+                                  <td key={m}
+                                    className={`px-4 py-3 text-sm text-right whitespace-nowrap ${cellData?.status === 'closed'
+                                      ? 'bg-gray-100 cursor-not-allowed text-gray-500'
+                                      : selectedCompany && viewMode === 'plan'
+                                        ? 'text-red-600 cursor-pointer hover:bg-blue-50'
+                                        : 'text-gray-400'
+                                      }`}
+                                    onClick={() => {
+                                      if (viewMode !== 'plan') return;
+                                      if (cellData?.status === 'closed') return;
+                                      if (!selectedCompany) { alert('Выберите компанию'); return; }
+                                      setEditingCell({ categoryId: acc.id, month: m });
+                                      setEditValue(amount ? amount.toString() : '');
+                                    }}>
+                                    {editingCell?.categoryId === acc.id && editingCell?.month === m ? (
+                                      <div className="flex items-center justify-end gap-1">
+                                        <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCell(); if (e.key === 'Escape') setEditingCell(null); }} className="w-24 px-2 py-1 border border-blue-500 rounded text-right" autoFocus />
+                                        <button onClick={(e) => { e.stopPropagation(); handleSaveCell(); }} disabled={savingCell} className="p-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">{savingCell ? '...' : '✓'}</button>
+                                        <button onClick={(e) => { e.stopPropagation(); setEditingCell(null); }} className="p-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300">✕</button>
+                                      </div>
+                                    ) : (
+                                      (() => {
+                                        const actual = actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
+                                        const planned = amount || 0;
+                                        const dev = planned && actual ? ((actual - planned) / planned) * 100 : 0;
+                                        return (
+                                          <div>
+                                            <div className="font-medium">{planned ? Math.round(planned).toLocaleString('ru-RU') : '—'}</div>
+                                            {viewMode === 'actual' && actual > 0 && (
+                                              <div className={`text-xs ${actual <= planned ? 'text-green-600' : 'text-red-600'}`}>{Math.round(actual).toLocaleString('ru-RU')}</div>
+                                            )}
+                                            {viewMode === 'deviation' && actual > 0 && (
+                                              <div className={`text-xs ${dev <= 0 ? 'text-green-600' : 'text-red-600'}`}>{dev > 0 ? '+' : ''}{dev.toFixed(1)}%</div>
+                                            )}
+                                            {cellData?.status === 'closed' && <div className="text-xs text-gray-500 mt-1">✓ закрыт</div>}
+                                          </div>
+                                        );
+                                      })()
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </React.Fragment>
                       );
                     })}
-                  </tr>
-                )}
-                {budgetType === 'cashflow' && (
-                  <tr className="bg-gray-50">
-                    <td className="px-4 py-2 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Операционный денежный поток</td>
-                    {months.map(m => {
-                      let inflow = 0;
-                      let outflow = 0;
 
-                      accounts.filter(a => a.type === 'I').forEach(acc => {
-                        const cellData = budgetByCategory.get(acc.id)?.get(m);
-                        inflow += cellData?.amount || 0;
-                      });
-                      accounts.filter(a => a.type === 'X').forEach(acc => {
-                        const cellData = budgetByCategory.get(acc.id)?.get(m);
-                        outflow += cellData?.amount || 0;
-                      });
+                    {/* Итого доходы */}
+                    <tr className="bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого доходы</td>
+                      {months.map((m: string) => {
+                        let totalPlan = 0;
+                        accounts.filter((a: any) => a.type === 'I').forEach((acc: any) => {
+                          totalPlan += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                        });
+                        return <td key={m} className="px-4 py-3 text-sm text-right font-bold text-gray-900">{totalPlan ? Math.round(totalPlan).toLocaleString('ru-RU') : '—'}</td>;
+                      })}
+                    </tr>
 
-                      const netFlow = inflow - outflow;
+                    {/* Итого расходы */}
+                    <tr className="bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого расходы</td>
+                      {months.map((m: string) => {
+                        let totalPlan = 0;
+                        accounts.filter((a: any) => a.type === 'X').forEach((acc: any) => {
+                          totalPlan += budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                        });
+                        return <td key={m} className="px-4 py-3 text-sm text-right font-bold text-red-600">-{totalPlan ? Math.round(totalPlan).toLocaleString('ru-RU') : '—'}</td>;
+                      })}
+                    </tr>
 
-                      return (
-                        <td key={m} className="px-4 py-2 text-sm text-right font-bold">
-                          <span className={netFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
-                            {netFlow > 0 ? '+' : ''}{Math.round(netFlow).toLocaleString('ru-RU')}
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                )}
-                {budgetType === 'pnl' && (
-                  <tr className="bg-green-50">
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-green-50">Чистая прибыль</td>
-                    {months.map(m => {
-                      let totalIncome = 0;
-                      let totalExpense = 0;
-
-                      accounts.filter(a => a.type === 'I').forEach(acc => {
-                        const cellData = budgetByCategory.get(acc.id)?.get(m);
-                        totalIncome += cellData?.amount || 0;
-                      });
-                      accounts.filter(a => a.type === 'X').forEach(acc => {
-                        const cellData = budgetByCategory.get(acc.id)?.get(m);
-                        totalExpense += cellData?.amount || 0;
-                      });
-
-                      const profit = totalIncome - totalExpense;
-
-                      return (
-                        <td key={m} className="px-4 py-3 text-sm text-right font-bold">
-                          <div className={profit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                            {profit > 0 ? '+' : ''}{Math.round(profit).toLocaleString('ru-RU')}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                )}
-                {budgetType === 'cashflow' && (
-                  <tr className="bg-gray-100">
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-100">Чистый денежный поток</td>
-                    {months.map(m => {
-                      let inflow = 0;
-                      let outflow = 0;
-
-                      accounts.filter(a => a.type === 'I').forEach(acc => {
-                        const cellData = budgetByCategory.get(acc.id)?.get(m);
-                        inflow += cellData?.amount || 0;
-                      });
-                      accounts.filter(a => a.type === 'X').forEach(acc => {
-                        const cellData = budgetByCategory.get(acc.id)?.get(m);
-                        outflow += cellData?.amount || 0;
-                      });
-
-                      const netFlow = inflow - outflow;
-
-                      return (
-                        <td key={m} className="px-4 py-3 text-sm text-right font-bold">
-                          <span className={netFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
-                            {netFlow > 0 ? '+' : ''}{Math.round(netFlow).toLocaleString('ru-RU')}
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                )}
-                {budgetType === 'cashflow' && (
-                  <tr className="bg-blue-100">
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-blue-100">Остаток на конец</td>
-                    {months.map((m, idx) => {
-                      let inflow = 0;
-                      let outflow = 0;
-
-                      accounts.filter(a => a.type === 'I').forEach(acc => {
-                        const cellData = budgetByCategory.get(acc.id)?.get(m);
-                        inflow += cellData?.amount || 0;
-                      });
-                      accounts.filter(a => a.type === 'X').forEach(acc => {
-                        const cellData = budgetByCategory.get(acc.id)?.get(m);
-                        outflow += cellData?.amount || 0;
-                      });
-
-                      // Кумулятивный остаток
-                      const prevBalance = idx === 0 ? totalCash : 0;
-                      const endingBalance = prevBalance + inflow - outflow;
-
-                      return (
-                        <td key={m} className="px-4 py-3 text-sm text-right font-bold">
-                          <div className={endingBalance >= 0 ? 'text-gray-900' : 'text-red-600'}>
-                            {Math.round(endingBalance).toLocaleString('ru-RU')}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
+                    {/* Чистая прибыль */}
+                    <tr className="bg-green-50">
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-green-50">Чистая прибыль</td>
+                      {months.map((m: string) => {
+                        let income = 0;
+                        let expense = 0;
+                        accounts.filter((a: any) => a.type === 'I').forEach((acc: any) => { income += budgetByCategory.get(acc.id)?.get(m)?.amount || 0; });
+                        accounts.filter((a: any) => a.type === 'X').forEach((acc: any) => { expense += budgetByCategory.get(acc.id)?.get(m)?.amount || 0; });
+                        const profit = income - expense;
+                        return <td key={m} className={`px-4 py-3 text-sm text-right font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{profit > 0 ? '+' : ''}{Math.round(profit).toLocaleString('ru-RU')}</td>;
+                      })}
+                    </tr>
+                  </>
                 )}
               </tbody>
             </table>
