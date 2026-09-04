@@ -308,7 +308,7 @@ export default function Dashboard() {
             </div>
           </Widget>
           <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-            <h3 className="font-semibold text-gray-900 mb-2">⚠️ Кассовые разрывы (30 дней)</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">Кассовые разрывы (30 дней)</h3>
             {gaps.length === 0 ? <p className="text-green-600">Нет разрывов</p> : gaps.slice(0, 5).map((gap, idx) => (
               <div key={idx} className="flex justify-between text-sm text-red-600 py-1"><span>{formatDay(gap.date)}</span><span>-{gap.deficit.toLocaleString('ru-RU')} ₽</span></div>
             ))}
@@ -319,7 +319,7 @@ export default function Dashboard() {
       {/* Алерты */}
       {(unclassifiedTx.length > 0 || totalAR > 0 || totalAP > 0) && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
-          <h3 className="font-semibold text-yellow-700 mb-2">🔔 Требуют внимания</h3>
+          <h3 className="font-semibold text-yellow-700 mb-2">Требуют внимания</h3>
           {unclassifiedTx.length > 0 && <p className="text-sm text-yellow-600">{unclassifiedTx.length} операций без категории ({unclassifiedAmount.toLocaleString('ru-RU')} ₽)</p>}
           {totalAR > 0 && <p className="text-sm text-yellow-600">Дебиторская задолженность: {totalAR.toLocaleString('ru-RU')} ₽</p>}
           {totalAP > 0 && <p className="text-sm text-yellow-600">Кредиторская задолженность: {totalAP.toLocaleString('ru-RU')} ₽</p>}
