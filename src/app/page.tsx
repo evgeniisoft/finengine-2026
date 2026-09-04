@@ -106,17 +106,26 @@ export default function Dashboard() {
   const totalIncomeTaxForEBITDA = reportsArray.reduce((s, r) => s + (r.tax?.income_tax_amount || 0), 0);
   const ebitda = totalNetProfit + totalIncomeTaxForEBITDA + totalDepreciation;
 
-  // Run Rate — пересчёт в зависимости от выбранного периода
-  const daysInPeriod = Math.max(1, Math.round((new Date(period.end).getTime() - new Date(period.start).getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  // Run Rate — скользящее среднее за последние 3 месяца
   const today = new Date();
-  const periodStartDate = new Date(period.start);
 
-  // Сколько дней прошло с начала периода
-  const daysPassedInPeriod = Math.min(daysInPeriod, Math.max(1, Math.round((today.getTime() - periodStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1));
+  // Определяем последние 3 полных месяца
+  const last3Months: string[] = [];
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    last3Months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
 
-  // Приводим к месячному Run Rate
-  const daysInMonth = 30;
-  const runRate = daysPassedInPeriod > 0 ? (totalRevenue / daysPassedInPeriod) * daysInMonth : 0;
+  // Выручка за последние 3 месяца
+  const last3MonthsRevenue = last3Months.reduce((sum, month) => {
+    const monthRevenue = transactions
+      .filter(t => getDateStr(t.date).startsWith(month) && t.type === 'income')
+      .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+    return sum + monthRevenue;
+  }, 0);
+
+  // Среднемесячная выручка (Run Rate)
+  const runRate = last3MonthsRevenue / 3;
   const totalTaxData = reportsArray.map(r => r.tax).filter(Boolean);
   const totalIncomeTax = totalTaxData.reduce((s, t) => s + (t.income_tax_amount || 0), 0);
   const totalInsurance = totalTaxData.reduce((s, t) => s + (t.insurance_amount || 0), 0);
@@ -275,9 +284,24 @@ export default function Dashboard() {
         </Widget>
 
         <Widget id="runrate" label="Run Rate" value={Math.round(runRate)} suffix="₽/мес">
+          <div className="mb-2 text-xs text-gray-500">
+            Скользящее среднее за 3 месяца: {last3Months.map(m => {
+              const [y, mo] = m.split('-');
+              const monthNames = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+              return `${monthNames[parseInt(mo) - 1]} ${y}`;
+            }).join(', ')}
+          </div>
           {reportsArray.map(r => {
-            const companyRevenue = r.report?.revenue || 0;
-            const companyRunRate = daysPassedInPeriod > 0 ? (companyRevenue / daysPassedInPeriod) * daysInPeriod : 0;
+            // Для каждой компании считаем среднюю выручку за 3 месяца
+            const companyRevenue3Months = last3Months.reduce((sum, month) => {
+              const monthRevenue = transactions
+                .filter(t => t.company_id === r.company.id && getDateStr(t.date).startsWith(month) && t.type === 'income')
+                .reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+              return sum + monthRevenue;
+            }, 0);
+
+            const companyRunRate = companyRevenue3Months / 3;
+
             return (
               <div key={r.company.id} className="flex justify-between text-sm py-1">
                 <span className="text-gray-600">{r.company.name}</span>

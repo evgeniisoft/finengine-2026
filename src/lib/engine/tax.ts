@@ -63,7 +63,19 @@ export class TaxEngine {
     const startDate = new Date(periodStart);
     const endDate = new Date(periodEnd);
     const daysInPeriod = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-    const periodFraction = daysInPeriod / 365; // Доля года
+
+    // Определяем periodFraction по длительности периода
+    let periodFraction: number;
+
+    if (daysInPeriod <= 31) {
+      periodFraction = 1 / 12; // Месяц
+    } else if (daysInPeriod <= 92) {
+      periodFraction = 1 / 4; // Квартал
+    } else if (daysInPeriod <= 183) {
+      periodFraction = 1 / 2; // Полгода
+    } else {
+      periodFraction = 1; // Год
+    }
 
     const revenue = companyTx
       .filter(t => {
