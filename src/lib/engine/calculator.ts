@@ -53,6 +53,18 @@ export class FinancialCalculator {
   }
 
   /**
+ * Расчёт EBITDA
+ * EBITDA = Чистая прибыль + Налог на прибыль + Амортизация
+ * (без учёта страховых взносов и НДФЛ)
+ */
+  calculateEBITDA(pnl: PnLReport, taxCalc: any): number {
+    const netProfit = pnl.net_profit || 0;
+    const incomeTax = taxCalc?.income_tax_amount || 0;
+    const depreciation = pnl.depreciation || 0;
+
+    return netProfit + incomeTax + depreciation;
+  }
+  /**
    * Расчёт ДДС (Cash Flow)
    */
   calculateCashFlow(

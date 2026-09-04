@@ -59,6 +59,12 @@ export class TaxEngine {
       return t.company_id === company.id && txDate >= periodStart && txDate <= periodEnd;
     });
 
+    // Определяем количество месяцев в периоде
+    const startDate = new Date(periodStart);
+    const endDate = new Date(periodEnd);
+    const monthsInPeriod = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)));
+    const periodFraction = monthsInPeriod / 12; // Доля года
+
     const revenue = companyTx
       .filter(t => {
         const creditAccount = accounts.find(a => a.id === t.credit_account_id);
@@ -82,14 +88,14 @@ export class TaxEngine {
 
     switch (company.tax_system) {
       case 'USN_6':
-        vatRate = this.getVatRateForUSN(revenue);
+        vatRate = this.getVatRateForUSN(revenue / periodFraction); // Годовая выручка для определения ставки НДС
         vatAmount = revenue * vatRate;
         incomeTaxRate = parseFloat(this.settings['usn_6'] || '0.06');
         incomeTaxAmount = revenue * incomeTaxRate;
         break;
 
       case 'USN_15':
-        vatRate = this.getVatRateForUSN(revenue);
+        vatRate = this.getVatRateForUSN(revenue / periodFraction);
         vatAmount = revenue * vatRate;
         incomeTaxRate = parseFloat(this.settings['usn_15'] || '0.15');
         const taxBase = Math.max(0, revenue - expenses);
@@ -106,10 +112,11 @@ export class TaxEngine {
         break;
     }
 
-    const insurance = this.calculateInsuranceContributions(company, revenue);
-    const insuranceAmount = insurance.annual_contributions;
-    const ndflAmount = insurance.ndfl_annual || 0;
-    const totalPayrollCost = insurance.total_payroll_cost || 0;
+    // Страховые взносы и НДФЛ — пропорционально периоду
+    const insurance = this.calculateInsuranceContributions(company, revenue / periodFraction);
+    const insuranceAmount = insurance.annual_contributions * periodFraction;
+    const ndflAmount = (insurance.ndfl_annual || 0) * periodFraction;
+    const totalPayrollCost = (insurance.total_payroll_cost || 0) * periodFraction;
 
     let finalIncomeTax = incomeTaxAmount;
     if (company.tax_system === 'USN_6') {

@@ -97,17 +97,21 @@ export default function Dashboard() {
 
   const totalRevenue = reportsArray.reduce((s, r) => s + (r.report?.revenue || 0), 0);
   const totalExpenses = reportsArray.reduce((s, r) => s + (r.report?.operating_expenses || 0), 0);
-  const totalProfit = totalRevenue - totalExpenses;
+  const totalNetProfit = reportsArray.reduce((s, r) => s + (r.report?.net_profit || 0), 0);
   const totalCash = balanceArray.reduce((s, r) => s + (r.report?.assets?.cash || 0), 0);
-  const margin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-  const ebitda = totalProfit + reportsArray.reduce((s, r) => s + (r.report?.depreciation || 0), 0) + reportsArray.reduce((s, r) => s + (r.report?.taxes || 0), 0);
+  const margin = totalRevenue > 0 ? (totalNetProfit / totalRevenue) * 100 : 0;
 
-  const now = new Date();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const daysPassed = now.getDate();
-  const currentMonthStr = now.toISOString().substring(0, 7);
-  const currentMonthRevenue = transactions.filter(t => getDateStr(t.date).startsWith(currentMonthStr) && t.type === 'income').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
-  const runRate = daysPassed > 0 ? (currentMonthRevenue / daysPassed) * daysInMonth : 0;
+  // EBITDA = Чистая прибыль + Налог на прибыль + Амортизация
+  const totalDepreciation = reportsArray.reduce((s, r) => s + (r.report?.depreciation || 0), 0);
+  const totalIncomeTaxForEBITDA = reportsArray.reduce((s, r) => s + (r.tax?.income_tax_amount || 0), 0);
+  const ebitda = totalNetProfit + totalIncomeTaxForEBITDA + totalDepreciation;
+
+  // Run Rate — пересчёт в зависимости от выбранного периода
+  const daysInPeriod = Math.max(1, Math.round((new Date(period.end).getTime() - new Date(period.start).getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  const today = new Date();
+  const periodStartDate = new Date(period.start);
+  const daysPassedInPeriod = Math.min(daysInPeriod, Math.max(1, Math.round((today.getTime() - periodStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1));
+  const runRate = daysPassedInPeriod > 0 ? (totalRevenue / daysPassedInPeriod) * daysInPeriod : 0;
 
   const totalTaxData = reportsArray.map(r => r.tax).filter(Boolean);
   const totalIncomeTax = totalTaxData.reduce((s, t) => s + (t.income_tax_amount || 0), 0);
@@ -123,7 +127,6 @@ export default function Dashboard() {
     { quarter: '4 квартал', date: '2027-01-28', amount: totalVat / 4 },
   ] : [];
 
-  const today = new Date();
   const gaps: any[] = [];
   let runningBalance = totalCash;
   for (let i = 0; i < 30; i++) {
@@ -229,7 +232,7 @@ export default function Dashboard() {
           ))}
         </Widget>
 
-        <Widget id="profit" label="Прибыль" value={totalProfit} color={totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
+        <Widget id="profit" label="Прибыль" value={totalNetProfit} color={totalNetProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
           {reportsArray.map(r => (
             <div key={r.company.id} className="flex justify-between text-sm py-1">
               <span className="text-gray-600">{r.company.name}</span>
@@ -256,18 +259,21 @@ export default function Dashboard() {
         </Widget>
 
         <Widget id="ebitda" label="EBITDA" value={ebitda}>
-          {reportsArray.map(r => (
-            <div key={r.company.id} className="flex justify-between text-sm py-1">
-              <span className="text-gray-600">{r.company.name}</span>
-              <span className="font-medium">{(r.report?.net_profit || 0).toLocaleString('ru-RU')} ₽</span>
-            </div>
-          ))}
+          {reportsArray.map(r => {
+            const companyEBITDA = (r.report?.net_profit || 0) + (r.tax?.income_tax_amount || 0) + (r.report?.depreciation || 0);
+            return (
+              <div key={r.company.id} className="flex justify-between text-sm py-1">
+                <span className="text-gray-600">{r.company.name}</span>
+                <span className="font-medium">{companyEBITDA.toLocaleString('ru-RU')} ₽</span>
+              </div>
+            );
+          })}
         </Widget>
 
         <Widget id="runrate" label="Run Rate" value={Math.round(runRate)} suffix="₽/мес">
           {reportsArray.map(r => {
-            const companyCurrentMonthRevenue = transactions.filter(t => t.company_id === r.company.id && getDateStr(t.date).startsWith(currentMonthStr) && t.type === 'income').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
-            const companyRunRate = daysPassed > 0 ? (companyCurrentMonthRevenue / daysPassed) * daysInMonth : 0;
+            const companyRevenue = r.report?.revenue || 0;
+            const companyRunRate = daysPassedInPeriod > 0 ? (companyRevenue / daysPassedInPeriod) * daysInPeriod : 0;
             return (
               <div key={r.company.id} className="flex justify-between text-sm py-1">
                 <span className="text-gray-600">{r.company.name}</span>
