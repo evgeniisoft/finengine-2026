@@ -484,28 +484,14 @@ export default function PlanningPage() {
                                 <tr key={acc.id} className="hover:bg-gray-50">
                                   <td className="px-4 py-3 text-sm text-gray-600 sticky left-0 bg-white">{acc.name}</td>
                                   {months.map((m: string) => {
-                                    // Для БДДС — учитываем отсрочку
-                                    let cellData = budgetByCategory.get(acc.id)?.get(m);
-                                    let amount = cellData?.amount;
+                                    let amount = 0;
 
                                     if (budgetType === 'cashflow') {
-                                      const delayDays = (paymentDelaysByCompany[selectedCompany]?.[acc.id] || 0) || 0;
-                                      const delayMonths = Math.ceil(delayDays / 30);
-
-                                      if (delayMonths > 0) {
-                                        // Находим месяц на delayMonths раньше
-                                        const currentIdx = months.indexOf(m);
-                                        const sourceIdx = currentIdx - delayMonths;
-
-                                        if (sourceIdx >= 0) {
-                                          const sourceMonth = months[sourceIdx];
-                                          cellData = budgetByCategory.get(acc.id)?.get(sourceMonth);
-                                          amount = cellData?.amount;
-                                        } else {
-                                          amount = 0;
-                                        }
-                                      }
+                                      amount = getShiftedAmount(acc.id, m);
+                                    } else {
+                                      amount = budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
                                     }
+
                                     return (
                                       <td key={m} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">
                                         {amount ? Math.round(amount).toLocaleString('ru-RU') : '—'}
