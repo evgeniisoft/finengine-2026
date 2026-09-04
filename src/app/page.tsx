@@ -245,7 +245,7 @@ export default function Dashboard() {
           ))}
         </Widget>
 
-        <Widget id="profit" label="Прибыль" value={totalNetProfit} color={totalNetProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
+        <Widget id="profit" label="Прибыль" value={Math.round(totalNetProfit)} color={totalNetProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
           {reportsArray.map(r => (
             <div key={r.company.id} className="flex justify-between text-sm py-1">
               <span className="text-gray-600">{r.company.name}</span>
@@ -271,13 +271,13 @@ export default function Dashboard() {
           })}
         </Widget>
 
-        <Widget id="ebitda" label="EBITDA" value={ebitda}>
+        <Widget id="ebitda" label="EBITDA" value={Math.round(ebitda)}>
           {reportsArray.map(r => {
             const companyEBITDA = (r.report?.net_profit || 0) + (r.tax?.income_tax_amount || 0) + (r.report?.depreciation || 0);
             return (
               <div key={r.company.id} className="flex justify-between text-sm py-1">
                 <span className="text-gray-600">{r.company.name}</span>
-                <span className="font-medium">{companyEBITDA.toLocaleString('ru-RU')} ₽</span>
+                <span className="font-medium">{Math.round(companyEBITDA).toLocaleString('ru-RU')} ₽</span>
               </div>
             );
           })}
