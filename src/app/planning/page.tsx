@@ -173,24 +173,22 @@ export default function PlanningPage() {
   };
   const groupedAccounts = () => {
     if (budgetType === 'cashflow') {
+      // Для БДДС — все счета, группируем по activity_type
       const groups = new Map<string, any[]>();
 
-      const sections = [
-        { key: 'operating', label: 'ОПЕРАЦИОННАЯ ДЕЯТЕЛЬНОСТЬ' },
-        { key: 'investing', label: 'ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ' },
-        { key: 'financing', label: 'ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ' },
-      ];
+      const operating = accounts.filter((a: any) =>
+        (a.activity_type || 'operating') === 'operating'
+      );
+      const investing = accounts.filter((a: any) =>
+        a.activity_type === 'investing'
+      );
+      const financing = accounts.filter((a: any) =>
+        a.activity_type === 'financing'
+      );
 
-      for (const section of sections) {
-        const sectionAccounts = accounts.filter((a: any) => {
-          const activity = a.activity_type || 'operating';
-          return activity === section.key;
-        });
-
-        if (sectionAccounts.length > 0) {
-          groups.set(section.label, sectionAccounts);
-        }
-      }
+      if (operating.length > 0) groups.set('ОПЕРАЦИОННАЯ ДЕЯТЕЛЬНОСТЬ', operating);
+      if (investing.length > 0) groups.set('ИНВЕСТИЦИОННАЯ ДЕЯТЕЛЬНОСТЬ', investing);
+      if (financing.length > 0) groups.set('ФИНАНСОВАЯ ДЕЯТЕЛЬНОСТЬ', financing);
 
       return groups;
     }
@@ -484,68 +482,72 @@ export default function PlanningPage() {
                 })}
 
                 {/* Итого доходы */}
-                <tr className="bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого доходы</td>
-                  {months.map(m => {
-                    let totalPlan = 0;
-                    let totalActual = 0;
-                    accounts.filter(a => a.type === 'I').forEach(acc => {
-                      const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
-                      totalPlan += cellData?.amount || 0;
-                      totalActual += actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
-                    });
+                {budgetType === 'pnl' && (
+                  <tr className="bg-gray-50">
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого доходы</td>
+                    {months.map(m => {
+                      let totalPlan = 0;
+                      let totalActual = 0;
+                      accounts.filter(a => a.type === 'I').forEach(acc => {
+                        const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
+                        totalPlan += cellData?.amount || 0;
+                        totalActual += actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
+                      });
 
-                    const dev = totalPlan && totalActual ? ((totalActual - totalPlan) / totalPlan) * 100 : 0;
+                      const dev = totalPlan && totalActual ? ((totalActual - totalPlan) / totalPlan) * 100 : 0;
 
-                    return (
-                      <td key={m} className="px-4 py-3 text-sm text-right font-bold text-gray-900">
-                        <div>{totalPlan ? Math.round(totalPlan).toLocaleString('ru-RU') : '—'}</div>
-                        {viewMode === 'actual' && totalActual > 0 && (
-                          <div className={`text-xs ${totalActual >= totalPlan ? 'text-green-600' : 'text-red-600'}`}>
-                            {Math.round(totalPlan).toLocaleString('ru-RU')}
-                          </div>
-                        )}
-                        {viewMode === 'deviation' && totalActual > 0 && (
-                          <div className={`text-xs ${dev >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
+                      return (
+                        <td key={m} className="px-4 py-3 text-sm text-right font-bold text-gray-900">
+                          <div>{totalPlan ? Math.round(totalPlan).toLocaleString('ru-RU') : '—'}</div>
+                          {viewMode === 'actual' && totalActual > 0 && (
+                            <div className={`text-xs ${totalActual >= totalPlan ? 'text-green-600' : 'text-red-600'}`}>
+                              {Math.round(totalPlan).toLocaleString('ru-RU')}
+                            </div>
+                          )}
+                          {viewMode === 'deviation' && totalActual > 0 && (
+                            <div className={`text-xs ${dev >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
 
                 {/* Итого расходы */}
-                <tr className="bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого расходы</td>
-                  {months.map(m => {
-                    let totalPlan = 0;
-                    let totalActual = 0;
-                    accounts.filter(a => a.type === 'X').forEach(acc => {
-                      const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
-                      totalPlan += cellData?.amount || 0;
-                      totalActual += actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
-                    });
+                {budgetType === 'pnl' && (
+                  <tr className="bg-gray-50">
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Итого расходы</td>
+                    {months.map(m => {
+                      let totalPlan = 0;
+                      let totalActual = 0;
+                      accounts.filter(a => a.type === 'X').forEach(acc => {
+                        const cellData = budgetByCategory.get(acc.id)?.get(`${m}`);
+                        totalPlan += cellData?.amount || 0;
+                        totalActual += actualsByCategory[acc.id]?.[`${selectedYear}-${m}`] || 0;
+                      });
 
-                    const dev = totalPlan && totalActual ? ((totalActual - totalPlan) / totalPlan) * 100 : 0;
+                      const dev = totalPlan && totalActual ? ((totalActual - totalPlan) / totalPlan) * 100 : 0;
 
-                    return (
-                      <td key={m} className="px-4 py-3 text-sm text-right font-bold text-red-600">
-                        <div>-{totalPlan ? Math.round(totalPlan).toLocaleString('ru-RU') : '—'}</div>
-                        {viewMode === 'actual' && totalActual > 0 && (
-                          <div className={`text-xs ${totalActual <= totalPlan ? 'text-green-600' : 'text-red-600'}`}>
-                            {Math.round(totalActual).toLocaleString('ru-RU')}
-                          </div>
-                        )}
-                        {viewMode === 'deviation' && totalActual > 0 && (
-                          <div className={`text-xs ${dev <= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
+                      return (
+                        <td key={m} className="px-4 py-3 text-sm text-right font-bold text-red-600">
+                          <div>-{totalPlan ? Math.round(totalPlan).toLocaleString('ru-RU') : '—'}</div>
+                          {viewMode === 'actual' && totalActual > 0 && (
+                            <div className={`text-xs ${totalActual <= totalPlan ? 'text-green-600' : 'text-red-600'}`}>
+                              {Math.round(totalActual).toLocaleString('ru-RU')}
+                            </div>
+                          )}
+                          {viewMode === 'deviation' && totalActual > 0 && (
+                            <div className={`text-xs ${dev <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {dev > 0 ? '+' : ''}{dev.toFixed(1)}%
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
                 {budgetType === 'cashflow' && (
                   <tr className="bg-gray-50">
                     <td className="px-4 py-2 text-sm font-semibold text-gray-900 sticky left-0 bg-gray-50">Операционный денежный поток</td>
