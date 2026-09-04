@@ -542,7 +542,6 @@ export default function PlanningPage() {
                         );
                       })}
                     </tr>
-
                     {/* Остаток на конец — кумулятивный с учётом отсрочек */}
                     <tr className="bg-blue-100">
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-blue-100">Остаток на конец</td>
