@@ -49,11 +49,15 @@ export default function PlanningPage() {
       const delaysMap: { [companyId: string]: { [accountId: string]: number } } = {};
       for (const s of Array.isArray(settingsData) ? settingsData : []) {
         if (s.category === 'payment_delay' && s.key.startsWith('payment_delay_')) {
-          const accountId = s.key.replace(`payment_delay_${selectedCompany}_`, '');
-          if (!delaysMap[selectedCompany]) {
-            delaysMap[selectedCompany] = {};
+          // Разбираем ключ: payment_delay_КОМПАНИЯ_СТАТЬЯ
+          const parts = s.key.replace('payment_delay_', '').split('_');
+          const companyId = parts[0];
+          const accountId = parts.slice(1).join('_');
+
+          if (!delaysMap[companyId]) {
+            delaysMap[companyId] = {};
           }
-          delaysMap[selectedCompany][accountId] = parseFloat(s.value || '0');
+          delaysMap[companyId][accountId] = parseFloat(s.value || '0');
         }
       }
       setPaymentDelaysByCompany(delaysMap);
