@@ -76,18 +76,7 @@ export class TaxEngine {
     } else {
       periodFraction = 1; // Год
     }
-
-    
-    if (daysInPeriod <= 31) {
-      periodFraction = 1 / 12; // Месяц
-    } else if (daysInPeriod <= 92) {
-      periodFraction = 1 / 4; // Квартал
-    } else if (daysInPeriod <= 183) {
-      periodFraction = 1 / 2; // Полгода
-    } else {
-      periodFraction = 1; // Год
-    }
-
+       
     const revenue = companyTx
       .filter(t => {
         const creditAccount = accounts.find(a => a.id === t.credit_account_id);
