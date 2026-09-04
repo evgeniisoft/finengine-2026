@@ -39,6 +39,18 @@ export async function GET(request: NextRequest) {
       return isNaN(val) ? defaultVal : val;
     };
 
+
+    // ============ ВСПОМОГАТЕЛЬНЫЕ ============
+    const getDateStr = (d: any) => {
+      if (!d) return '';
+      if (typeof d === 'string') return d.split('T')[0];
+      if (d instanceof Date) return d.toISOString().split('T')[0];
+      return String(d).split('T')[0];
+    };
+
+    const getMonth = (d: any) => getDateStr(d).substring(0, 7);
+    const amountOf = (t: any) => parseFloat(String(t.amount || 0));
+
     // Инициализация переменных для расчётов
     const revenueByCompany = new Map<string, number>();
     const expensesByCompany = new Map<string, number>();
@@ -56,16 +68,6 @@ export async function GET(request: NextRequest) {
       revenueByCompany.set(company.id, revenue);
       expensesByCompany.set(company.id, expenses);
     }
-    // ============ ВСПОМОГАТЕЛЬНЫЕ ============
-    const getDateStr = (d: any) => {
-      if (!d) return '';
-      if (typeof d === 'string') return d.split('T')[0];
-      if (d instanceof Date) return d.toISOString().split('T')[0];
-      return String(d).split('T')[0];
-    };
-
-    const getMonth = (d: any) => getDateStr(d).substring(0, 7);
-    const amountOf = (t: any) => parseFloat(String(t.amount || 0));
 
     // ============================================
     // БЛОК 1: ИНФРАСТРУКТУРА
