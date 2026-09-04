@@ -515,8 +515,14 @@ export default function PlanningPage() {
                                 <tr key={acc.id} className="hover:bg-gray-50">
                                   <td className="px-4 py-3 text-sm text-gray-600 sticky left-0 bg-white">{acc.name}</td>
                                   {months.map((m: string) => {
-                                    const cellData = budgetByCategory.get(acc.id)?.get(m);
-                                    const amount = cellData?.amount;
+                                    let amount = 0;
+
+                                    if (budgetType === 'cashflow') {
+                                      amount = getShiftedAmount(acc.id, m);
+                                    } else {
+                                      amount = budgetByCategory.get(acc.id)?.get(m)?.amount || 0;
+                                    }
+
                                     return (
                                       <td key={m} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">
                                         {amount ? '-' + Math.round(amount).toLocaleString('ru-RU') : '—'}
