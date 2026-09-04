@@ -101,7 +101,7 @@ export default function PlanningPage() {
           budgetId: budgetId,
           companyId: selectedCompany,
           categoryId: catId,
-          period: `${selectedYear}-${month}`,
+          period: month,
           plannedAmount: amount,
           scenario: selectedScenario
         })
