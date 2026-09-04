@@ -354,14 +354,41 @@ export default function PlanningPage() {
                 {/* ==================== БДДС ==================== */}
                 {budgetType === 'cashflow' ? (
                   <>
-                    {/* Остаток на начало */}
+                    {/* Остаток на начало — кумулятивный */}
                     <tr className="bg-gray-100">
                       <td className="px-4 py-2 text-xs font-semibold text-gray-700 uppercase sticky left-0 bg-gray-100">Остаток на начало</td>
-                      {months.map((m: string, idx: number) => (
-                        <td key={m} className="px-4 py-2 text-sm text-right font-bold text-gray-900">
-                          {idx === 0 ? Math.round(totalCash).toLocaleString('ru-RU') : '—'}
-                        </td>
-                      ))}
+                      {months.map((m: string, idx: number) => {
+                        let balance = totalCash;
+
+                        for (let i = 0; i < idx; i++) {
+                          const currentMonth = months[i];
+                          let mInflow = 0;
+                          let mOutflow = 0;
+
+                          accounts.forEach((acc: any) => {
+                            const delayMonths = Math.ceil((paymentDelays[acc.id] || 0) / 30);
+                            const sourceIdx = months.indexOf(currentMonth) - delayMonths;
+
+                            if (delayMonths === 0) {
+                              const amount = budgetByCategory.get(acc.id)?.get(currentMonth)?.amount || 0;
+                              if (acc.type === 'I') mInflow += amount;
+                              if (acc.type === 'X') mOutflow += amount;
+                            } else if (sourceIdx >= 0) {
+                              const amount = budgetByCategory.get(acc.id)?.get(months[sourceIdx])?.amount || 0;
+                              if (acc.type === 'I') mInflow += amount;
+                              if (acc.type === 'X') mOutflow += amount;
+                            }
+                          });
+
+                          balance += mInflow - mOutflow;
+                        }
+
+                        return (
+                          <td key={m} className="px-4 py-2 text-sm text-right font-bold text-gray-900">
+                            {Math.round(balance).toLocaleString('ru-RU')}
+                          </td>
+                        );
+                      })}
                     </tr>
 
                     {/* Секции */}
