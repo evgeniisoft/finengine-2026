@@ -18,21 +18,35 @@ export interface TaxCalculation {
   company_id: string;
   company_name: string;
   tax_system: string;
-  revenue_without_vat: number;
+
+  // Выручка
+  revenue_with_vat: number;        // Выручка с НДС (как в операциях)
+  revenue_without_vat: number;     // Выручка без НДС (для расчёта прибыли)
   expenses_without_vat: number;
   profit_before_tax: number;
+
+  // НДС
   vat_rate: number;
   vat_amount: number;
   outgoing_vat: number;
   incoming_vat: number;
   vat_to_pay: number;
+
+  // Налог на прибыль / УСН
   income_tax_rate: number;
   income_tax_amount: number;
+
+  // Страховые взносы
   insurance_rate: number;
   insurance_amount: number;
+
+  // НДФЛ
   ndfl_amount: number;
   total_payroll_cost: number;
-  total_tax: number;
+
+  // Итоги
+  total_tax: number;               // Налог + Взносы (без НДС)
+  total_tax_with_vat: number;      // С НДС
   effective_tax_rate: number;
 }
 
@@ -59,31 +73,33 @@ export class TaxEngine {
       return t.company_id === company.id && txDate >= periodStart && txDate <= periodEnd;
     });
 
-    // Определяем долю периода в году
-    const startDate = new Date(periodStart);
-    const endDate = new Date(periodEnd);
-    const daysInPeriod = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    // Доля периода в году
+    const periodFraction = this.getPeriodFraction(periodStart, periodEnd);
 
-    // Определяем periodFraction по длительности периода
-    let periodFraction: number;
+    // Определяем параметры НДС
+    const vatIncluded = Boolean(company.vat_included);
+    const vatRate = vatIncluded
+      ? (company.vat_rate || parseFloat(this.settings['vat_osno'] || '0.22'))
+      : 0;
 
-    if (daysInPeriod <= 31) {
-      periodFraction = 1 / 12; // Месяц
-    } else if (daysInPeriod <= 92) {
-      periodFraction = 1 / 4; // Квартал
-    } else if (daysInPeriod <= 183) {
-      periodFraction = 1 / 2; // Полгода
-    } else {
-      periodFraction = 1; // Год
-    }
-       
-    const revenue = companyTx
+    // Выручка (как в операциях)
+    const revenueWithVAT = companyTx
       .filter(t => {
         const creditAccount = accounts.find(a => a.id === t.credit_account_id);
         return creditAccount?.type === 'I';
       })
       .reduce((sum, t) => sum + parseFloat(String(t.amount || 0)), 0);
 
+    // Выручка без НДС
+    let revenueWithoutVAT = revenueWithVAT;
+    let outgoingVAT = 0;
+
+    if (vatIncluded && vatRate > 0) {
+      revenueWithoutVAT = revenueWithVAT / (1 + vatRate);
+      outgoingVAT = revenueWithVAT - revenueWithoutVAT;
+    }
+
+    // Расходы
     const expenses = companyTx
       .filter(t => {
         const debitAccount = accounts.find(a => a.id === t.debit_account_id);
@@ -91,46 +107,47 @@ export class TaxEngine {
       })
       .reduce((sum, t) => sum + parseFloat(String(t.amount || 0)), 0);
 
-    const profit = revenue - expenses;
+    const profit = revenueWithoutVAT - expenses;
 
-    let vatRate = 0;
+    // Входящий НДС
+    const incomingVAT = companyTx
+      .filter(t => t.vat_direction === 'incoming')
+      .reduce((sum, t) => sum + parseFloat(String(t.vat_amount || 0)), 0);
+
+    const vatToPay = Math.max(0, outgoingVAT - incomingVAT);
+
+    // Налог на прибыль / УСН
     let incomeTaxRate = 0;
-    let vatAmount = 0;
     let incomeTaxAmount = 0;
 
     switch (company.tax_system) {
       case 'USN_6':
-        // Для определения ставки НДС используем годовую выручку
-        vatRate = this.getVatRateForUSN(revenue / periodFraction);
-        vatAmount = revenue * vatRate;
         incomeTaxRate = parseFloat(this.settings['usn_6'] || '0.06');
-        incomeTaxAmount = revenue * incomeTaxRate;
+        incomeTaxAmount = revenueWithoutVAT * incomeTaxRate;
         break;
 
       case 'USN_15':
-        vatRate = this.getVatRateForUSN(revenue / periodFraction);
-        vatAmount = revenue * vatRate;
         incomeTaxRate = parseFloat(this.settings['usn_15'] || '0.15');
-        const taxBase = Math.max(0, revenue - expenses);
+        const taxBase = Math.max(0, revenueWithoutVAT - expenses);
         incomeTaxAmount = taxBase * incomeTaxRate;
-        const minimumTax = revenue * parseFloat(this.settings['usn_min_tax'] || '0.01');
+        const minimumTax = revenueWithoutVAT * parseFloat(this.settings['usn_min_tax'] || '0.01');
         if (incomeTaxAmount < minimumTax) incomeTaxAmount = minimumTax;
         break;
 
       case 'OSNO':
-        vatRate = parseFloat(this.settings['vat_osno'] || '0.22');
-        vatAmount = revenue * vatRate;
         incomeTaxRate = parseFloat(this.settings['profit_tax'] || '0.25');
         incomeTaxAmount = Math.max(0, profit) * incomeTaxRate;
         break;
     }
 
     // Страховые взносы и НДФЛ — пропорционально периоду
-    const insurance = this.calculateInsuranceContributions(company, revenue / periodFraction);
+    const annualRevenue = revenueWithoutVAT / periodFraction;
+    const insurance = this.calculateInsuranceContributions(company, annualRevenue);
     const insuranceAmount = insurance.annual_contributions * periodFraction;
     const ndflAmount = (insurance.ndfl_annual || 0) * periodFraction;
     const totalPayrollCost = (insurance.total_payroll_cost || 0) * periodFraction;
 
+    // Уменьшение УСН на взносы
     let finalIncomeTax = incomeTaxAmount;
     if (company.tax_system === 'USN_6') {
       const isIndividual = Boolean(company.is_individual);
@@ -138,25 +155,22 @@ export class TaxEngine {
       finalIncomeTax = Math.max(incomeTaxAmount - Math.min(insuranceAmount, maxReduction), 0);
     }
 
-    const outgoingVat = revenue * vatRate;
-    const incomingVat = companyTx
-      .filter(t => t.vat_direction === 'incoming')
-      .reduce((sum, t) => sum + parseFloat(String(t.vat_amount || 0)), 0);
-    const vatToPay = Math.max(0, outgoingVat - incomingVat);
-
-    const totalTax = vatToPay + finalIncomeTax + insuranceAmount;
+    // Итоговые налоги (без НДС)
+    const totalTax = finalIncomeTax + insuranceAmount;
+    const totalTaxWithVAT = totalTax + vatToPay;
 
     return {
       company_id: company.id,
       company_name: company.name,
       tax_system: company.tax_system,
-      revenue_without_vat: revenue,
-      expenses_without_vat: expenses,
-      profit_before_tax: profit,
+      revenue_with_vat: Math.round(revenueWithVAT * 100) / 100,
+      revenue_without_vat: Math.round(revenueWithoutVAT * 100) / 100,
+      expenses_without_vat: Math.round(expenses * 100) / 100,
+      profit_before_tax: Math.round(profit * 100) / 100,
       vat_rate: vatRate,
-      vat_amount: Math.round(vatAmount * 100) / 100,
-      outgoing_vat: Math.round(outgoingVat * 100) / 100,
-      incoming_vat: Math.round(incomingVat * 100) / 100,
+      vat_amount: Math.round(outgoingVAT * 100) / 100,
+      outgoing_vat: Math.round(outgoingVAT * 100) / 100,
+      incoming_vat: Math.round(incomingVAT * 100) / 100,
       vat_to_pay: Math.round(vatToPay * 100) / 100,
       income_tax_rate: incomeTaxRate,
       income_tax_amount: Math.round(finalIncomeTax * 100) / 100,
@@ -165,7 +179,8 @@ export class TaxEngine {
       ndfl_amount: Math.round(ndflAmount * 100) / 100,
       total_payroll_cost: Math.round(totalPayrollCost * 100) / 100,
       total_tax: Math.round(totalTax * 100) / 100,
-      effective_tax_rate: revenue > 0 ? Math.round((totalTax / revenue) * 10000) / 100 : 0
+      total_tax_with_vat: Math.round(totalTaxWithVAT * 100) / 100,
+      effective_tax_rate: revenueWithoutVAT > 0 ? Math.round((totalTaxWithVAT / revenueWithoutVAT) * 10000) / 100 : 0
     };
   }
 
@@ -323,6 +338,11 @@ export class TaxEngine {
     percentage: number;
     vat_required: boolean;
     vat_rate: number;
+    limits: {
+      exempt: { threshold: number; used_percent: number; passed: boolean };
+      rate_5: { threshold: number; used_percent: number; passed: boolean };
+      max: { threshold: number; used_percent: number; passed: boolean };
+    };
   } {
     const currentYear = new Date().getFullYear().toString();
     const yearTx = transactions.filter(t => {
@@ -334,21 +354,52 @@ export class TaxEngine {
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + parseFloat(String(t.amount || 0)), 0);
 
+    const exemptLimit = parseFloat(this.settings['usn_vat_exempt_limit'] || '20000000');
+    const rate5Limit = parseFloat(this.settings['usn_vat_5_limit'] || '250000000');
+    const maxLimit = parseFloat(this.settings['usn_vat_7_limit'] || '490500000');
+
     return {
       current_revenue: revenue,
-      limit: 490500000,
-      percentage: Math.round((revenue / 490500000) * 10000) / 100,
-      vat_required: revenue > 20000000,
-      vat_rate: this.getVatRateForUSN(revenue)
+      limit: maxLimit,
+      percentage: Math.round((revenue / maxLimit) * 10000) / 100,
+      vat_required: revenue > exemptLimit,
+      vat_rate: this.getVatRateForUSN(revenue),
+      limits: {
+        exempt: {
+          threshold: exemptLimit,
+          used_percent: Math.round((revenue / exemptLimit) * 1000) / 10,
+          passed: revenue > exemptLimit
+        },
+        rate_5: {
+          threshold: rate5Limit,
+          used_percent: Math.round((revenue / rate5Limit) * 1000) / 10,
+          passed: revenue > rate5Limit
+        },
+        max: {
+          threshold: maxLimit,
+          used_percent: Math.round((revenue / maxLimit) * 1000) / 10,
+          passed: revenue > maxLimit
+        }
+      }
     };
   }
+  private getPeriodFraction(periodStart: string, periodEnd: string): number {
+    const startDate = new Date(periodStart);
+    const endDate = new Date(periodEnd);
+    const daysInPeriod = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
+    if (daysInPeriod <= 31) return 1 / 12;
+    if (daysInPeriod <= 92) return 1 / 4;
+    if (daysInPeriod <= 183) return 1 / 2;
+    return 1;
+  }
   private getDateStr(date: any): string {
     if (!date) return '';
     if (typeof date === 'string') return date.split('T')[0];
     if (date instanceof Date) return date.toISOString().split('T')[0];
     return String(date).split('T')[0];
   }
+
 }
 
 export const taxEngine = new TaxEngine();

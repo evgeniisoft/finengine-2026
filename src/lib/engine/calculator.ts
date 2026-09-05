@@ -196,20 +196,23 @@ export class FinancialCalculator {
       }
     }
 
-    // Налоги берём из taxEngine
+    // Налоги берём из taxEngine (без НДС)
     const taxCalc = taxEngine.calculateTax(company, transactions, accounts, periodStart, periodEnd);
-    const taxesAmount = taxCalc.total_tax;
+    const taxesAmount = taxCalc.total_tax; // Налог + Взносы (без НДС)
 
     taxes = taxesAmount;
 
-    const grossProfit = revenue - costOfGoodsSold;
+    // Выручка для расчёта прибыли — без НДС
+    const revenueForPnL = taxCalc.revenue_without_vat;
+
+    const grossProfit = revenueForPnL - costOfGoodsSold;
     const netProfit = grossProfit - operatingExpenses - depreciation - taxesAmount;
 
     return {
       period_start: periodStart,
       period_end: periodEnd,
       company_id: companyId,
-      revenue,
+      revenue: revenueForPnL,
       cost_of_goods_sold: costOfGoodsSold,
       gross_profit: grossProfit,
       operating_expenses: operatingExpenses,

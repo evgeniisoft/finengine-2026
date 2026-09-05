@@ -25,6 +25,11 @@ export interface Company {
   monthly_payroll: number;
   industry_type: 'general' | 'msp_priority' | 'it';
   is_individual: boolean;
+  // НОВЫЕ ПОЛЯ:
+  vat_included: boolean;    // Суммы включают НДС (true для ОСНО)
+  vat_rate: number;         // Ставка НДС (0 для УСН, 0.22 для ОСНО)
+  vat_exempt: boolean;      // Освобождена от НДС (true для УСН)
+
 }
 
 // Счёт / Статья
@@ -78,6 +83,7 @@ export interface Transaction {
   vat_rate: number;
   vat_amount: number;
   vat_direction: 'incoming' | 'outgoing' | 'none';
+  amount_without_vat: number;      // НОВОЕ: Сумма без НДС
 }
 
 // Проводка (для двойной записи)
