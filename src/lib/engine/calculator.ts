@@ -194,11 +194,8 @@ export class FinancialCalculator {
     const taxesAmount = taxCalc.income_tax_amount;
     taxes = taxesAmount;
 
-    // Страховые взносы добавляем к операционным расходам
-    operatingExpenses += taxCalc.insurance_amount;
-
     const grossProfit = revenue - costOfGoodsSold;
-    const netProfit = grossProfit - operatingExpenses - depreciation - taxesAmount;
+    const netProfit = grossProfit - operatingExpenses - taxCalc.insurance_amount - taxCalc.ndfl_amount - depreciation - taxesAmount;
 
     return {
       period_start: periodStart,
@@ -207,7 +204,9 @@ export class FinancialCalculator {
       revenue,
       cost_of_goods_sold: costOfGoodsSold,
       gross_profit: grossProfit,
-      operating_expenses: operatingExpenses + taxCalc.insurance_amount,
+      operating_expenses: operatingExpenses,
+      insurance_amount: taxCalc.insurance_amount,
+      ndfl_amount: taxCalc.ndfl_amount,
       depreciation,
       taxes,
       net_profit: netProfit

@@ -151,6 +151,8 @@ export interface PnLReport {
   cost_of_goods_sold: number;
   gross_profit: number;
   operating_expenses: number;
+  insurance_amount: number;
+  ndfl_amount: number;
   depreciation: number;
   taxes: number;
   net_profit: number;
