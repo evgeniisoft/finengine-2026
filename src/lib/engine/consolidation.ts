@@ -97,11 +97,12 @@ export class ConsolidationEngine {
       cost_of_goods_sold: 0,
       gross_profit: 0,
       operating_expenses: 0,
+      insurance_amount: 0,
+      ndfl_amount: 0,
       depreciation: 0,
       taxes: 0,
       net_profit: 0
     };
-
     for (const company of companies) {
       const report = calculator.calculatePnL(
         externalTransactions,
@@ -116,6 +117,8 @@ export class ConsolidationEngine {
       consolidated.cost_of_goods_sold += report.cost_of_goods_sold;
       consolidated.gross_profit += report.gross_profit;
       consolidated.operating_expenses += report.operating_expenses;
+      consolidated.insurance_amount += report.insurance_amount || 0;
+      consolidated.ndfl_amount += report.ndfl_amount || 0;
       consolidated.depreciation += report.depreciation;
       consolidated.taxes += report.taxes;
       consolidated.net_profit += report.net_profit;
