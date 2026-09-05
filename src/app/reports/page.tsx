@@ -881,6 +881,4 @@ function getCalendarPeriods(transactions: any[], periodType: string, count: numb
             periods.push({ label: formatMonth(monthStr), inflow, outflow, balance: inflow - outflow });
         }
     }
-
-    return periods;
-}
+    return periods;}
