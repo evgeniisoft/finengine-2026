@@ -168,6 +168,11 @@ export class FinancialCalculator {
     const revenue = taxCalc.revenue_without_vat;
 
     // Классифицируем расходы
+    // Определяем, включает ли компания НДС
+    const vatIncluded = Boolean(company?.vat_included);
+    const vatRate = company?.vat_rate || 0;
+
+    // Классифицируем расходы (с выделением НДС для ОСНО)
     for (const t of filtered) {
       const debitAccount = accounts.find(a => a.id === t.debit_account_id);
       const creditAccount = accounts.find(a => a.id === t.credit_account_id);
@@ -178,14 +183,20 @@ export class FinancialCalculator {
         const category = debitAccount.code;
         const isCOGS = Boolean(debitAccount.is_cost_of_goods);
 
+        // Выделяем НДС из расходов для ОСНО
+        let expenseAmount = t.amount_rub || 0;
+        if (vatIncluded && vatRate > 0) {
+          expenseAmount = expenseAmount / (1 + vatRate);
+        }
+
         if (isCOGS || category === 'COGS') {
-          costOfGoodsSold += t.amount_rub;
+          costOfGoodsSold += expenseAmount;
         } else if (category === 'DEPRECIATION') {
-          depreciation += t.amount_rub;
+          depreciation += expenseAmount;
         } else if (category === 'TAXES') {
-          taxes += t.amount_rub;
+          taxes += expenseAmount;
         } else {
-          operatingExpenses += t.amount_rub;
+          operatingExpenses += expenseAmount;
         }
       }
     }
