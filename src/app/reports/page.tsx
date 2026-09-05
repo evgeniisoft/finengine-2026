@@ -121,47 +121,90 @@ export default function ReportsPage() {
             setDrilldownLoading(true);
             setActiveDrilldown(rowId);
 
-            // Определяем фильтры
+            // РАСЧЁТНЫЕ ПОКАЗАТЕЛИ — НЕТ DRILL-DOWN
+            if (rowId === 'gross' || rowId === 'net' || rowId === 'profit' ||
+                rowId === 'total_income' || rowId === 'total_expense' ||
+                rowId === 'start' || rowId === 'end' ||
+                rowId === 'total_assets' || rowId === 'total_liab' || rowId === 'equity' ||
+                rowId === 'op_header' || rowId === 'inv_header' || rowId === 'fin_header' ||
+                rowId === 'op_out_total' || rowId === 'assets_header' || rowId === 'liab_header' ||
+                rowId === 'equity_header') {
+                setDrilldownData([]);
+                setDrilldownLoading(false);
+                return;
+            }
+
             let accountId = '';
             let typeParam = 'all';
             const companyParam = companyId ? `&company_id=${companyId}` : '';
 
-            if (rowId.startsWith('acc-')) {
-                // Если rowId — это ID счёта
-                accountId = rowId;
-                typeParam = rowType || 'all';
-            } else {
-                // Для строк PnL (revenue, cogs, opex, insurance, ndfl, taxes)
-                switch (rowId) {
-                    case 'revenue':
-                        typeParam = 'income';
-                        break;
-                    case 'cogs':
-                        accountId = 'acc-cogs-goods';
-                        typeParam = 'expense';
-                        break;
-                    case 'opex':
-                        typeParam = 'expense';
-                        break;
-                    case 'insurance':
-                        accountId = 'acc-tax-insurance';
-                        typeParam = 'expense';
-                        break;
-                    case 'ndfl':
-                        accountId = 'acc-tax-ndfl';
-                        typeParam = 'expense';
-                        break;
-                    case 'taxes':
-                        accountId = 'acc-tax-usn';
-                        typeParam = 'expense';
-                        break;
-                    case 'depreciation':
-                        accountId = 'acc-depreciation-os';
-                        typeParam = 'expense';
-                        break;
-                    default:
+            // Определяем фильтры по статье
+            switch (rowId) {
+                // PnL
+                case 'revenue':
+                    typeParam = 'income';
+                    break;
+                case 'cogs':
+                    typeParam = 'cogs';
+                    break;
+                case 'opex':
+                    typeParam = 'opex';
+                    break;
+                case 'insurance':
+                    accountId = 'acc-tax-insurance';
+                    typeParam = 'expense';
+                    break;
+                case 'ndfl':
+                    accountId = 'acc-tax-ndfl';
+                    typeParam = 'expense';
+                    break;
+                case 'depreciation':
+                    accountId = 'acc-depreciation-os';
+                    typeParam = 'expense';
+                    break;
+                case 'taxes':
+                    accountId = 'acc-tax-usn';
+                    typeParam = 'expense';
+                    break;
+
+                // ДДС — операционная деятельность
+                case 'op_in':
+                    typeParam = 'cash_in_operating';
+                    break;
+                case 'op_out':
+                    typeParam = 'cash_out_operating';
+                    break;
+
+                // ДДС — инвестиционная деятельность
+                case 'inv_in':
+                    typeParam = 'cash_in_investing';
+                    break;
+                case 'inv_out':
+                    typeParam = 'cash_out_investing';
+                    break;
+
+                // ДДС — финансовая деятельность
+                case 'fin_in':
+                    typeParam = 'cash_in_financing';
+                    break;
+                case 'fin_out':
+                    typeParam = 'cash_out_financing';
+                    break;
+
+                // ДДС — остатки (расчётные — не кликабельны)
+                case 'start':
+                case 'end':
+                    setDrilldownData([]);
+                    setDrilldownLoading(false);
+                    return;
+
+                default:
+                    if (rowId.startsWith('acc-')) {
+                        accountId = rowId;
                         typeParam = rowType || 'all';
-                }
+                    } else {
+                        typeParam = rowType || 'all';
+                    }
             }
 
             const drilldownUrl = `/api/reports/drilldown?account_id=${accountId}&type=${typeParam}&period_start=${period.start}&period_end=${period.end}${companyParam}`;
