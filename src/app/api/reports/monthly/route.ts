@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { monthlyEngine } from '@/lib/engine/monthly';
+import { taxEngine } from '@/lib/engine/tax';
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
@@ -13,32 +14,37 @@ async function gasGet(sheet: string): Promise<any[]> {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const companyId = url.searchParams.get('company_id');
+    const companyId = url.searchParams.get('company_id') || '';
     const periodStart = url.searchParams.get('period_start') || '2026-01-01';
     const periodEnd = url.searchParams.get('period_end') || '2026-12-31';
     const periodType = url.searchParams.get('period_type') || 'monthly';
     const reportType = url.searchParams.get('report_type') || 'pnl';
     
-    const [transactions, accounts] = await Promise.all([
+    const [transactions, accounts, companies, settings] = await Promise.all([
       gasGet('Transactions'),
-      gasGet('Accounts')
+      gasGet('Accounts'),
+      gasGet('Companies'),
+      gasGet('Settings')
     ]);
+    
+    // Загружаем настройки в taxEngine
+    await taxEngine.loadSettings(settings);
     
     let data;
     
     if (companyId) {
+      const company = companies.find((c: any) => c.id === companyId);
       data = monthlyEngine.getPeriodBreakdown(
         transactions,
         accounts,
         companyId,
         periodStart,
         periodEnd,
-        periodType as any
+        periodType as any,
+        company
       );
     } else {
       // Агрегируем по всем компаниям
-      const companies = await gasGet('Companies');
-      
       const allData = companies.flatMap((company: any) =>
         monthlyEngine.getPeriodBreakdown(
           transactions,
@@ -46,7 +52,8 @@ export async function GET(request: NextRequest) {
           company.id,
           periodStart,
           periodEnd,
-          periodType as any
+          periodType as any,
+          company
         )
       );
       
@@ -65,6 +72,11 @@ export async function GET(request: NextRequest) {
           existing.cash_out += item.cash_out;
           existing.net_cash_flow += item.net_cash_flow;
           existing.ending_balance += item.ending_balance;
+          
+          // Объединяем details
+          for (const [accId, amount] of Object.entries(item.details)) {
+            existing.details[accId] = (existing.details[accId] || 0) + (amount as number);
+          }
         }
       }
       

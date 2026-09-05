@@ -1,4 +1,5 @@
-import { Transaction, Account } from './types';
+import { Transaction, Account, Company } from './types';
+import { taxEngine } from './tax';
 
 export type PeriodType = 'monthly' | 'weekly' | 'daily';
 
@@ -11,7 +12,6 @@ export interface PeriodReport {
   cash_out: number;
   net_cash_flow: number;
   ending_balance: number;
-  // Детализация по статьям
   details: {
     [accountId: string]: number;
   };
@@ -21,6 +21,7 @@ export class MonthlyEngine {
   
   /**
    * Разбивка по периодам (месяцы, недели, дни)
+   * С полным расчётом налогов
    */
   getPeriodBreakdown(
     transactions: Transaction[],
@@ -28,7 +29,8 @@ export class MonthlyEngine {
     companyId: string,
     periodStart: string,
     periodEnd: string,
-    periodType: PeriodType = 'monthly'
+    periodType: PeriodType = 'monthly',
+    company?: Company
   ): PeriodReport[] {
     
     const filtered = transactions.filter(t =>
@@ -54,11 +56,28 @@ export class MonthlyEngine {
     
     for (const period of sortedPeriods) {
       const periodTransactions = periodsMap.get(period)!;
+      
+      // Определяем начало и конец периода
+      const periodStartDate = this.getPeriodStartDate(period, periodType);
+      const periodEndDate = this.getPeriodEndDate(period, periodType);
+      
       let revenue = 0;
       let expenses = 0;
       let cashIn = 0;
       let cashOut = 0;
       const details: { [accountId: string]: number } = {};
+      
+      // Расчёт налогов для этого периода
+      let taxCalc: any = null;
+      if (company) {
+        taxCalc = taxEngine.calculateTax(
+          company,
+          transactions,
+          accounts,
+          periodStartDate,
+          periodEndDate
+        );
+      }
       
       for (const t of periodTransactions) {
         const debitAccount = accounts.find(a => a.id === t.debit_account_id);
@@ -66,38 +85,55 @@ export class MonthlyEngine {
         
         if (!debitAccount || !creditAccount) continue;
         
-        // ОПиУ: Доходы
+        // Выручка без НДС (из taxEngine)
         if (creditAccount.type === 'I') {
           revenue += t.amount_rub;
           details[creditAccount.id] = (details[creditAccount.id] || 0) + t.amount_rub;
         }
         
-        // ОПиУ: Расходы
+        // Расходы без НДС (из taxEngine)
         if (debitAccount.type === 'X') {
-          expenses += t.amount_rub;
-          details[debitAccount.id] = (details[debitAccount.id] || 0) + t.amount_rub;
+          let expenseAmount = t.amount_rub;
+          
+          // Выделяем НДС для ОСНО
+          if (company?.vat_included && company?.vat_rate > 0) {
+            expenseAmount = expenseAmount / (1 + company.vat_rate);
+          }
+          
+          expenses += expenseAmount;
+          details[debitAccount.id] = (details[debitAccount.id] || 0) + expenseAmount;
         }
         
         // ДДС: Поступления
         if (debitAccount.is_cash_flow && creditAccount.type !== 'X') {
           cashIn += t.amount_rub;
-          details[debitAccount.id] = (details[debitAccount.id] || 0) + t.amount_rub;
         }
         
         // ДДС: Выбытия
         if (creditAccount.is_cash_flow && debitAccount.type !== 'I') {
           cashOut += t.amount_rub;
-          details[creditAccount.id] = (details[creditAccount.id] || 0) + t.amount_rub;
         }
       }
       
+      // Если есть taxCalc — используем его данные для выручки и расходов
+      if (taxCalc) {
+        revenue = taxCalc.revenue_without_vat;
+        expenses = taxCalc.expenses_without_vat;
+      }
+      
       runningBalance += cashIn - cashOut;
+      
+      // Прибыль с учётом налогов
+      let profit = revenue - expenses;
+      if (taxCalc) {
+        profit = taxCalc.profit_before_tax - taxCalc.income_tax_amount - taxCalc.insurance_amount - taxCalc.ndfl_amount;
+      }
       
       reports.push({
         period,
         revenue,
         expenses,
-        profit: revenue - expenses,
+        profit,
         cash_in: cashIn,
         cash_out: cashOut,
         net_cash_flow: cashIn - cashOut,
@@ -110,6 +146,47 @@ export class MonthlyEngine {
   }
   
   /**
+   * Получение даты начала периода
+   */
+  private getPeriodStartDate(period: string, periodType: PeriodType): string {
+    switch (periodType) {
+      case 'monthly':
+        return `${period}-01`;
+      case 'weekly': {
+        const [year, week] = period.split('-W');
+        const d = new Date(parseInt(year), 0, 1 + (parseInt(week) - 1) * 7);
+        return d.toISOString().split('T')[0];
+      }
+      case 'daily':
+        return period;
+      default:
+        return `${period}-01`;
+    }
+  }
+  
+  /**
+   * Получение даты конца периода
+   */
+  private getPeriodEndDate(period: string, periodType: PeriodType): string {
+    switch (periodType) {
+      case 'monthly': {
+        const [year, month] = period.split('-').map(Number);
+        const lastDay = new Date(year, month, 0).getDate();
+        return `${period}-${String(lastDay).padStart(2, '0')}`;
+      }
+      case 'weekly': {
+        const [year, week] = period.split('-W');
+        const d = new Date(parseInt(year), 0, 1 + (parseInt(week) - 1) * 7 + 6);
+        return d.toISOString().split('T')[0];
+      }
+      case 'daily':
+        return period;
+      default:
+        return period;
+    }
+  }
+  
+  /**
    * Получение ключа периода
    */
   private getPeriodKey(date: string, periodType: PeriodType): string {
@@ -118,11 +195,11 @@ export class MonthlyEngine {
     switch (periodType) {
       case 'monthly':
         return `${year}-${month}`;
-      case 'weekly':
-        // ISO неделя
+      case 'weekly': {
         const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
         const weekNumber = this.getWeekNumber(d);
         return `${year}-W${String(weekNumber).padStart(2, '0')}`;
+      }
       case 'daily':
         return date;
       default:
@@ -142,7 +219,7 @@ export class MonthlyEngine {
   }
   
   /**
-   * Прогноз кассовых разрывов (платёжный календарь)
+   * Прогноз кассовых разрывов
    */
   forecastCashFlow(
     companyId: string,
