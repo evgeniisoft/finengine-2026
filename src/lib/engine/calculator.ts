@@ -189,9 +189,12 @@ export class FinancialCalculator {
       }
     }
 
-    // Налоги из taxEngine (без НДС)
-    const taxesAmount = taxCalc.total_tax;
+    // Налоги из taxEngine (только налог на прибыль/УСН, без взносов)
+    const taxesAmount = taxCalc.income_tax_amount;
     taxes = taxesAmount;
+
+    // Страховые взносы добавляем к операционным расходам
+    operatingExpenses += taxCalc.insurance_amount;
 
     const grossProfit = revenue - costOfGoodsSold;
     const netProfit = grossProfit - operatingExpenses - depreciation - taxesAmount;
@@ -203,7 +206,7 @@ export class FinancialCalculator {
       revenue,
       cost_of_goods_sold: costOfGoodsSold,
       gross_profit: grossProfit,
-      operating_expenses: operatingExpenses,
+      operating_expenses: operatingExpenses + taxCalc.insurance_amount,
       depreciation,
       taxes,
       net_profit: netProfit
