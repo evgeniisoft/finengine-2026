@@ -646,40 +646,108 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
         switch (type) {
             case 'pnl': {
                 const rows: any[] = [];
-                incomeAccounts.forEach((a: any) => rows.push({ id: a.id, label: a.name, getValue: (d: any) => d.details?.[a.id] || d.revenue || 0, color: 'text-gray-900', bold: false, rowType: 'income' }));
-                rows.push({ id: 'total_income', label: 'Итого доходы', getValue: (d: any) => d.revenue || 0, color: 'text-gray-900', bold: true, rowType: 'income' });
-                expenseAccounts.forEach((a: any) => rows.push({ id: a.id, label: a.name, getValue: (d: any) => d.details?.[a.id] || d.expenses || 0, color: 'text-red-600', bold: false, rowType: 'expense' }));
-                rows.push({ id: 'total_expense', label: 'Итого расходы', getValue: (d: any) => d.expenses || 0, color: 'text-red-600', bold: true, rowType: 'expense' });
+                incomeAccounts.forEach((a: any) => rows.push({ id: a.id, label: a.name, getValue: (d: any) => d.details?.[a.id] || 0, color: 'text-gray-900', bold: false, rowType: 'income' }));
+                rows.push({ id: 'total_income', label: 'Итого доходы', getValue: (d: any) => d.revenue || 0, color: 'text-gray-900', bold: true, rowType: 'all' });
+                expenseAccounts.forEach((a: any) => rows.push({ id: a.id, label: a.name, getValue: (d: any) => d.details?.[a.id] || 0, color: 'text-red-600', bold: false, rowType: 'expense' }));
+                rows.push({ id: 'total_expense', label: 'Итого расходы', getValue: (d: any) => d.expenses || 0, color: 'text-red-600', bold: true, rowType: 'all' });
                 rows.push({ id: 'profit', label: 'Прибыль', getValue: (d: any) => d.profit || 0, color: 'text-green-600', bold: true, rowType: 'all' });
                 return rows;
             }
             case 'cashflow': {
                 const rows: any[] = [];
                 rows.push({ id: 'start', label: 'Остаток на начало', getValue: (d: any) => d.starting_balance || 0, color: 'text-gray-900', bold: false, rowType: 'all' });
+
                 rows.push({ id: 'op_header', label: 'Операционная деятельность', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
-                rows.push({ id: 'op_in', label: '  Поступления', getValue: (d: any) => d.cash_in || 0, color: 'text-green-600', bold: false, rowType: 'income' });
-                expenseAccounts.forEach((a: any) => rows.push({ id: `out_${a.id}`, label: `  ${a.name}`, getValue: (d: any) => d.details?.[a.id] || 0, color: 'text-red-600', bold: false, rowType: 'expense' }));
-                rows.push({ id: 'op_out_total', label: '  Итого выбытия', getValue: (d: any) => d.cash_out || 0, color: 'text-red-600', bold: true, rowType: 'expense' });
+
+                // Поступления по денежным счетам (все притоки)
+                cashAccounts.forEach((a: any) => rows.push({
+                    id: `in_${a.id}`,
+                    label: `  Поступление: ${a.name}`,
+                    getValue: (d: any) => d.details?.[a.id] || 0,
+                    color: 'text-green-600',
+                    bold: false,
+                    rowType: 'income'
+                }));
+
+                // Выбытия по расходным счетам
+                expenseAccounts.forEach((a: any) => rows.push({
+                    id: `out_${a.id}`,
+                    label: `  ${a.name}`,
+                    getValue: (d: any) => d.details?.[a.id] || 0,
+                    color: 'text-red-600',
+                    bold: false,
+                    rowType: 'expense'
+                }));
+
+                rows.push({ id: 'op_out_total', label: '  Итого выбытия', getValue: (d: any) => d.cash_out || 0, color: 'text-red-600', bold: true, rowType: 'all' });
+
                 rows.push({ id: 'inv_header', label: 'Инвестиционная деятельность', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
                 rows.push({ id: 'inv_in', label: '  Поступления', getValue: (d: any) => d.investing_inflow || 0, color: 'text-green-600', bold: false, rowType: 'income' });
                 rows.push({ id: 'inv_out', label: '  Выбытия', getValue: (d: any) => d.investing_outflow || 0, color: 'text-red-600', bold: false, rowType: 'expense' });
+
                 rows.push({ id: 'fin_header', label: 'Финансовая деятельность', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
                 rows.push({ id: 'fin_in', label: '  Поступления', getValue: (d: any) => d.financing_inflow || 0, color: 'text-green-600', bold: false, rowType: 'income' });
                 rows.push({ id: 'fin_out', label: '  Выбытия', getValue: (d: any) => d.financing_outflow || 0, color: 'text-red-600', bold: false, rowType: 'expense' });
+
                 rows.push({ id: 'end', label: 'Остаток на конец', getValue: (d: any) => d.ending_balance || 0, color: 'text-gray-900', bold: true, rowType: 'all' });
                 return rows;
             }
             case 'balance': {
                 const rows: any[] = [];
+                const assetAccounts = accounts.filter((a: any) => a.type === 'A' && !a.is_cash_flow);
+                const liabilityAccounts = accounts.filter((a: any) => a.type === 'L');
+                const equityAccounts = accounts.filter((a: any) => a.type === 'E');
+
                 rows.push({ id: 'assets_header', label: 'АКТИВЫ', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
-                cashAccounts.forEach((a: any) => rows.push({ id: a.id, label: `  ${a.name}`, getValue: (d: any) => d.details?.[a.id] || 0, color: 'text-gray-900', bold: false, rowType: 'all' }));
-                rows.push({ id: 'ar', label: 'Дебиторская задолженность', getValue: (d: any) => d.accounts_receivable || 0, color: 'text-gray-900', bold: false, rowType: 'all' });
+
+                // Денежные счета
+                cashAccounts.forEach((a: any) => rows.push({
+                    id: a.id,
+                    label: `  ${a.name}`,
+                    getValue: (d: any) => d.details?.[a.id] || 0,
+                    color: 'text-gray-900',
+                    bold: false,
+                    rowType: 'all'
+                }));
+
+                // Прочие активы (дебиторка, запасы, ОС)
+                assetAccounts.forEach((a: any) => rows.push({
+                    id: a.id,
+                    label: `  ${a.name}`,
+                    getValue: (d: any) => d.details?.[a.id] || 0,
+                    color: 'text-gray-900',
+                    bold: false,
+                    rowType: 'all'
+                }));
+
                 rows.push({ id: 'total_assets', label: 'Итого активы', getValue: (d: any) => d.total_assets || 0, color: 'text-gray-900', bold: true, rowType: 'all' });
+
                 rows.push({ id: 'liab_header', label: 'ПАССИВЫ', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
-                rows.push({ id: 'ap', label: 'Кредиторская задолженность', getValue: (d: any) => d.accounts_payable || 0, color: 'text-red-600', bold: false, rowType: 'all' });
-                rows.push({ id: 'loans', label: 'Кредиты', getValue: (d: any) => d.loans || 0, color: 'text-red-600', bold: false, rowType: 'all' });
+
+                // Обязательства
+                liabilityAccounts.forEach((a: any) => rows.push({
+                    id: a.id,
+                    label: `  ${a.name}`,
+                    getValue: (d: any) => d.details?.[a.id] || 0,
+                    color: 'text-red-600',
+                    bold: false,
+                    rowType: 'all'
+                }));
+
                 rows.push({ id: 'total_liab', label: 'Итого пассивы', getValue: (d: any) => d.total_liabilities || 0, color: 'text-red-600', bold: true, rowType: 'all' });
+
                 rows.push({ id: 'equity_header', label: 'КАПИТАЛ', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
+
+                // Капитал
+                equityAccounts.forEach((a: any) => rows.push({
+                    id: a.id,
+                    label: `  ${a.name}`,
+                    getValue: (d: any) => d.details?.[a.id] || 0,
+                    color: 'text-green-600',
+                    bold: false,
+                    rowType: 'all'
+                }));
+
                 rows.push({ id: 'equity', label: 'Нераспределённая прибыль', getValue: (d: any) => d.equity || 0, color: 'text-green-600', bold: true, rowType: 'all' });
                 return rows;
             }
@@ -881,4 +949,5 @@ function getCalendarPeriods(transactions: any[], periodType: string, count: numb
             periods.push({ label: formatMonth(monthStr), inflow, outflow, balance: inflow - outflow });
         }
     }
-    return periods;}
+    return periods;
+}
