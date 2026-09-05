@@ -99,22 +99,33 @@ export class TaxEngine {
       outgoingVAT = revenueWithVAT - revenueWithoutVAT;
     }
 
-    // Расходы
-    const expenses = companyTx
+    // Расходы (с НДС, если применимо)
+    const expensesWithVAT = companyTx
       .filter(t => {
         const debitAccount = accounts.find(a => a.id === t.debit_account_id);
         return debitAccount?.type === 'X';
       })
       .reduce((sum, t) => sum + parseFloat(String(t.amount || 0)), 0);
 
-    const profit = revenueWithoutVAT - expenses;
+    // Расходы без НДС
+    let expensesWithoutVAT = expensesWithVAT;
+    let incomingVATFromExpenses = 0;
 
-    // Входящий НДС
-    const incomingVAT = companyTx
+    if (vatIncluded && vatRate > 0) {
+      expensesWithoutVAT = expensesWithVAT / (1 + vatRate);
+      incomingVATFromExpenses = expensesWithVAT - expensesWithoutVAT;
+    }
+
+    const profit = revenueWithoutVAT - expensesWithoutVAT;
+
+    // Входящий НДС (из явных полей и из расходов)
+    const explicitIncomingVAT = companyTx
       .filter(t => t.vat_direction === 'incoming')
       .reduce((sum, t) => sum + parseFloat(String(t.vat_amount || 0)), 0);
 
-    const vatToPay = Math.max(0, outgoingVAT - incomingVAT);
+    const totalIncomingVAT = Math.max(incomingVATFromExpenses, explicitIncomingVAT);
+
+    const vatToPay = Math.max(0, outgoingVAT - totalIncomingVAT);
 
     // Налог на прибыль / УСН
     let incomeTaxRate = 0;
@@ -128,7 +139,7 @@ export class TaxEngine {
 
       case 'USN_15':
         incomeTaxRate = parseFloat(this.settings['usn_15'] || '0.15');
-        const taxBase = Math.max(0, revenueWithoutVAT - expenses);
+        const taxBase = Math.max(0, revenueWithoutVAT - expensesWithoutVAT);
         incomeTaxAmount = taxBase * incomeTaxRate;
         const minimumTax = revenueWithoutVAT * parseFloat(this.settings['usn_min_tax'] || '0.01');
         if (incomeTaxAmount < minimumTax) incomeTaxAmount = minimumTax;
@@ -165,12 +176,12 @@ export class TaxEngine {
       tax_system: company.tax_system,
       revenue_with_vat: Math.round(revenueWithVAT * 100) / 100,
       revenue_without_vat: Math.round(revenueWithoutVAT * 100) / 100,
-      expenses_without_vat: Math.round(expenses * 100) / 100,
+      expenses_without_vat: Math.round(expensesWithoutVAT * 100) / 100,
       profit_before_tax: Math.round(profit * 100) / 100,
       vat_rate: vatRate,
       vat_amount: Math.round(outgoingVAT * 100) / 100,
       outgoing_vat: Math.round(outgoingVAT * 100) / 100,
-      incoming_vat: Math.round(incomingVAT * 100) / 100,
+      incoming_vat: Math.round(totalIncomingVAT * 100) / 100,
       vat_to_pay: Math.round(vatToPay * 100) / 100,
       income_tax_rate: incomeTaxRate,
       income_tax_amount: Math.round(finalIncomeTax * 100) / 100,
