@@ -96,7 +96,7 @@ export default function Dashboard() {
   const balanceArray = Array.isArray(balanceData) ? balanceData : [];
 
   const totalRevenue = reportsArray.reduce((s, r) => s + (r.report?.revenue || 0), 0);
-  const totalExpenses = reportsArray.reduce((s, r) => s + (r.report?.operating_expenses || 0), 0);
+    const totalExpenses = reportsArray.reduce((s, r) => s + (r.report?.cost_of_goods_sold || 0) + (r.report?.operating_expenses || 0), 0);
   const totalNetProfit = reportsArray.reduce((s, r) => s + (r.report?.net_profit || 0), 0);
   const totalCash = balanceArray.reduce((s, r) => s + (r.report?.assets?.cash || 0), 0);
   const margin = totalRevenue > 0 ? (totalNetProfit / totalRevenue) * 100 : 0;
