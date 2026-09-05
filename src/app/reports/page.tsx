@@ -121,12 +121,51 @@ export default function ReportsPage() {
             setDrilldownLoading(true);
             setActiveDrilldown(rowId);
 
-            const accountId = rowType && rowType !== 'income' && rowType !== 'expense' && rowType !== 'all' ? rowId : '';
-            const typeParam = rowType || 'all';
+            // Определяем фильтры
+            let accountId = '';
+            let typeParam = 'all';
             const companyParam = companyId ? `&company_id=${companyId}` : '';
 
-            const url = `/api/reports/drilldown?account_id=${accountId}&type=${typeParam}&period_start=${period.start}&period_end=${period.end}${companyParam}`;
-            const response = await fetch(url);
+            if (rowId.startsWith('acc-')) {
+                // Если rowId — это ID счёта
+                accountId = rowId;
+                typeParam = rowType || 'all';
+            } else {
+                // Для строк PnL (revenue, cogs, opex, insurance, ndfl, taxes)
+                switch (rowId) {
+                    case 'revenue':
+                        typeParam = 'income';
+                        break;
+                    case 'cogs':
+                        accountId = 'acc-cogs-goods';
+                        typeParam = 'expense';
+                        break;
+                    case 'opex':
+                        typeParam = 'expense';
+                        break;
+                    case 'insurance':
+                        accountId = 'acc-tax-insurance';
+                        typeParam = 'expense';
+                        break;
+                    case 'ndfl':
+                        accountId = 'acc-tax-ndfl';
+                        typeParam = 'expense';
+                        break;
+                    case 'taxes':
+                        accountId = 'acc-tax-usn';
+                        typeParam = 'expense';
+                        break;
+                    case 'depreciation':
+                        accountId = 'acc-depreciation-os';
+                        typeParam = 'expense';
+                        break;
+                    default:
+                        typeParam = rowType || 'all';
+                }
+            }
+
+            const drilldownUrl = `/api/reports/drilldown?account_id=${accountId}&type=${typeParam}&period_start=${period.start}&period_end=${period.end}${companyParam}`;
+            const response = await fetch(drilldownUrl);
             const data = await response.json();
 
             setDrilldownData(Array.isArray(data) ? data : []);
@@ -375,8 +414,10 @@ function PnlView({ data, expandedRow, setExpandedRow, onDrilldown, drilldownData
         { id: 'cogs', label: 'Себестоимость', value: data.cost_of_goods_sold, type: 'expense' },
         { id: 'gross', label: 'Валовая прибыль', value: data.gross_profit, type: 'total', bold: true },
         { id: 'opex', label: 'Операционные расходы', value: data.operating_expenses, type: 'expense' },
+        { id: 'insurance', label: 'Страховые взносы', value: data.insurance_amount || 0, type: 'expense' },
+        { id: 'ndfl', label: 'НДФЛ', value: data.ndfl_amount || 0, type: 'expense' },
         { id: 'depreciation', label: 'Амортизация', value: data.depreciation, type: 'expense' },
-        { id: 'taxes', label: 'Налоги', value: data.taxes, type: 'expense' },
+        { id: 'taxes', label: 'Налог на прибыль (УСН)', value: data.taxes, type: 'expense' },
         { id: 'net', label: 'Чистая прибыль', value: data.net_profit, type: 'total', bold: true, green: true },
     ];
 
@@ -512,7 +553,7 @@ function BalanceView({ data, onDrilldown }: any) {
 // ============================================
 function DrilldownPanel({ data, loading, active }: any) {
     if (!active) return null;
-    
+
     return (
         <div className="ml-6 mt-2 p-3 bg-gray-50 rounded-lg">
             {loading ? (
@@ -764,10 +805,10 @@ function CashGapsView({ transactions, companies, companyId }: any) {
 function getCalendarPeriods(transactions: any[], periodType: string, count: number): any[] {
     const today = new Date();
     const periods: any[] = [];
-    
+
     for (let i = 0; i < count; i++) {
         const date = new Date(today);
-        
+
         if (periodType === 'daily') {
             date.setDate(date.getDate() + i);
             const dateStr = date.toISOString().split('T')[0];
@@ -797,6 +838,6 @@ function getCalendarPeriods(transactions: any[], periodType: string, count: numb
             periods.push({ label: formatMonth(monthStr), inflow, outflow, balance: inflow - outflow });
         }
     }
-    
+
     return periods;
 }
