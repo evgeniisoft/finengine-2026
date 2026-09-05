@@ -323,18 +323,48 @@ export async function POST(request: NextRequest) {
           destination_account_id: 'acc-bank-001'
         });
 
+        // Себестоимость
+        const cogsDate = `2026-${month}-18`;
+        transactions.push({
+          date: cogsDate,
+          company_id: companyData.id,
+          description: `Себестоимость ${month}.2026`,
+          amount: companyData.expenses * 0.4,
+          currency: 'RUB',
+          type: 'expense',
+          debit_account_id: 'acc-cogs-goods',
+          credit_account_id: 'acc-bank-001',
+          amount_rub: companyData.expenses * 0.4,
+          counterparty_id: '',
+          contract_id: '',
+          transaction_group_id: '',
+          is_system: false,
+          external_id: '',
+          source: 'manual',
+          deleted_at: '',
+          is_deleted: '',
+          created_at: now,
+          updated_at: now,
+          tenant_id: 'tenant-1',
+          record_type: 'fact',
+          accrual_date: cogsDate,
+          import_hash: `hash-${companyData.id}-${cogsDate}-cogs`,
+          source_account_id: 'acc-bank-001',
+          destination_account_id: ''
+        });
+
         // Зарплата
         const salaryDate = `2026-${month}-15`;
         transactions.push({
           date: salaryDate,
           company_id: companyData.id,
           description: `Зарплата ${month}.2026`,
-          amount: companyData.expenses * 0.5,
+          amount: companyData.expenses * 0.3,
           currency: 'RUB',
           type: 'expense',
           debit_account_id: 'acc-out-salary',
           credit_account_id: 'acc-bank-001',
-          amount_rub: companyData.expenses * 0.5,
+          amount_rub: companyData.expenses * 0.3,
           counterparty_id: '',
           contract_id: '',
           transaction_group_id: '',
@@ -359,12 +389,12 @@ export async function POST(request: NextRequest) {
           date: rentDate,
           company_id: companyData.id,
           description: `Аренда ${month}.2026`,
-          amount: companyData.expenses * 0.3,
+          amount: companyData.expenses * 0.2,
           currency: 'RUB',
           type: 'expense',
           debit_account_id: 'acc-out-rent',
           credit_account_id: 'acc-bank-001',
-          amount_rub: companyData.expenses * 0.3,
+          amount_rub: companyData.expenses * 0.2,
           counterparty_id: '',
           contract_id: '',
           transaction_group_id: '',
@@ -389,12 +419,12 @@ export async function POST(request: NextRequest) {
           date: marketingDate,
           company_id: companyData.id,
           description: `Маркетинг ${month}.2026`,
-          amount: companyData.expenses * 0.2,
+          amount: companyData.expenses * 0.1,
           currency: 'RUB',
           type: 'expense',
           debit_account_id: 'acc-out-marketing',
           credit_account_id: 'acc-bank-001',
-          amount_rub: companyData.expenses * 0.2,
+          amount_rub: companyData.expenses * 0.1,
           counterparty_id: '',
           contract_id: '',
           transaction_group_id: '',
@@ -413,6 +443,7 @@ export async function POST(request: NextRequest) {
           destination_account_id: ''
         });
       }
+
       // Операции для ОСНО (comp-test-4)
       const osnoDate = `2026-${month}-12`;
       transactions.push({
@@ -427,7 +458,7 @@ export async function POST(request: NextRequest) {
         type: 'income',
         debit_account_id: 'acc-bank-001',
         credit_account_id: 'acc-in-revenue',
-        amount_rub: 1000000,
+        amount_rub: 1220000,
         counterparty_id: 'cp-001',
         contract_id: '',
         transaction_group_id: '',
@@ -459,7 +490,7 @@ export async function POST(request: NextRequest) {
         type: 'expense',
         debit_account_id: 'acc-out-other',
         credit_account_id: 'acc-bank-001',
-        amount_rub: 600000,
+        amount_rub: 732000,
         counterparty_id: '',
         contract_id: '',
         transaction_group_id: '',
