@@ -416,13 +416,13 @@ export default function ReportsPage() {
                                     <div key={report.company.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                                         <h3 className="text-lg font-semibold text-gray-900 mb-4">{report.company.name}</h3>
                                         {activeTab === 'pnl' && report.report && (
-                                            <PnlView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} onDrilldown={loadDrilldown} drilldownData={drilldownData} drilldownLoading={drilldownLoading} activeDrilldown={activeDrilldown} />
+                                            <PnlView data={{ ...report.report, company_id: report.company.id }} expandedRow={expandedRow} setExpandedRow={setExpandedRow} onDrilldown={loadDrilldown} drilldownData={drilldownData} drilldownLoading={drilldownLoading} activeDrilldown={activeDrilldown} />
                                         )}
                                         {activeTab === 'cashflow' && report.report && (
-                                            <CashFlowView data={report.report} expandedRow={expandedRow} setExpandedRow={setExpandedRow} onDrilldown={loadDrilldown} drilldownData={drilldownData} drilldownLoading={drilldownLoading} activeDrilldown={activeDrilldown} />
+                                            <CashFlowView data={{ ...report.report, company_id: report.company.id }} expandedRow={expandedRow} setExpandedRow={setExpandedRow} onDrilldown={loadDrilldown} drilldownData={drilldownData} drilldownLoading={drilldownLoading} activeDrilldown={activeDrilldown} />
                                         )}
                                         {activeTab === 'balance' && report.report && (
-                                            <BalanceView data={report.report} onDrilldown={loadDrilldown} />
+                                            <BalanceView data={{ ...report.report, company_id: report.company.id }} onDrilldown={loadDrilldown} />
                                         )}
                                     </div>
                                 ))}
@@ -472,7 +472,7 @@ function PnlView({ data, expandedRow, setExpandedRow, onDrilldown, drilldownData
                         className="flex justify-between items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
                         onClick={() => {
                             setExpandedRow(expandedRow === row.id ? null : row.id);
-                            if (onDrilldown) onDrilldown(row.id, row.type === 'expense' ? 'expense' : 'income');
+                            if (onDrilldown) onDrilldown(row.id, row.type === 'expense' ? 'expense' : 'income', data.company_id);
                         }}
                     >
                         <span className={`text-sm ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{row.label}</span>
@@ -512,7 +512,7 @@ function CashFlowView({ data, expandedRow, setExpandedRow, onDrilldown, drilldow
                         className="flex justify-between items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
                         onClick={() => {
                             setExpandedRow(expandedRow === row.id ? null : row.id);
-                            if (onDrilldown) onDrilldown(row.id, row.type === 'expense' ? 'expense' : row.type === 'income' ? 'income' : 'all');
+                            if (onDrilldown) onDrilldown(row.id, row.type === 'expense' ? 'expense' : row.type === 'income' ? 'income' : 'all', data.company_id);
                         }}
                     >
                         <span className={`text-sm ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{row.label}</span>
@@ -551,7 +551,7 @@ function BalanceView({ data, onDrilldown }: any) {
                 <h4 className="font-medium text-gray-700 mb-2">Активы</h4>
                 {assetRows.map(row => (
                     <div key={row.id} className="flex justify-between px-2 py-1 cursor-pointer hover:bg-gray-50 rounded"
-                        onClick={() => onDrilldown && onDrilldown(row.accountId, 'all')}>
+                        onClick={() => onDrilldown && onDrilldown(row.accountId, 'all', data.company_id)}>
                         <span className="text-sm text-gray-600">{row.label}</span>
                         <span className="text-sm font-medium text-gray-900">{row.value?.toLocaleString('ru-RU') || 0} ₽</span>
                     </div>
@@ -565,7 +565,7 @@ function BalanceView({ data, onDrilldown }: any) {
                 <h4 className="font-medium text-gray-700 mb-2">Пассивы</h4>
                 {liabilityRows.map(row => (
                     <div key={row.id} className="flex justify-between px-2 py-1 cursor-pointer hover:bg-gray-50 rounded"
-                        onClick={() => onDrilldown && onDrilldown(row.accountId, 'all')}>
+                        onClick={() => onDrilldown && onDrilldown(row.accountId, 'all', data.company_id)}>
                         <span className="text-sm text-gray-600">{row.label}</span>
                         <span className="text-sm font-medium text-red-600">{row.value?.toLocaleString('ru-RU') || 0} ₽</span>
                     </div>
