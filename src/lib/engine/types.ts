@@ -37,8 +37,9 @@ export interface Account {
   id: string;
   code: string;
   name: string;
-  type: 'A' | 'L' | 'E' | 'I' | 'X'; // Актив, Пассив, Капитал, Доход, Расход
+  type: 'A' | 'L' | 'E' | 'I' | 'X';
   is_cash_flow: boolean;
+  is_cost_of_goods: boolean;
   parent_id: string;
 }
 

@@ -176,8 +176,9 @@ export class FinancialCalculator {
 
       if (debitAccount.type === 'X') {
         const category = debitAccount.code;
+        const isCOGS = Boolean(debitAccount.is_cost_of_goods);
 
-        if (category === 'COGS') {
+        if (isCOGS || category === 'COGS') {
           costOfGoodsSold += t.amount_rub;
         } else if (category === 'DEPRECIATION') {
           depreciation += t.amount_rub;
