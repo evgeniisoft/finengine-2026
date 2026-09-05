@@ -50,7 +50,10 @@ export async function POST(request: NextRequest) {
         employee_count: 5,
         monthly_payroll: 500000,
         industry_type: 'general',
-        is_individual: false
+        is_individual: false,
+        vat_included: false,
+        vat_rate: 0,
+        vat_exempt: true
       },
       {
         id: 'comp-test-2',
@@ -72,7 +75,10 @@ export async function POST(request: NextRequest) {
         employee_count: 3,
         monthly_payroll: 300000,
         industry_type: 'msp_priority',
-        is_individual: false
+        is_individual: false,
+        vat_included: false,
+        vat_rate: 0,
+        vat_exempt: true
       },
       {
         id: 'comp-test-3',
@@ -94,7 +100,10 @@ export async function POST(request: NextRequest) {
         employee_count: 0,
         monthly_payroll: 0,
         industry_type: 'general',
-        is_individual: true
+        is_individual: true,
+        vat_included: false,
+        vat_rate: 0,
+        vat_exempt: true
       },
       {
         id: 'comp-test-4',
@@ -116,7 +125,10 @@ export async function POST(request: NextRequest) {
         employee_count: 10,
         monthly_payroll: 800000,
         industry_type: 'general',
-        is_individual: false
+        is_individual: false,
+        vat_included: true,
+        vat_rate: 0.22,
+        vat_exempt: false
       },
     ];
 

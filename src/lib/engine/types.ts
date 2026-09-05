@@ -83,7 +83,7 @@ export interface Transaction {
   vat_rate: number;
   vat_amount: number;
   vat_direction: 'incoming' | 'outgoing' | 'none';
-  amount_without_vat: number;      // НОВОЕ: Сумма без НДС
+  amount_without_vat?: number;     // Опционально: Сумма без НДС
 }
 
 // Проводка (для двойной записи)
