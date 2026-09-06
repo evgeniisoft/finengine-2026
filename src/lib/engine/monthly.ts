@@ -150,6 +150,7 @@ export class MonthlyEngine {
         profit = taxCalc.profit_before_tax - taxCalc.income_tax_amount - taxCalc.insurance_amount - taxCalc.ndfl_amount;
       }
 
+      const startingBalanceForPeriod = runningBalance;
       runningBalance += cashIn - cashOut;
 
       reports.push({
@@ -160,8 +161,8 @@ export class MonthlyEngine {
         cash_in: cashIn,
         cash_out: cashOut,
         net_cash_flow: cashIn - cashOut,
+        starting_balance: startingBalanceForPeriod,
         ending_balance: runningBalance,
-        starting_balance: runningBalance - (cashIn - cashOut),
         details
       });
     }
