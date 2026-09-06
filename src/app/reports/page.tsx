@@ -497,6 +497,7 @@ function CashFlowView({ data, expandedRow, setExpandedRow, onDrilldown, drilldow
         { id: 'start', label: 'Остаток на начало', value: data.starting_balance, type: 'start' },
         { id: 'op_in', label: 'Поступления (операционные)', value: data.operating_inflow, type: 'income' },
         { id: 'op_out', label: 'Выбытия (операционные)', value: data.operating_outflow, type: 'expense' },
+        { id: 'tax_out', label: 'Налоговые выбытия', value: data.tax_outflow || 0, type: 'expense' },
         { id: 'inv_in', label: 'Инвестиционные поступления', value: data.investing_inflow, type: 'income' },
         { id: 'inv_out', label: 'Инвестиционные выбытия', value: data.investing_outflow, type: 'expense' },
         { id: 'fin_in', label: 'Финансовые поступления', value: data.financing_inflow, type: 'income' },

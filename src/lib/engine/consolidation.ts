@@ -48,6 +48,7 @@ export class ConsolidationEngine {
       investing_outflow: 0,
       financing_inflow: 0,
       financing_outflow: 0,
+      tax_outflow: 0,
       ending_balance: 0
     };
 
@@ -67,6 +68,7 @@ export class ConsolidationEngine {
       consolidated.investing_outflow += report.investing_outflow;
       consolidated.financing_inflow += report.financing_inflow;
       consolidated.financing_outflow += report.financing_outflow;
+      consolidated.tax_outflow += report.tax_outflow || 0;
       consolidated.ending_balance += report.ending_balance;
     }
 

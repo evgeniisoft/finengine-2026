@@ -59,7 +59,8 @@ export async function GET(request: NextRequest) {
             accounts,
             company.id,
             periodStart,
-            periodEnd
+            periodEnd,
+            company
           )
         }));
         return NextResponse.json(reports);

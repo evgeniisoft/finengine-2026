@@ -69,7 +69,8 @@ export class FinancialCalculator {
     accounts: Account[],
     companyId: string,
     periodStart: string,
-    periodEnd: string
+    periodEnd: string,
+    company?: any
   ): CashFlowReport {
 
     const filtered = transactions.filter(t => {
@@ -139,10 +140,18 @@ export class FinancialCalculator {
       }
     }
 
+    // Налоговые выбытия из taxEngine
+    let taxOutflow = 0;
+    if (company) {
+      const taxCalc = taxEngine.calculateTax(company, transactions, accounts, periodStart, periodEnd);
+      taxOutflow = taxCalc.income_tax_amount + taxCalc.insurance_amount + taxCalc.ndfl_amount + taxCalc.vat_to_pay;
+    }
+
     const endingBalance = startingBalance +
       operatingInflow - operatingOutflow +
       investingInflow - investingOutflow +
-      financingInflow - financingOutflow;
+      financingInflow - financingOutflow -
+      taxOutflow;
 
     return {
       period_start: periodStart,
@@ -155,6 +164,7 @@ export class FinancialCalculator {
       investing_outflow: investingOutflow,
       financing_inflow: financingInflow,
       financing_outflow: financingOutflow,
+      tax_outflow: taxOutflow,
       ending_balance: endingBalance,
     };
   }

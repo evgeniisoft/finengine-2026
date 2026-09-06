@@ -140,6 +140,7 @@ export interface CashFlowReport {
   investing_outflow: number;
   financing_inflow: number;
   financing_outflow: number;
+  tax_outflow: number;
   ending_balance: number;
 }
 
