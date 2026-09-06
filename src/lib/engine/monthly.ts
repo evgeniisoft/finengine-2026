@@ -18,7 +18,7 @@ export interface PeriodReport {
 }
 
 export class MonthlyEngine {
-  
+
   /**
    * Разбивка по периодам (месяцы, недели, дни)
    * С полным расчётом налогов
@@ -32,16 +32,16 @@ export class MonthlyEngine {
     periodType: PeriodType = 'monthly',
     company?: Company
   ): PeriodReport[] {
-    
+
     const filtered = transactions.filter(t =>
       t.company_id === companyId &&
       t.date >= periodStart &&
       t.date <= periodEnd
     );
-    
+
     // Группируем по периодам
     const periodsMap = new Map<string, Transaction[]>();
-    
+
     for (const t of filtered) {
       const periodKey = this.getPeriodKey(t.date, periodType);
       if (!periodsMap.has(periodKey)) {
@@ -49,24 +49,24 @@ export class MonthlyEngine {
       }
       periodsMap.get(periodKey)!.push(t);
     }
-    
+
     const sortedPeriods = Array.from(periodsMap.keys()).sort();
     let runningBalance = 0;
     const reports: PeriodReport[] = [];
-    
+
     for (const period of sortedPeriods) {
       const periodTransactions = periodsMap.get(period)!;
-      
+
       // Определяем начало и конец периода
       const periodStartDate = this.getPeriodStartDate(period, periodType);
       const periodEndDate = this.getPeriodEndDate(period, periodType);
-      
+
       let revenue = 0;
       let expenses = 0;
       let cashIn = 0;
       let cashOut = 0;
       const details: { [accountId: string]: number } = {};
-      
+
       // Расчёт налогов для этого периода
       let taxCalc: any = null;
       if (company) {
@@ -78,57 +78,61 @@ export class MonthlyEngine {
           periodEndDate
         );
       }
-      
+
       for (const t of periodTransactions) {
         const debitAccount = accounts.find(a => a.id === t.debit_account_id);
         const creditAccount = accounts.find(a => a.id === t.credit_account_id);
-        
+
         if (!debitAccount || !creditAccount) continue;
-        
+        const debitIsCash = Boolean(debitAccount.is_cash_flow);
+        const creditIsCash = Boolean(creditAccount.is_cash_flow);
+
         // Выручка без НДС (из taxEngine)
         if (creditAccount.type === 'I') {
           revenue += t.amount_rub;
           details[creditAccount.id] = (details[creditAccount.id] || 0) + t.amount_rub;
         }
-        
+
         // Расходы без НДС (из taxEngine)
         if (debitAccount.type === 'X') {
           let expenseAmount = t.amount_rub;
-          
+
           // Выделяем НДС для ОСНО
           if (company?.vat_included && company?.vat_rate > 0) {
             expenseAmount = expenseAmount / (1 + company.vat_rate);
           }
-          
+
           expenses += expenseAmount;
           details[debitAccount.id] = (details[debitAccount.id] || 0) + expenseAmount;
         }
-        
-        // ДДС: Поступления
-        if (debitAccount.is_cash_flow && creditAccount.type !== 'X') {
+
+        // ДДС: Поступления (деньги пришли на денежный счёт)
+        if (debitIsCash && !creditIsCash) {
           cashIn += t.amount_rub;
+          // Сохраняем в details по денежному счёту
+          details[`in_${debitAccount.id}`] = (details[`in_${debitAccount.id}`] || 0) + t.amount_rub;
         }
-        
-        // ДДС: Выбытия
-        if (creditAccount.is_cash_flow && debitAccount.type !== 'I') {
+
+        // ДДС: Выбытия (деньги ушли с денежного счёта)
+        if (creditIsCash && !debitIsCash) {
           cashOut += t.amount_rub;
         }
       }
-      
+
       // Если есть taxCalc — используем его данные для выручки и расходов
       if (taxCalc) {
         revenue = taxCalc.revenue_without_vat;
         expenses = taxCalc.expenses_without_vat;
       }
-      
+
       runningBalance += cashIn - cashOut;
-      
+
       // Прибыль с учётом налогов
       let profit = revenue - expenses;
       if (taxCalc) {
         profit = taxCalc.profit_before_tax - taxCalc.income_tax_amount - taxCalc.insurance_amount - taxCalc.ndfl_amount;
       }
-      
+
       reports.push({
         period,
         revenue,
@@ -141,10 +145,10 @@ export class MonthlyEngine {
         details
       });
     }
-    
+
     return reports;
   }
-  
+
   /**
    * Получение даты начала периода
    */
@@ -163,7 +167,7 @@ export class MonthlyEngine {
         return `${period}-01`;
     }
   }
-  
+
   /**
    * Получение даты конца периода
    */
@@ -185,13 +189,13 @@ export class MonthlyEngine {
         return period;
     }
   }
-  
+
   /**
    * Получение ключа периода
    */
   private getPeriodKey(date: string, periodType: PeriodType): string {
     const [year, month, day] = date.split('-');
-    
+
     switch (periodType) {
       case 'monthly':
         return `${year}-${month}`;
@@ -206,7 +210,7 @@ export class MonthlyEngine {
         return `${year}-${month}`;
     }
   }
-  
+
   /**
    * Получение номера недели
    */
@@ -217,7 +221,7 @@ export class MonthlyEngine {
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   }
-  
+
   /**
    * Прогноз кассовых разрывов
    */
@@ -229,32 +233,32 @@ export class MonthlyEngine {
     plannedInflows: { date: string; amount: number; account: string }[],
     plannedOutflows: { date: string; amount: number; account: string }[]
   ): { date: string; balance: number; is_deficit: boolean }[] {
-    
+
     const forecasts = [];
     let balance = currentBalance;
-    
+
     for (let i = 0; i < days; i++) {
       const date = new Date(startDate);
       date.setDate(date.getDate() + i);
       const dateStr = date.toISOString().split('T')[0];
-      
+
       const inflow = plannedInflows
         .filter(item => item.date === dateStr)
         .reduce((sum, item) => sum + item.amount, 0);
-      
+
       const outflow = plannedOutflows
         .filter(item => item.date === dateStr)
         .reduce((sum, item) => sum + item.amount, 0);
-      
+
       balance += inflow - outflow;
-      
+
       forecasts.push({
         date: dateStr,
         balance,
         is_deficit: balance < 0
       });
     }
-    
+
     return forecasts;
   }
 }
