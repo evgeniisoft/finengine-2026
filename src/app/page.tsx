@@ -42,7 +42,7 @@ export default function Dashboard() {
       const [companiesData, reportsData, balanceResponse, transactionsData, accountsData] = await Promise.all([
         api.getAll('Companies'),
         fetch(`/api/reports?type=pnl&period_start=${currentPeriod.start}&period_end=${currentPeriod.end}`).then(r => r.json()),
-        fetch('/api/reports?type=balance').then(r => r.json()),
+        fetch(`/api/reports?type=balance&period_start=${currentPeriod.start}&period_end=${currentPeriod.end}`).then(r => r.json()),
         api.getAll('Transactions'),
         api.getAll('Accounts')
       ]);
