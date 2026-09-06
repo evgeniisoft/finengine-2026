@@ -142,8 +142,6 @@ export class MonthlyEngine {
         expenses = taxCalc.expenses_without_vat;
       }
 
-      runningBalance += cashIn - cashOut;
-
       // Прибыль с учётом налогов
       let profit = revenue - expenses;
       if (taxCalc) {
