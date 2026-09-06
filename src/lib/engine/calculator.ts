@@ -289,10 +289,7 @@ export class FinancialCalculator {
       // Капитал (начальные остатки)
       if (t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact') {
         capital += t.amount_rub;
-        // Начальный остаток также увеличивает деньги (если дебет — денежный счёт)
-        if (debitIsCash) {
-          cash += t.amount_rub; // Уже учтено выше, не нужно дублировать
-        }
+        // Деньги уже учтены через debitIsCash выше — не дублируем
       }
     }
 
