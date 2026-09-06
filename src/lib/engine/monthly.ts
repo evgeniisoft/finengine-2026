@@ -10,6 +10,7 @@ export interface PeriodReport {
   profit: number;
   cash_in: number;
   cash_out: number;
+  tax_outflow: number;
   net_cash_flow: number;
   starting_balance: number;
   ending_balance: number;
@@ -141,6 +142,12 @@ export class MonthlyEngine {
         revenue = taxCalc.revenue_without_vat;
         expenses = taxCalc.expenses_without_vat;
       }
+      // Налоговые выбытия за период
+      let taxOutflow = 0;
+      if (taxCalc) {
+        taxOutflow = taxCalc.income_tax_amount + taxCalc.insurance_amount + taxCalc.ndfl_amount + taxCalc.vat_to_pay;
+        cashOut += taxOutflow;
+      }
 
       // Прибыль с учётом налогов
       let profit = revenue - expenses;
@@ -158,6 +165,7 @@ export class MonthlyEngine {
         profit,
         cash_in: cashIn,
         cash_out: cashOut,
+        tax_outflow: taxOutflow,
         net_cash_flow: cashIn - cashOut,
         starting_balance: startingBalanceForPeriod,
         ending_balance: runningBalance,

@@ -58,7 +58,8 @@ export class ConsolidationEngine {
         accounts,
         company.id,
         periodStart,
-        periodEnd
+        periodEnd,
+        company  // ← передаём company
       );
 
       consolidated.starting_balance += report.starting_balance;

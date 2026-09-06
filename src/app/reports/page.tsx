@@ -689,7 +689,7 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                 }));
 
                 rows.push({ id: 'op_out_total', label: '  Итого выбытия', getValue: (d: any) => d.cash_out || 0, color: 'text-red-600', bold: true, rowType: 'all' });
-
+                rows.push({ id: 'tax_outflow', label: '  Налоговые выбытия', getValue: (d: any) => d.tax_outflow || 0, color: 'text-red-600', bold: false, rowType: 'all' });
                 rows.push({ id: 'inv_header', label: 'Инвестиционная деятельность', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
                 rows.push({ id: 'inv_in', label: '  Поступления', getValue: (d: any) => d.investing_inflow || 0, color: 'text-green-600', bold: false, rowType: 'income' });
                 rows.push({ id: 'inv_out', label: '  Выбытия', getValue: (d: any) => d.investing_outflow || 0, color: 'text-red-600', bold: false, rowType: 'expense' });
