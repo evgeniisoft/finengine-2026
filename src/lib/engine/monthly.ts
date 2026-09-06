@@ -11,12 +11,12 @@ export interface PeriodReport {
   cash_in: number;
   cash_out: number;
   net_cash_flow: number;
+  starting_balance: number;
   ending_balance: number;
   details: {
     [accountId: string]: number;
   };
 }
-
 export class MonthlyEngine {
 
   /**
@@ -51,7 +51,24 @@ export class MonthlyEngine {
     }
 
     const sortedPeriods = Array.from(periodsMap.keys()).sort();
+
+    // Начальный остаток — операции до periodStart
+    const beforePeriod = transactions.filter(t => {
+      const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+      return t.company_id === companyId && txDate < periodStart;
+    });
+
     let runningBalance = 0;
+    for (const t of beforePeriod) {
+      const debitAcc = accounts.find(a => a.id === t.debit_account_id);
+      const creditAcc = accounts.find(a => a.id === t.credit_account_id);
+      if (!debitAcc || !creditAcc) continue;
+      const debitIsCash = Boolean(debitAcc.is_cash_flow);
+      const creditIsCash = Boolean(creditAcc.is_cash_flow);
+      if (debitIsCash) runningBalance += t.amount_rub;
+      if (creditIsCash) runningBalance -= t.amount_rub;
+    }
+
     const reports: PeriodReport[] = [];
 
     for (const period of sortedPeriods) {
@@ -133,6 +150,8 @@ export class MonthlyEngine {
         profit = taxCalc.profit_before_tax - taxCalc.income_tax_amount - taxCalc.insurance_amount - taxCalc.ndfl_amount;
       }
 
+      runningBalance += cashIn - cashOut;
+
       reports.push({
         period,
         revenue,
@@ -142,6 +161,7 @@ export class MonthlyEngine {
         cash_out: cashOut,
         net_cash_flow: cashIn - cashOut,
         ending_balance: runningBalance,
+        starting_balance: runningBalance - (cashIn - cashOut),
         details
       });
     }
