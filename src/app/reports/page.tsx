@@ -671,7 +671,7 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                 cashAccounts.forEach((a: any) => rows.push({
                     id: `in_${a.id}`,
                     label: `  Поступление: ${a.name}`,
-                    getValue: (d: any) => d.details?.[a.id] || 0,
+                    getValue: (d: any) => d.details?.[`in_${a.id}`] || 0,
                     color: 'text-green-600',
                     bold: false,
                     rowType: 'income'
