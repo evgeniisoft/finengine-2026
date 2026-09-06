@@ -40,6 +40,7 @@ export interface Account {
   type: 'A' | 'L' | 'E' | 'I' | 'X';
   is_cash_flow: boolean;
   is_cost_of_goods: boolean;
+  activity_type: 'operating' | 'investing' | 'financing' | '';
   parent_id: string;
 }
 

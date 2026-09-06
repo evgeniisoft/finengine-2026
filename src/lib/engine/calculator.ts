@@ -62,8 +62,8 @@ export class FinancialCalculator {
   }
 
   /**
-   * Расчёт ДДС (Cash Flow)
-   */
+  * Расчёт ДДС (Cash Flow)
+  */
   calculateCashFlow(
     transactions: Transaction[],
     accounts: Account[],
@@ -79,9 +79,10 @@ export class FinancialCalculator {
         txDate <= periodEnd;
     });
 
-    const beforePeriod = transactions.filter(t =>
-      t.company_id === companyId && t.date < periodStart
-    );
+    const beforePeriod = transactions.filter(t => {
+      const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+      return t.company_id === companyId && txDate < periodStart;
+    });
 
     const startingBalance = this.calculateBalance(beforePeriod, accounts);
 
@@ -98,21 +99,42 @@ export class FinancialCalculator {
 
       if (!debitAccount || !creditAccount) continue;
 
-      if (t.debit_account_id === 'acc-bank-001') {
+      const debitIsCash = Boolean(debitAccount.is_cash_flow);
+      const creditIsCash = Boolean(creditAccount.is_cash_flow);
+
+      // Внутреннее перемещение (оба счёта денежные) — пропускаем
+      if (debitIsCash && creditIsCash) continue;
+
+      // Поступление (деньги пришли на денежный счёт)
+      if (debitIsCash && !creditIsCash) {
         if (creditAccount.type === 'I') {
           operatingInflow += t.amount_rub;
+        } else if (creditAccount.activity_type === 'investing' || creditAccount.id === 'acc-in-invest-sale') {
+          investingInflow += t.amount_rub;
+        } else if (creditAccount.activity_type === 'financing' || creditAccount.id === 'acc-in-loan') {
+          financingInflow += t.amount_rub;
         } else if (creditAccount.type === 'A') {
           investingInflow += t.amount_rub;
-        } else if (creditAccount.type === 'L') {
-          financingInflow += t.amount_rub;
+        } else {
+          operatingInflow += t.amount_rub;
         }
-      } else if (t.credit_account_id === 'acc-bank-001') {
-        if (debitAccount.type === 'X') {
+      }
+
+      // Выбытие (деньги ушли с денежного счёта)
+      if (creditIsCash && !debitIsCash) {
+        if (debitAccount.type === 'X' && !debitAccount.id.startsWith('acc-tax-')) {
           operatingOutflow += t.amount_rub;
+        } else if (debitAccount.activity_type === 'investing' || debitAccount.id === 'acc-out-capex') {
+          investingOutflow += t.amount_rub;
+        } else if (debitAccount.activity_type === 'financing' ||
+          debitAccount.id === 'acc-out-loan-principal' ||
+          debitAccount.id === 'acc-out-loan-interest' ||
+          debitAccount.id === 'acc-out-dividends') {
+          financingOutflow += t.amount_rub;
         } else if (debitAccount.type === 'A') {
           investingOutflow += t.amount_rub;
-        } else if (debitAccount.type === 'L') {
-          financingOutflow += t.amount_rub;
+        } else {
+          operatingOutflow += t.amount_rub;
         }
       }
     }
