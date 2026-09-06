@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
             transactions,
             accounts,
             company.id,
-            periodEnd
+            periodEnd,
+            company
           )
         }));
         return NextResponse.json(reports);

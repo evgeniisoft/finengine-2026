@@ -263,7 +263,8 @@ export class FinancialCalculator {
     transactions: Transaction[],
     accounts: Account[],
     companyId: string,
-    date: string
+    date: string,
+    company?: any
   ): BalanceSheet {
 
     const filtered = transactions.filter(t => {
@@ -327,8 +328,16 @@ export class FinancialCalculator {
 
     // Убираем дублирование начальных остатков
     // Начальные остатки уже учтены в cash через debit_account_id
+    // Налоговые выбытия за период (рассчитываются, не создают операций)
+    let taxOutflow = 0;
+    if (company) {
+      // Считаем налоги за весь период до указанной даты
+      const yearStart = date.substring(0, 4) + '-01-01';
+      const taxCalc = taxEngine.calculateTax(company, transactions, accounts, yearStart, date);
+      taxOutflow = taxCalc.income_tax_amount + taxCalc.insurance_amount + taxCalc.ndfl_amount + taxCalc.vat_to_pay;
+    }
 
-    const totalAssets = cash + accountsReceivable + inventory + fixedAssets;
+    const totalAssets = cash - taxOutflow + accountsReceivable + inventory + fixedAssets;
     const totalLiabilities = accountsPayable + loans;
     // Капитал = Активы - Пассивы
     const totalEquity = totalAssets - totalLiabilities;
