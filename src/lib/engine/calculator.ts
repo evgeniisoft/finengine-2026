@@ -246,48 +246,62 @@ export class FinancialCalculator {
     let accountsPayable = 0;
     let loans = 0;
     let capital = 0;
+    let retainedEarnings = 0;
 
+    // Проходим по всем операциям один раз
     for (const t of filtered) {
-      if (t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact') {
-        capital += t.amount_rub;
-        cash += t.amount_rub;
-      }
-    }
-
-    for (const t of filtered) {
-      if (t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact') {
-        continue;
-      }
-
       const debitAccount = accounts.find(a => a.id === t.debit_account_id);
       const creditAccount = accounts.find(a => a.id === t.credit_account_id);
 
       if (!debitAccount || !creditAccount) continue;
 
+      // Денежные счета
       const debitIsCash = Boolean(debitAccount.is_cash_flow);
       const creditIsCash = Boolean(creditAccount.is_cash_flow);
 
       if (debitIsCash) cash += t.amount_rub;
       if (creditIsCash) cash -= t.amount_rub;
 
-      if (debitAccount.code === 'AR') accountsReceivable += t.amount_rub;
-      if (creditAccount.code === 'AR') accountsReceivable -= t.amount_rub;
+      // Дебиторская задолженность (счёт acc-ar-001)
+      if (t.debit_account_id === 'acc-ar-001') accountsReceivable += t.amount_rub;
+      if (t.credit_account_id === 'acc-ar-001') accountsReceivable -= t.amount_rub;
 
+      // Запасы
       if (debitAccount.code === 'INVENTORY') inventory += t.amount_rub;
       if (creditAccount.code === 'INVENTORY') inventory -= t.amount_rub;
 
-      if (debitAccount.code === 'FIXED_ASSETS') fixedAssets += t.amount_rub;
-      if (creditAccount.code === 'FIXED_ASSETS') fixedAssets -= t.amount_rub;
+      // Основные средства
+      if (debitAccount.code === 'FIXED_ASSETS' || debitAccount.id === 'acc-fa-001') {
+        fixedAssets += t.amount_rub;
+      }
+      if (creditAccount.code === 'FIXED_ASSETS' || creditAccount.id === 'acc-fa-001') {
+        fixedAssets -= t.amount_rub;
+      }
 
-      if (creditAccount.code === 'AP') accountsPayable += t.amount_rub;
-      if (debitAccount.code === 'AP') accountsPayable -= t.amount_rub;
+      // Кредиторская задолженность (счёт acc-ap-001)
+      if (t.credit_account_id === 'acc-ap-001') accountsPayable += t.amount_rub;
+      if (t.debit_account_id === 'acc-ap-001') accountsPayable -= t.amount_rub;
 
+      // Кредиты
       if (creditAccount.code === 'LOANS') loans += t.amount_rub;
       if (debitAccount.code === 'LOANS') loans -= t.amount_rub;
+
+      // Капитал (начальные остатки)
+      if (t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact') {
+        capital += t.amount_rub;
+        // Начальный остаток также увеличивает деньги (если дебет — денежный счёт)
+        if (debitIsCash) {
+          cash += t.amount_rub; // Уже учтено выше, не нужно дублировать
+        }
+      }
     }
+
+    // Убираем дублирование начальных остатков
+    // Начальные остатки уже учтены в cash через debit_account_id
 
     const totalAssets = cash + accountsReceivable + inventory + fixedAssets;
     const totalLiabilities = accountsPayable + loans;
+    // Капитал = Активы - Пассивы
     const totalEquity = totalAssets - totalLiabilities;
 
     return {
@@ -307,12 +321,11 @@ export class FinancialCalculator {
       },
       equity: {
         capital,
-        retained_earnings: totalEquity,
+        retained_earnings: totalEquity - capital,
         total: totalEquity
       }
     };
   }
-
   /**
    * Вспомогательные функции
    */
