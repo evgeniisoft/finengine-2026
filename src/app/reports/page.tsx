@@ -577,13 +577,21 @@ function BalanceView({ data, onDrilldown }: any) {
             </div>
             <div className="border-t pt-4">
                 <div className="flex justify-between px-2 py-1">
-                    <span className="text-sm text-gray-600">Капитал</span>
+                    <span className="text-sm text-gray-600">Уставный капитал</span>
+                    <span className="text-sm font-medium text-gray-900">{data.equity?.capital?.toLocaleString('ru-RU') || 0} ₽</span>
+                </div>
+                <div className="flex justify-between px-2 py-1">
+                    <span className="text-sm text-gray-600">Нераспределённая прибыль</span>
                     <span className="text-sm font-medium text-green-600">{data.equity?.retained_earnings?.toLocaleString('ru-RU') || 0} ₽</span>
+                </div>
+                <div className="flex justify-between px-2 py-1 border-t mt-2">
+                    <span className="text-sm font-semibold">Итого капитал</span>
+                    <span className="text-sm font-bold text-green-600">{data.equity?.total?.toLocaleString('ru-RU') || 0} ₽</span>
                 </div>
                 <div className="flex justify-between px-2 py-1 border-t mt-2">
                     <span className="text-sm font-semibold">Итого пассивы + капитал</span>
                     <span className="text-sm font-bold text-gray-900">
-                        {((data.liabilities?.total || 0) + (data.equity?.retained_earnings || 0)).toLocaleString('ru-RU')} ₽
+                        {((data.liabilities?.total || 0) + (data.equity?.total || 0)).toLocaleString('ru-RU')} ₽
                     </span>
                 </div>
             </div>
