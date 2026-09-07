@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { calculator } from '@/lib/engine/calculator';
+import { consolidationEngine } from '@/lib/engine/consolidation';
+import { monthlyEngine } from '@/lib/engine/monthly';
+import { taxEngine } from '@/lib/engine/tax';
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
@@ -1369,6 +1373,139 @@ export async function GET(request: NextRequest) {
         impact: 'Операции попадут в текущий месяц. Отчёты за прошлые периоды не изменятся.',
         risk: 'Высокий риск. Операция может относиться к другому периоду.'
       }
+    });
+
+    // ============================================
+    // БЛОК 9: СОГЛАСОВАННОСТЬ ОТЧЁТОВ
+    // ============================================
+
+    // Периоды для проверки
+    const checkYear = new Date().getFullYear();
+    const periodsToCheck = [
+      { name: 'Январь', start: `${checkYear}-01-01`, end: `${checkYear}-01-31` },
+      { name: 'Февраль', start: `${checkYear}-02-01`, end: `${checkYear}-02-28` },
+      { name: 'Март', start: `${checkYear}-03-01`, end: `${checkYear}-03-31` },
+      { name: 'Апрель', start: `${checkYear}-04-01`, end: `${checkYear}-04-30` },
+      { name: 'Май', start: `${checkYear}-05-01`, end: `${checkYear}-05-31` },
+      { name: 'Июнь', start: `${checkYear}-06-01`, end: `${checkYear}-06-30` },
+      { name: 'Июль', start: `${checkYear}-07-01`, end: `${checkYear}-07-31` },
+      { name: 'Август', start: `${checkYear}-08-01`, end: `${checkYear}-08-31` },
+      { name: '1 квартал', start: `${checkYear}-01-01`, end: `${checkYear}-03-31` },
+      { name: '2 квартал', start: `${checkYear}-04-01`, end: `${checkYear}-06-30` },
+      { name: '3 квартал', start: `${checkYear}-07-01`, end: `${checkYear}-09-30` },
+      { name: 'Год', start: `${checkYear}-01-01`, end: `${checkYear}-12-31` },
+    ];
+
+    const consistencyIssues: any[] = [];
+
+    for (const period of periodsToCheck) {
+      // Для каждой компании
+      for (const company of companies) {
+        // 1. ДДС обычный
+        const cashFlow = calculator.calculateCashFlow(
+          transactions, accounts, company.id, period.start, period.end, company
+        );
+
+        // 2. Баланс на конец периода
+        const balance = calculator.calculateBalanceSheet(
+          transactions, accounts, company.id, period.end, company
+        );
+
+        // 3. ОПиУ обычный
+        const pnl = calculator.calculatePnL(
+          transactions, accounts, company.id, period.start, period.end, company
+        );
+
+        // Проверка: ДДС конец = Баланс деньги
+        const cfBalanceDiff = Math.abs(cashFlow.ending_balance - balance.assets.cash);
+        if (cfBalanceDiff > 100) {
+          consistencyIssues.push({
+            period: period.name,
+            company: company.name,
+            check: 'ДДС vs Баланс',
+            expected: balance.assets.cash,
+            actual: cashFlow.ending_balance,
+            difference: cfBalanceDiff,
+            reason: 'ДДС остаток на конец не равен деньгам в Балансе'
+          });
+        }
+
+        // Проверка: ОПиУ чистая прибыль = Баланс нераспределённая прибыль (накопительно)
+        // Для проверки накопительной прибыли нужен расчёт с начала года
+        if (period.end.endsWith('12-31') || period.name === 'Год') {
+          const yearStart = `${currentYear}-01-01`;
+          const yearBalance = calculator.calculateBalanceSheet(
+            transactions, accounts, company.id, period.end, company
+          );
+          const yearPnL = calculator.calculatePnL(
+            transactions, accounts, company.id, yearStart, period.end, company
+          );
+
+          const pnlBalanceDiff = Math.abs(yearPnL.net_profit - yearBalance.equity.retained_earnings);
+          if (pnlBalanceDiff > 100) {
+            consistencyIssues.push({
+              period: period.name,
+              company: company.name,
+              check: 'ОПиУ vs Баланс (накопительно)',
+              expected: yearBalance.equity.retained_earnings,
+              actual: yearPnL.net_profit,
+              difference: pnlBalanceDiff,
+              reason: 'Накопленная чистая прибыль не совпадает с нераспределённой прибылью'
+            });
+          }
+        }
+
+        // Проверка: ОПиУ обычный = ОПиУ по периодам
+        const monthlyBreakdown = monthlyEngine.getPeriodBreakdown(
+          transactions, accounts, company.id, period.start, period.end, 'monthly', company
+        );
+
+        const sumMonthlyRevenue = monthlyBreakdown.reduce((s, m) => s + m.revenue, 0);
+        const pnlRevenueDiff = Math.abs(sumMonthlyRevenue - pnl.revenue);
+
+        if (pnlRevenueDiff > 100) {
+          consistencyIssues.push({
+            period: period.name,
+            company: company.name,
+            check: 'ОПиУ обычный vs по периодам (выручка)',
+            expected: pnl.revenue,
+            actual: sumMonthlyRevenue,
+            difference: pnlRevenueDiff,
+            reason: 'Сумма выручки по месяцам не равна выручке за период'
+          });
+        }
+
+        const sumMonthlyProfit = monthlyBreakdown.reduce((s, m) => s + m.profit, 0);
+        const pnlProfitDiff = Math.abs(sumMonthlyProfit - pnl.net_profit);
+
+        if (pnlProfitDiff > 100) {
+          consistencyIssues.push({
+            period: period.name,
+            company: company.name,
+            check: 'ОПиУ обычный vs по периодам (прибыль)',
+            expected: pnl.net_profit,
+            actual: sumMonthlyProfit,
+            difference: pnlProfitDiff,
+            reason: 'Сумма прибыли по месяцам не равна чистой прибыли за период'
+          });
+        }
+      }
+    }
+
+    // Добавляем проверку в checks
+    checks.push({
+      id: 'consistency_reports',
+      category: 'consistency',
+      severity: consistencyIssues.length > 0 ? 'critical' : 'ok',
+      name: 'Согласованность отчётов',
+      count: consistencyIssues.length,
+      message: consistencyIssues.length > 0
+        ? `Найдено ${consistencyIssues.length} расхождений между отчётами`
+        : 'Все отчёты согласованы',
+      details: consistencyIssues.slice(0, 30),
+      recommendation: consistencyIssues.length > 0
+        ? 'Проверьте расхождения и исправьте расчёты'
+        : null
     });
 
     // ============ ИТОГ ============
