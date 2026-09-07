@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<any>(null);
+  const [usnLimits, setUsnLimits] = useState<any[]>([]);
 
   const [period, setPeriod] = useState({ start: '2026-01-01', end: '2026-12-31' });
   const [activePeriod, setActivePeriod] = useState<'month' | 'quarter' | 'year' | 'custom'>('year');
@@ -55,6 +56,10 @@ export default function Dashboard() {
       const diagnosticsRes = await fetch('/api/diagnostics');
       const diagnosticsData = await diagnosticsRes.json();
       setDiagnostics(diagnosticsData);
+      // Загружаем лимиты УСН
+      const usnLimitsRes = await fetch('/api/reports/usn-limits');
+      const usnLimitsData = await usnLimitsRes.json();
+      setUsnLimits(Array.isArray(usnLimitsData) ? usnLimitsData : []);
       setError(null);
     } catch (err) {
       setError('Ошибка при загрузке данных');
@@ -332,6 +337,74 @@ export default function Dashboard() {
             <div className="flex justify-between text-sm py-1 border-t mt-1"><span className="font-semibold">Итого</span><span className="font-bold">{(totalIncomeTax + totalInsurance + totalNdf).toLocaleString('ru-RU')} ₽</span></div>
           </div>
         </Widget>
+        {/* Лимиты УСН */}
+        {usnLimits.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {usnLimits.map((limit: any) => {
+              const exemptPercent = limit.limits?.exempt?.used_percent || 0;
+              const rate5Percent = limit.limits?.rate_5?.used_percent || 0;
+              const maxPercent = limit.limits?.max?.used_percent || 0;
+              const status = !limit.vat_required ? 'Без НДС' : limit.vat_rate > 0 ? `НДС ${(limit.vat_rate * 100).toFixed(0)}%` : 'Переход на ОСНО';
+              const statusColor = !limit.vat_required ? 'text-green-600' : limit.vat_rate > 0 && limit.vat_rate < 0.07 ? 'text-yellow-600' : 'text-red-600';
+
+              return (
+                <div key={limit.company_id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500">Лимиты УСН</p>
+                      <h3 className="text-lg font-semibold text-gray-900">{limit.company_name}</h3>
+                      <p className="text-xs text-gray-500">{limit.tax_system === 'USN_6' ? 'УСН 6%' : 'УСН 15%'}</p>
+                    </div>
+                    <span className={`text-sm font-medium ${statusColor}`}>{status}</span>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-gray-500">Выручка</span>
+                        <span className="font-medium">{limit.current_revenue?.toLocaleString('ru-RU')} ₽</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(exemptPercent, 100)}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-gray-500">Порог без НДС (20 млн)</span>
+                      <span className="font-medium">{exemptPercent.toFixed(1)}%</span>
+                    </div>
+
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-gray-500">Порог НДС 5% (250 млн)</span>
+                      <span className="font-medium">{rate5Percent.toFixed(1)}%</span>
+                    </div>
+
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-gray-500">Максимум УСН (490.5 млн)</span>
+                      <span className="font-medium">{maxPercent.toFixed(1)}%</span>
+                    </div>
+
+                    {!limit.usn_allowed && (
+                      <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-700 font-medium">
+                          Требуется переход на ОСНО с {limit.transition_quarter}
+                        </p>
+                      </div>
+                    )}
+
+                    {limit.usn_allowed && limit.vat_required && (
+                      <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-700">
+                          Применяется НДС {(limit.vat_rate * 100).toFixed(0)}% с {limit.transition_quarter}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* НДС */}
