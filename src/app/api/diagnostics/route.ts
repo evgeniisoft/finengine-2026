@@ -1416,37 +1416,26 @@ export async function GET(request: NextRequest) {
           transactions, accounts, company.id, period.start, period.end, company
         );
 
-        // Проверка: ДДС конец = Баланс деньги + накопленные налоги за предыдущие периоды
-        const cfBalanceDiff = Math.abs(cashFlow.ending_balance - balance.assets.cash);
+        // Проверка: ДДС конец - Баланс деньги = Налоговые выбытия за период
+        const expectedDifference = cashFlow.tax_outflow || 0;
+        const actualDifference = cashFlow.ending_balance - balance.assets.cash;
+        const diffError = Math.abs(expectedDifference - actualDifference);
 
-        if (cfBalanceDiff > 100) {
-          // Вычисляем накопленные налоги за предыдущие периоды
-          const yearStart = `${checkYear}-01-01`;
-          // Налоги за весь период с начала года до КОНЦА текущего периода
-          let accumulatedTaxes = 0;
-          const taxCalcToDate = taxEngine.calculateTax(
-            company, transactions, accounts, yearStart, period.end
-          );
-          accumulatedTaxes = taxCalcToDate.income_tax_amount +
-            taxCalcToDate.insurance_amount +
-            taxCalcToDate.ndfl_amount +
-            taxCalcToDate.vat_to_pay;
-
+        if (diffError > 100) {
           consistencyIssues.push({
             period: period.name,
             company: company.name,
-            check: 'ДДС vs Баланс',
+            check: 'ДДС vs Баланс (налоги)',
             dd_ending_balance: cashFlow.ending_balance,
             balance_cash: balance.assets.cash,
-            difference: cfBalanceDiff,
-            accumulated_taxes_previous_periods: accumulatedTaxes,
-            explanation: `ДДС (${cashFlow.ending_balance.toLocaleString('ru-RU')} ₽) - Баланс (${balance.assets.cash.toLocaleString('ru-RU')} ₽) = ${cfBalanceDiff.toLocaleString('ru-RU')} ₽. ` +
-              `Это накопленные налоги за предыдущие периоды (${accumulatedTaxes.toLocaleString('ru-RU')} ₽). ` +
-              `ДДС показывает движение за ${period.name} (налоги только за период), ` +
-              `а Баланс показывает фактический остаток на дату (налоги с начала года). ` +
-              `Разница ${cfBalanceDiff.toLocaleString('ru-RU')} ₽ — это нормально.`,
-            severity: 'info',
-            reason: 'Нормальное расхождение: ДДС за период vs Баланс накопительно'
+            actual_difference: actualDifference,
+            expected_difference: expectedDifference,
+            error: diffError,
+            explanation: `ДДС (${cashFlow.ending_balance.toLocaleString('ru-RU')} ₽) - Баланс (${balance.assets.cash.toLocaleString('ru-RU')} ₽) = ${actualDifference.toLocaleString('ru-RU')} ₽. ` +
+              `Ожидаемая разница (налоги за период) = ${expectedDifference.toLocaleString('ru-RU')} ₽. ` +
+              `Ошибка: ${diffError.toLocaleString('ru-RU')} ₽. Налоги в ДДС вычитаются, в Балансе — нет.`,
+            severity: 'critical',
+            reason: 'Разница между ДДС и Балансом не равна налоговым выбытиям за период'
           });
         }
 
