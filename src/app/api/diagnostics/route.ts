@@ -1422,20 +1422,15 @@ export async function GET(request: NextRequest) {
         if (cfBalanceDiff > 100) {
           // Вычисляем накопленные налоги за предыдущие периоды
           const yearStart = `${checkYear}-01-01`;
-          const prevPeriodEnd = new Date(period.start);
-          prevPeriodEnd.setDate(prevPeriodEnd.getDate() - 1);
-          const prevPeriodEndStr = prevPeriodEnd.toISOString().split('T')[0];
-
+          // Налоги за весь период с начала года до КОНЦА текущего периода
           let accumulatedTaxes = 0;
-          if (prevPeriodEndStr >= yearStart) {
-            const prevTaxCalc = taxEngine.calculateTax(
-              company, transactions, accounts, yearStart, prevPeriodEndStr
-            );
-            accumulatedTaxes = prevTaxCalc.income_tax_amount +
-              prevTaxCalc.insurance_amount +
-              prevTaxCalc.ndfl_amount +
-              prevTaxCalc.vat_to_pay;
-          }
+          const taxCalcToDate = taxEngine.calculateTax(
+            company, transactions, accounts, yearStart, period.end
+          );
+          accumulatedTaxes = taxCalcToDate.income_tax_amount +
+            taxCalcToDate.insurance_amount +
+            taxCalcToDate.ndfl_amount +
+            taxCalcToDate.vat_to_pay;
 
           consistencyIssues.push({
             period: period.name,
