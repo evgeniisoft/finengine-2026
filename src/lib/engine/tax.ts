@@ -151,10 +151,24 @@ export class TaxEngine {
         break;
     }
 
-    // Страховые взносы и НДФЛ — пропорционально периоду
+    // Страховые взносы и НДФЛ
     const annualRevenue = revenueWithoutVAT / periodFraction;
     const insurance = this.calculateInsuranceContributions(company, annualRevenue);
-    const insuranceAmount = insurance.annual_contributions * periodFraction;
+
+    let insuranceAmount: number;
+    if (company.is_individual) {
+      // ИП: фиксированный взнос — раз в год (в декабре)
+      const monthNum = parseInt(periodEnd.substring(5, 7));
+      if (monthNum === 12 || periodFraction === 1) {
+        insuranceAmount = insurance.annual_contributions; // Полная сумма
+      } else {
+        insuranceAmount = 0; // Не платит в другие месяцы
+      }
+    } else {
+      // ООО: взносы ежемесячно
+      insuranceAmount = insurance.annual_contributions * periodFraction;
+    }
+
     const ndflAmount = (insurance.ndfl_annual || 0) * periodFraction;
     const totalPayrollCost = (insurance.total_payroll_cost || 0) * periodFraction;
 
