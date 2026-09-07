@@ -1233,9 +1233,9 @@ export async function GET(request: NextRequest) {
             category: 'risks',
             severity: 'critical',
             name: `Переход на ОСНО: ${company.name}`,
-            message: `Превышен лимит УСН (${limits.current_revenue.toLocaleString('ru-RU')} ₽ из ${limits.limit.toLocaleString('ru-RU')} ₽). Требуется переход на ОСНО с ${limits.transition_quarter}.`,
+            message: `Превышен лимит УСН. Требуется переход на ОСНО с ${limits.transition_quarter}.`,
             details: limits,
-            recommendation: 'Срочно подайте уведомление о переходе на ОСНО в налоговую'
+            recommendation: 'Срочно подайте уведомление о переходе на ОСНО'
           });
         } else if (limits.limits.max.used_percent > 80) {
           checks.push({
@@ -1243,9 +1243,9 @@ export async function GET(request: NextRequest) {
             category: 'risks',
             severity: 'warning',
             name: `Приближение к лимиту УСН: ${company.name}`,
-            message: `Использовано ${limits.limits.max.used_percent}% лимита УСН (${limits.current_revenue.toLocaleString('ru-RU')} ₽ из ${limits.limit.toLocaleString('ru-RU')} ₽)`,
+            message: `Использовано ${limits.limits.max.used_percent}% лимита УСН`,
             details: limits,
-            recommendation: 'Планируйте переход на ОСНО или оптимизируйте выручку'
+            recommendation: 'Планируйте переход на ОСНО'
           });
         } else if (limits.vat_required) {
           checks.push({
@@ -1253,9 +1253,20 @@ export async function GET(request: NextRequest) {
             category: 'risks',
             severity: 'warning',
             name: `НДС для УСН: ${company.name}`,
-            message: `Выручка превысила 20 млн ₽. Применяется НДС ${(limits.vat_rate * 100).toFixed(0)}%`,
+            message: `Выручка превысила 20 млн ₽. НДС ${(limits.vat_rate * 100).toFixed(0)}%`,
             details: limits,
-            recommendation: 'Начните учитывать НДС в ценообразовании'
+            recommendation: 'Начните учитывать НДС'
+          });
+        } else {
+          // Даже если лимиты не превышены — показываем info
+          checks.push({
+            id: `usn_limits_${company.id}`,
+            category: 'risks',
+            severity: 'info',
+            name: `Лимиты УСН: ${company.name}`,
+            message: `Выручка ${limits.current_revenue.toLocaleString('ru-RU')} ₽ (${limits.limits.exempt.used_percent}% от порога НДС 20 млн)`,
+            details: limits,
+            recommendation: null
           });
         }
       }
