@@ -1508,7 +1508,7 @@ export async function GET(request: NextRequest) {
 
     checks.push({
       id: 'consistency_reports',
-      category: 'consistency',
+      category: 'reports',
       severity: hasCriticalConsistency ? 'critical' : consistencyIssues.length > 0 ? 'warning' : 'ok',
       name: 'Согласованность отчётов',
       count: consistencyIssues.length,

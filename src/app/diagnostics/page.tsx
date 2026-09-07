@@ -145,7 +145,9 @@ export default function DiagnosticsPage() {
     'planning': 'Планирование',
     'consolidation': 'Консолидация',
     'risks': 'Риски',
-    'processes': 'Процессы'
+    'processes': 'Процессы',
+    'consistency': 'Согласованность',
+    'reports': 'Согласованность отчётов'
   };
 
   const healthScore = diagnostics
