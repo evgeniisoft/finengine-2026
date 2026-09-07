@@ -211,7 +211,7 @@ export default function DiagnosticsPage() {
         {/* Индекс здоровья */}
         <div className="mt-6 bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Индекс здоровья</span>
+            <span className="text-sm font-medium text-gray-700">Состояние системы</span>
             <span className="text-sm font-bold text-gray-900">{healthScore}/100</span>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -242,14 +242,25 @@ export default function DiagnosticsPage() {
       {/* Фильтр */}
       <div className="mb-6 flex items-center gap-3">
         <button
-          onClick={() => setShowOnlyProblems(false)}
+          onClick={() => {
+            setShowOnlyProblems(false);
+            setExpandedCategories(new Set()); // Сбрасываем раскрытие
+          }}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium ${!showOnlyProblems ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
         >
           Все проверки ({diagnostics.total_checks})
         </button>
         <button
-          onClick={() => setShowOnlyProblems(true)}
+          onClick={() => {
+            setShowOnlyProblems(true);
+            // Автоматически раскрываем категории с проблемами
+            const problemCategories = new Set<string>();
+            diagnostics.checks
+              .filter(c => c.severity === 'critical' || c.severity === 'warning')
+              .forEach(c => problemCategories.add(c.category));
+            setExpandedCategories(problemCategories);
+          }}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium ${showOnlyProblems ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
         >
@@ -258,7 +269,7 @@ export default function DiagnosticsPage() {
       </div>
 
       {/* Критические проблемы */}
-      {criticalChecks.length > 0 && (
+      {!showOnlyProblems && criticalChecks.length > 0 && (
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-3">
             Критические проблемы ({criticalChecks.length})
@@ -282,7 +293,7 @@ export default function DiagnosticsPage() {
       )}
 
       {/* Предупреждения */}
-      {warningChecks.length > 0 && (
+      {!showOnlyProblems && warningChecks.length > 0 && (
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-3">
             Предупреждения ({warningChecks.length})

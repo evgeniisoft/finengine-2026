@@ -1442,7 +1442,7 @@ export async function GET(request: NextRequest) {
         // Проверка: ОПиУ чистая прибыль = Баланс нераспределённая прибыль (накопительно)
         // Для проверки накопительной прибыли нужен расчёт с начала года
         if (period.end.endsWith('12-31') || period.name === 'Год') {
-          const yearStart = `${currentYear}-01-01`;
+          const yearStart = `${checkYear}-01-01`;
           const yearBalance = calculator.calculateBalanceSheet(
             transactions, accounts, company.id, period.end, company
           );
@@ -1459,6 +1459,7 @@ export async function GET(request: NextRequest) {
               expected: yearBalance.equity.retained_earnings,
               actual: yearPnL.net_profit,
               difference: pnlBalanceDiff,
+              severity: 'warning',
               reason: 'Накопленная чистая прибыль не совпадает с нераспределённой прибылью'
             });
           }
@@ -1495,6 +1496,7 @@ export async function GET(request: NextRequest) {
             expected: pnl.net_profit,
             actual: sumMonthlyProfit,
             difference: pnlProfitDiff,
+            severity: 'warning',
             reason: 'Сумма прибыли по месяцам не равна чистой прибыли за период'
           });
         }
@@ -1502,10 +1504,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Добавляем проверку в checks
+    const hasCriticalConsistency = consistencyIssues.some(i => i.severity === 'critical');
+
     checks.push({
       id: 'consistency_reports',
       category: 'consistency',
-      severity: consistencyIssues.length > 0 ? 'critical' : 'ok',
+      severity: hasCriticalConsistency ? 'critical' : consistencyIssues.length > 0 ? 'warning' : 'ok',
       name: 'Согласованность отчётов',
       count: consistencyIssues.length,
       message: consistencyIssues.length > 0
