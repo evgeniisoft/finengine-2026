@@ -336,8 +336,13 @@ export class FinancialCalculator {
       taxOutflow = taxCalc.income_tax_amount + taxCalc.insurance_amount + taxCalc.ndfl_amount + taxCalc.vat_to_pay;
     }
 
-    // Вычитаем налоги из денег
-    cash = cash - taxOutflow;
+    // Налоги могут превышать деньги — тогда создаём обязательство
+    if (taxOutflow > cash) {
+      accountsPayable += (taxOutflow - cash); // Задолженность по налогам
+      cash = 0;
+    } else {
+      cash = cash - taxOutflow;
+    }
 
     const totalAssets = cash + accountsReceivable + inventory + fixedAssets;
 
