@@ -426,6 +426,27 @@ export class TaxEngine {
       }
     };
   }
+    /**
+   * Получить среднемесячную выручку (Run Rate) за последние 3 месяца
+   */
+  getMonthlyRunRate(company: Company, transactions: Transaction[]): number {
+    const last3Months: string[] = [];
+    const now = new Date();
+    for (let i = 1; i <= 3; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      last3Months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+
+    const revenue = transactions
+      .filter(t => {
+        const month = this.getDateStr(t.date).substring(0, 7);
+        return t.company_id === company.id && last3Months.includes(month) && t.type === 'income';
+      })
+      .reduce((sum, t) => sum + parseFloat(String(t.amount || 0)), 0);
+
+    return revenue / 3;
+  }
+  
   private getPeriodFraction(periodStart: string, periodEnd: string): number {
     const startDate = new Date(periodStart);
     const endDate = new Date(periodEnd);

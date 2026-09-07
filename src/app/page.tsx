@@ -431,6 +431,16 @@ export default function Dashboard() {
                           <span className="text-gray-400">Использовано: {exemptPercent.toFixed(1)}%</span>
                           <span className="text-gray-400">Осталось: {remaining.toLocaleString('ru-RU')} ₽</span>
                         </div>
+                        {limit.monthly_run_rate > 0 && (
+                          <div className="flex justify-between text-xs mt-1">
+                            <span className="text-gray-400">Run Rate: {limit.monthly_run_rate?.toLocaleString('ru-RU')} ₽/мес</span>
+                            {limit.projected_exceed_date && (
+                              <span className="text-yellow-600 font-medium">
+                                Превышение: ~{limit.projected_exceed_date}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {!limit.usn_allowed && (
@@ -461,9 +471,14 @@ export default function Dashboard() {
                 })}
 
                 <div className="text-right">
-                  <a href="/diagnostics" className="text-xs text-blue-600 hover:text-blue-700">
+                  <button
+                    onClick={() => {
+                      window.location.href = '/diagnostics?category=risks&section=usn_limits';
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                  >
                     Подробнее в диагностике →
-                  </a>
+                  </button>
                 </div>
               </div>
             )}

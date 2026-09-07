@@ -51,6 +51,23 @@ export default function DiagnosticsPage() {
 
   useEffect(() => {
     loadDiagnostics();
+
+    const params = new URLSearchParams(window.location.search);
+    const category = params.get('category');
+    const section = params.get('section');
+
+    if (category) {
+      setExpandedCategories(new Set([category]));
+    }
+
+    if (section === 'usn_limits') {
+      setTimeout(() => {
+        const element = document.getElementById('risks');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 500);
+    }
   }, []);
 
   const loadDiagnostics = async (showSpinner = false) => {
@@ -346,7 +363,7 @@ export default function DiagnosticsPage() {
             if (visibleChecks.length === 0) return null;
 
             return (
-              <div key={category} className="border border-gray-200 rounded-lg overflow-hidden">
+              <div key={category} id={category} className="border border-gray-200 rounded-lg overflow-hidden">
                 <button
                   onClick={() => toggleCategory(category)}
                   className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
