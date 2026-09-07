@@ -50,24 +50,24 @@ export default function DiagnosticsPage() {
   const [fixProgress, setFixProgress] = useState<{ current: number; total: number; results: string[] } | null>(null);
 
   useEffect(() => {
-    loadDiagnostics();
+    loadDiagnostics().then(() => {
+      const params = new URLSearchParams(window.location.search);
+      const category = params.get('category');
+      const section = params.get('section');
 
-    const params = new URLSearchParams(window.location.search);
-    const category = params.get('category');
-    const section = params.get('section');
+      if (category) {
+        setExpandedCategories(new Set([category]));
+      }
 
-    if (category) {
-      setExpandedCategories(new Set([category]));
-    }
-
-    if (section === 'usn_limits') {
-      setTimeout(() => {
-        const element = document.getElementById('risks');
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 500);
-    }
+      if (section === 'usn_limits') {
+        setTimeout(() => {
+          const element = document.getElementById('risks');
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 500);
+      }
+    });
   }, []);
 
   const loadDiagnostics = async (showSpinner = false) => {

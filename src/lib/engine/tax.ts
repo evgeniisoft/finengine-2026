@@ -426,9 +426,9 @@ export class TaxEngine {
       }
     };
   }
-    /**
-   * Получить среднемесячную выручку (Run Rate) за последние 3 месяца
-   */
+  /**
+ * Получить среднемесячную выручку (Run Rate) за последние 3 месяца
+ */
   getMonthlyRunRate(company: Company, transactions: Transaction[]): number {
     const last3Months: string[] = [];
     const now = new Date();
@@ -440,13 +440,15 @@ export class TaxEngine {
     const revenue = transactions
       .filter(t => {
         const month = this.getDateStr(t.date).substring(0, 7);
-        return t.company_id === company.id && last3Months.includes(month) && t.type === 'income';
+        return t.company_id === company.id &&
+          last3Months.includes(month) &&
+          t.credit_account_id?.startsWith('acc-in-');
       })
       .reduce((sum, t) => sum + parseFloat(String(t.amount || 0)), 0);
 
     return revenue / 3;
   }
-  
+
   private getPeriodFraction(periodStart: string, periodEnd: string): number {
     const startDate = new Date(periodStart);
     const endDate = new Date(periodEnd);
