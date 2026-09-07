@@ -172,9 +172,10 @@ export class ConsolidationEngine {
         externalTransactions,
         accounts,
         company.id,
-        date
+        date,
+        company
       );
-
+      
       consolidated.assets.cash += report.assets.cash;
       consolidated.assets.accounts_receivable += report.assets.accounts_receivable;
       consolidated.assets.inventory += report.assets.inventory;
