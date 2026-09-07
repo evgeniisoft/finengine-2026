@@ -326,24 +326,8 @@ export class FinancialCalculator {
       }
     }
 
-    // Убираем дублирование начальных остатков
-    // Начальные остатки уже учтены в cash через debit_account_id
-    // Налоговые выбытия за период (рассчитываются, не создают операций)
-    let taxOutflow = 0;
-    if (company) {
-      const yearStart = date.substring(0, 4) + '-01-01';
-      const taxCalc = taxEngine.calculateTax(company, transactions, accounts, yearStart, date);
-      taxOutflow = taxCalc.income_tax_amount + taxCalc.insurance_amount + taxCalc.ndfl_amount + taxCalc.vat_to_pay;
-    }
-
-    // Налоги могут превышать деньги — тогда создаём обязательство
-    if (taxOutflow > cash) {
-      accountsPayable += (taxOutflow - cash); // Задолженность по налогам
-      cash = 0;
-    } else {
-      cash = cash - taxOutflow;
-    }
-
+    // Баланс показывает фактический остаток на счёте
+    // Налоги — это будущие платежи, они учитываются в ДДС, а не в Балансе
     const totalAssets = cash + accountsReceivable + inventory + fixedAssets;
 
     const totalLiabilities = accountsPayable + loans;
