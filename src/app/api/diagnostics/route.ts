@@ -1418,7 +1418,7 @@ export async function GET(request: NextRequest) {
 
         // Проверка: ДДС конец - Баланс деньги = Налоговые выбытия за период
         const expectedDifference = cashFlow.tax_outflow || 0;
-        const actualDifference = cashFlow.ending_balance - balance.assets.cash;
+        const actualDifference = Math.abs(cashFlow.ending_balance - balance.assets.cash);
         const diffError = Math.abs(expectedDifference - actualDifference);
 
         if (diffError > 100) {
