@@ -1220,6 +1220,48 @@ export async function GET(request: NextRequest) {
     });
 
     // ============================================
+    // БЛОК 6.5: ЛИМИТЫ УСН
+    // ============================================
+
+    for (const company of companies) {
+      if (company.tax_system === 'USN_6' || company.tax_system === 'USN_15') {
+        const limits = taxEngine.checkUSNLimits(company, transactions);
+
+        if (limits.transition_required) {
+          checks.push({
+            id: `usn_transition_${company.id}`,
+            category: 'risks',
+            severity: 'critical',
+            name: `Переход на ОСНО: ${company.name}`,
+            message: `Превышен лимит УСН (${limits.current_revenue.toLocaleString('ru-RU')} ₽ из ${limits.limit.toLocaleString('ru-RU')} ₽). Требуется переход на ОСНО с ${limits.transition_quarter}.`,
+            details: limits,
+            recommendation: 'Срочно подайте уведомление о переходе на ОСНО в налоговую'
+          });
+        } else if (limits.limits.max.used_percent > 80) {
+          checks.push({
+            id: `usn_warning_${company.id}`,
+            category: 'risks',
+            severity: 'warning',
+            name: `Приближение к лимиту УСН: ${company.name}`,
+            message: `Использовано ${limits.limits.max.used_percent}% лимита УСН (${limits.current_revenue.toLocaleString('ru-RU')} ₽ из ${limits.limit.toLocaleString('ru-RU')} ₽)`,
+            details: limits,
+            recommendation: 'Планируйте переход на ОСНО или оптимизируйте выручку'
+          });
+        } else if (limits.vat_required) {
+          checks.push({
+            id: `usn_vat_${company.id}`,
+            category: 'risks',
+            severity: 'warning',
+            name: `НДС для УСН: ${company.name}`,
+            message: `Выручка превысила 20 млн ₽. Применяется НДС ${(limits.vat_rate * 100).toFixed(0)}%`,
+            details: limits,
+            recommendation: 'Начните учитывать НДС в ценообразовании'
+          });
+        }
+      }
+    }
+
+    // ============================================
     // БЛОК 7: РИСКИ
     // ============================================
 

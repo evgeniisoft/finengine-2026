@@ -363,6 +363,9 @@ export class TaxEngine {
     percentage: number;
     vat_required: boolean;
     vat_rate: number;
+    usn_allowed: boolean;
+    transition_required: boolean;
+    transition_quarter: string | null;
     limits: {
       exempt: { threshold: number; used_percent: number; passed: boolean };
       rate_5: { threshold: number; used_percent: number; passed: boolean };
@@ -383,12 +386,27 @@ export class TaxEngine {
     const rate5Limit = parseFloat(this.settings['usn_vat_5_limit'] || '250000000');
     const maxLimit = parseFloat(this.settings['usn_vat_7_limit'] || '490500000');
 
+    const vatRequired = revenue > exemptLimit;
+    const usnAllowed = revenue <= maxLimit;
+    const transitionRequired = !usnAllowed;
+
+    // Определяем квартал перехода (если превышен лимит)
+    let transitionQuarter: string | null = null;
+    if (transitionRequired) {
+      const currentMonth = new Date().getMonth() + 1;
+      const quarter = Math.ceil(currentMonth / 3);
+      transitionQuarter = `${quarter} квартал ${currentYear}`;
+    }
+
     return {
       current_revenue: revenue,
       limit: maxLimit,
       percentage: Math.round((revenue / maxLimit) * 10000) / 100,
-      vat_required: revenue > exemptLimit,
+      vat_required: vatRequired,
       vat_rate: this.getVatRateForUSN(revenue),
+      usn_allowed: usnAllowed,
+      transition_required: transitionRequired,
+      transition_quarter: transitionQuarter,
       limits: {
         exempt: {
           threshold: exemptLimit,
