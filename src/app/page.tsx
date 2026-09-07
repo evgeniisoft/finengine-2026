@@ -337,72 +337,136 @@ export default function Dashboard() {
             <div className="flex justify-between text-sm py-1 border-t mt-1"><span className="font-semibold">Итого</span><span className="font-bold">{(totalIncomeTax + totalInsurance + totalNdf).toLocaleString('ru-RU')} ₽</span></div>
           </div>
         </Widget>
-        {/* Лимиты УСН */}
+        {/* Лимиты УСН — единый виджет */}
         {usnLimits.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            {usnLimits.map((limit: any) => {
-              const exemptPercent = limit.limits?.exempt?.used_percent || 0;
-              const rate5Percent = limit.limits?.rate_5?.used_percent || 0;
-              const maxPercent = limit.limits?.max?.used_percent || 0;
-              const status = !limit.vat_required ? 'Без НДС' : limit.vat_rate > 0 ? `НДС ${(limit.vat_rate * 100).toFixed(0)}%` : 'Переход на ОСНО';
-              const statusColor = !limit.vat_required ? 'text-green-600' : limit.vat_rate > 0 && limit.vat_rate < 0.07 ? 'text-yellow-600' : 'text-red-600';
-
-              return (
-                <div key={limit.company_id} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-gray-500">Лимиты УСН</p>
-                      <h3 className="text-lg font-semibold text-gray-900">{limit.company_name}</h3>
-                      <p className="text-xs text-gray-500">{limit.tax_system === 'USN_6' ? 'УСН 6%' : 'УСН 15%'}</p>
-                    </div>
-                    <span className={`text-sm font-medium ${statusColor}`}>{status}</span>
-                  </div>
-
-                  <div className="mt-4 space-y-3">
-                    <div>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-gray-500">Выручка</span>
-                        <span className="font-medium">{limit.current_revenue?.toLocaleString('ru-RU')} ₽</span>
-                      </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(exemptPercent, 100)}%` }} />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-gray-500">Порог без НДС (20 млн)</span>
-                      <span className="font-medium">{exemptPercent.toFixed(1)}%</span>
-                    </div>
-
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-gray-500">Порог НДС 5% (250 млн)</span>
-                      <span className="font-medium">{rate5Percent.toFixed(1)}%</span>
-                    </div>
-
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-gray-500">Максимум УСН (490.5 млн)</span>
-                      <span className="font-medium">{maxPercent.toFixed(1)}%</span>
-                    </div>
-
-                    {!limit.usn_allowed && (
-                      <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-700 font-medium">
-                          Требуется переход на ОСНО с {limit.transition_quarter}
-                        </p>
-                      </div>
-                    )}
-
-                    {limit.usn_allowed && limit.vat_required && (
-                      <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-700">
-                          Применяется НДС {(limit.vat_rate * 100).toFixed(0)}% с {limit.transition_quarter}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm mb-4">
+            <div
+              className="cursor-pointer"
+              onClick={() => togglePanel('usn_limits')}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500">Лимиты УСН</p>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {usnLimits.length} {usnLimits.length === 1 ? 'компания' : usnLimits.length < 5 ? 'компании' : 'компаний'} на УСН
+                  </h3>
                 </div>
-              );
-            })}
+                <div className="flex items-center gap-3">
+                  {(() => {
+                    const worst = usnLimits.reduce((max: any, l: any) =>
+                      (l.limits?.exempt?.used_percent || 0) > (max?.limits?.exempt?.used_percent || 0) ? l : max
+                      , usnLimits[0]);
+                    const worstPercent = worst?.limits?.exempt?.used_percent || 0;
+                    const isWarning = worstPercent > 80;
+                    const isCritical = worstPercent > 95;
+
+                    return (
+                      <span className={`text-sm font-medium ${isCritical ? 'text-red-600' : isWarning ? 'text-yellow-600' : 'text-green-600'
+                        }`}>
+                        {isCritical ? 'Критично' : isWarning ? 'Внимание' : 'ОК'}
+                      </span>
+                    );
+                  })()}
+                  <span className="text-gray-400 text-xs">{expandedPanels['usn_limits'] ? '▲' : '▼'}</span>
+                </div>
+              </div>
+
+              {/* Сводный прогресс-бар */}
+              <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
+                {(() => {
+                  const worst = usnLimits.reduce((max: any, l: any) =>
+                    (l.limits?.exempt?.used_percent || 0) > (max?.limits?.exempt?.used_percent || 0) ? l : max
+                    , usnLimits[0]);
+                  const worstPercent = Math.min(worst?.limits?.exempt?.used_percent || 0, 100);
+                  const color = worstPercent > 80 ? 'bg-red-500' : worstPercent > 60 ? 'bg-yellow-500' : 'bg-green-500';
+                  return <div className={`h-full ${color} rounded-full`} style={{ width: `${worstPercent}%` }} />;
+                })()}
+              </div>
+            </div>
+
+            {/* Развёрнутая часть */}
+            {expandedPanels['usn_limits'] && (
+              <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                {usnLimits.map((limit: any) => {
+                  const exemptPercent = limit.limits?.exempt?.used_percent || 0;
+                  const exemptThreshold = limit.limits?.exempt?.threshold || 20000000;
+                  const remaining = Math.max(0, exemptThreshold - (limit.current_revenue || 0));
+                  const status = !limit.vat_required
+                    ? 'Без НДС'
+                    : !limit.usn_allowed
+                      ? 'Переход на ОСНО'
+                      : `НДС ${(limit.vat_rate * 100).toFixed(0)}%`;
+
+                  const statusColor = !limit.vat_required
+                    ? 'text-green-600'
+                    : !limit.usn_allowed
+                      ? 'text-red-600'
+                      : 'text-yellow-600';
+
+                  return (
+                    <div key={limit.company_id} className="border border-gray-100 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">{limit.company_name}</p>
+                          <p className="text-xs text-gray-500">
+                            {limit.tax_system === 'USN_6' ? 'УСН 6%' : 'УСН 15%'}
+                          </p>
+                        </div>
+                        <span className={`text-sm font-medium ${statusColor}`}>{status}</span>
+                      </div>
+
+                      <div className="mt-3">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-500">Выручка: {limit.current_revenue?.toLocaleString('ru-RU')} ₽</span>
+                          <span className="text-gray-500">Порог: {exemptThreshold.toLocaleString('ru-RU')} ₽</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${exemptPercent > 80 ? 'bg-red-500' : exemptPercent > 60 ? 'bg-yellow-500' : 'bg-green-500'
+                              }`}
+                            style={{ width: `${Math.min(exemptPercent, 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs mt-1">
+                          <span className="text-gray-400">Использовано: {exemptPercent.toFixed(1)}%</span>
+                          <span className="text-gray-400">Осталось: {remaining.toLocaleString('ru-RU')} ₽</span>
+                        </div>
+                      </div>
+
+                      {!limit.usn_allowed && (
+                        <div className="mt-2 p-2 bg-red-50 rounded">
+                          <p className="text-xs text-red-700">
+                            Требуется переход на ОСНО с {limit.transition_quarter}
+                          </p>
+                        </div>
+                      )}
+
+                      {limit.usn_allowed && limit.vat_required && (
+                        <div className="mt-2 p-2 bg-yellow-50 rounded">
+                          <p className="text-xs text-yellow-700">
+                            НДС {(limit.vat_rate * 100).toFixed(0)}% с текущего квартала
+                          </p>
+                        </div>
+                      )}
+
+                      {exemptPercent > 80 && limit.usn_allowed && (
+                        <div className="mt-2 p-2 bg-yellow-50 rounded">
+                          <p className="text-xs text-yellow-700">
+                            ⚠️ Приближаетесь к порогу НДС. Подготовьтесь к изменениям.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                <div className="text-right">
+                  <a href="/diagnostics" className="text-xs text-blue-600 hover:text-blue-700">
+                    Подробнее в диагностике →
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
