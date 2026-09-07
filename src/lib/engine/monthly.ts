@@ -142,6 +142,22 @@ export class MonthlyEngine {
         revenue = taxCalc.revenue_without_vat;
         expenses = taxCalc.expenses_without_vat;
       }
+
+      // Записываем налоги в details ДЕТАЛИЗИРОВАННО
+      if (taxCalc) {
+        details['acc-tax-insurance'] = taxCalc.insurance_amount;
+        details['acc-tax-ndfl'] = taxCalc.ndfl_amount;
+        details['acc-tax-vat'] = taxCalc.vat_to_pay;
+
+        // Для УСН или налога на прибыль — по типу системы
+        if (company?.tax_system === 'USN_6' || company?.tax_system === 'USN_15') {
+          details['acc-tax-usn'] = taxCalc.income_tax_amount;
+          details['acc-tax-profit'] = 0;
+        } else if (company?.tax_system === 'OSNO') {
+          details['acc-tax-usn'] = 0;
+          details['acc-tax-profit'] = taxCalc.income_tax_amount;
+        }
+      }
       // Налоговые выбытия за период
       let taxOutflow = 0;
       if (taxCalc) {
