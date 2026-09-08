@@ -586,9 +586,21 @@ export async function GET(request: NextRequest) {
     // ============================================
 
     const totalRevenue = Array.from(revenueByCompany.values()).reduce((s, v) => s + v, 0);
-    const allTransactionsRevenue = transactions
-      .filter(t => accounts.find(a => a.id === t.credit_account_id)?.type === 'I')
-      .reduce((sum, t) => sum + amountOf(t), 0);
+    let allTransactionsRevenue = 0;
+    for (const company of companies) {
+      const vatIncludedCheck = String(company.vat_included).toLowerCase() === 'true';
+      const companyRevenue = transactions
+        .filter(t => t.company_id === company.id)
+        .filter(t => accounts.find(a => a.id === t.credit_account_id)?.type === 'I')
+        .reduce((sum, t) => sum + amountOf(t), 0);
+
+      if (vatIncludedCheck) {
+        const vatRateCheck = parseFloat(String(company.vat_rate || '0.22'));
+        allTransactionsRevenue += companyRevenue / (1 + vatRateCheck);
+      } else {
+        allTransactionsRevenue += companyRevenue;
+      }
+    }
 
     checks.push({
       id: 'revenue_crosscheck',
