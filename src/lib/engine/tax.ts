@@ -240,7 +240,9 @@ export class TaxEngine {
     const insurance = this.calculateInsuranceContributions(company, 0);
     const monthlyInsurance = insurance.monthly_contributions;
     const monthlyNdfl = insurance.ndfl_monthly || 0;
-    const ipFixed = company.is_individual ? 57390 : 0;
+    const ipFixed = company.is_individual
+      ? parseFloat(this.settings['ip_fixed_contribution'] || '57390')
+      : 0;
 
     for (const monthKey of months) {
       const taxes: { [key: string]: number } = {};

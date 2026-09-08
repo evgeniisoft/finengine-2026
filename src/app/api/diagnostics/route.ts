@@ -80,11 +80,13 @@ export async function GET(request: NextRequest) {
     // ============================================
 
     // 1.1 Скорость GAS
-    const slowThreshold = 5000;
+    // 1.1 Скорость GAS
+    const slowThreshold = parseFloat(taxSettings['diagnostic_slow_critical'] || '5000');
+    const slowWarningThreshold = parseFloat(taxSettings['diagnostic_slow_warning'] || '2000');
     checks.push({
       id: 'gas_speed',
       category: 'infrastructure',
-      severity: loadTime > slowThreshold ? 'critical' : loadTime > 2000 ? 'warning' : 'ok',
+      severity: loadTime > slowThreshold ? 'critical' : loadTime > slowWarningThreshold ? 'warning' : 'ok',
       name: 'Скорость загрузки данных',
       message: `Загрузка всех данных: ${(loadTime / 1000).toFixed(2)} сек`,
       details: {
@@ -1248,10 +1250,11 @@ export async function GET(request: NextRequest) {
 
     // 5.1 Пустые статьи бюджета
     const emptyBudgets = budgets.filter(b => amountOf(b) === 0 && b.status === 'draft');
+    const budgetWarningThreshold = parseFloat(taxSettings['diagnostic_budget_warning'] || '20');
     checks.push({
       id: 'empty_budgets',
       category: 'planning',
-      severity: emptyBudgets.length > 20 ? 'warning' : emptyBudgets.length > 0 ? 'info' : 'ok',
+      severity: emptyBudgets.length > budgetWarningThreshold ? 'warning' : emptyBudgets.length > 0 ? 'info' : 'ok',
       name: 'Пустые статьи бюджета',
       count: emptyBudgets.length,
       message: emptyBudgets.length > 0 ? `${emptyBudgets.length} статей не заполнены` : 'Бюджет заполнен',
@@ -1549,10 +1552,13 @@ export async function GET(request: NextRequest) {
         const percentage = (rev / limit) * 100;
 
         if (percentage > 50) {
+          const warningThreshold = parseFloat(taxSettings['diagnostic_warning_threshold'] || '60');
+          const criticalThreshold = parseFloat(taxSettings['diagnostic_critical_threshold'] || '80');
+
           checks.push({
             id: `usn_limit_${company.id}`,
             category: 'risks',
-            severity: percentage > 80 ? 'critical' : percentage > 60 ? 'warning' : 'info',
+            severity: percentage > criticalThreshold ? 'critical' : percentage > warningThreshold ? 'warning' : 'info',
             name: `Лимит УСН: ${company.name}`,
             message: `Использовано ${percentage.toFixed(1)}% лимита (${rev.toLocaleString('ru-RU')} ₽ из ${limit.toLocaleString('ru-RU')} ₽)`,
             details: {
