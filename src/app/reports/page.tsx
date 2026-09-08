@@ -780,16 +780,61 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {rows.map((row: any, rowIdx: number) => (
-                            <tr key={rowIdx} className="hover:bg-gray-50 cursor-pointer" onClick={() => onDrilldown && row.rowType && onDrilldown(row.id, row.rowType)}>
-                                <td className={`px-4 py-3 text-sm sticky left-0 bg-white z-10 ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{row.label}</td>
-                                {data.map((d: any, dataIdx: number) => (
-                                    <td key={dataIdx} className={`px-6 py-3 text-sm text-right whitespace-nowrap ${row.bold ? 'font-bold' : 'font-medium'} ${row.color}`}>
-                                        {row.getValue(d)?.toLocaleString('ru-RU') || 0} ₽
+                        {/* Поступления */}
+                        <tr className="bg-green-50/50">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Поступления</td>
+                            {periods.map((p: any) => (
+                                <td key={p.label} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">
+                                    {p.inflow > 0 ? '+' + p.inflow.toLocaleString('ru-RU') : ''}
+                                </td>
+                            ))}
+                        </tr>
+                        {/* Детализация поступлений */}
+                        {periods.some((p: any) => p.inflow > 0) && (
+                            <tr className="text-xs text-gray-500">
+                                <td className="px-4 py-2 pl-8 sticky left-0 bg-white">— по контрагентам</td>
+                                {periods.map((p: any) => (
+                                    <td key={p.label} className="px-4 py-2 text-right whitespace-nowrap">
+                                        {Object.entries(p.inflow_details || {}).map(([name, amount]: any) => (
+                                            <div key={name} className="text-xs text-green-700">
+                                                {name}: +{amount.toLocaleString('ru-RU')}
+                                            </div>
+                                        ))}
                                     </td>
                                 ))}
                             </tr>
-                        ))}
+                        )}
+                        {/* Выбытия */}
+                        <tr>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Выбытия</td>
+                            {periods.map((p: any) => (
+                                <td key={p.label} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">
+                                    {p.outflow > 0 ? '-' + p.outflow.toLocaleString('ru-RU') : ''}
+                                </td>
+                            ))}
+                        </tr>
+                        {/* Детализация выбытий */}
+                        {periods.some((p: any) => p.outflow > 0) && (
+                            <tr className="text-xs text-gray-500">
+                                <td className="px-4 py-2 pl-8 sticky left-0 bg-white">— по статьям</td>
+                                {periods.map((p: any) => (
+                                    <td key={p.label} className="px-4 py-2 text-right whitespace-nowrap">
+                                        {Object.entries(p.outflow_details || {}).map(([name, amount]: any) => (
+                                            <div key={name} className="text-xs text-red-700">
+                                                {name}: -{amount.toLocaleString('ru-RU')}
+                                            </div>
+                                        ))}
+                                    </td>
+                                ))}
+                            </tr>
+                        )}
+                        {/* Баланс */}
+                        <tr>
+                            <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-white">Баланс</td>
+                            {periods.map((p: any) => (
+                                <td key={p.label} className={`px-4 py-3 text-sm text-right font-medium whitespace-nowrap ${p.balance < 0 ? 'text-red-600 bg-red-50' : 'text-gray-900'}`}>{p.balance.toLocaleString('ru-RU')}</td>
+                            ))}
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -800,6 +845,138 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
             )}
         </div>
     );
+}
+// ============================================
+// CASH GAPS VIEW
+// ============================================
+function CashGapsView({ transactions, companies, companyId }: any) {
+    const [days, setDays] = useState(30);
+    const [periodType, setPeriodType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+
+    const filteredTx = companyId ? transactions.filter((t: any) => t.company_id === companyId) : transactions;
+    const companyName = companyId ? companies.find((c: any) => c.id === companyId)?.name || '' : 'Консолидированные';
+
+    const periods = getCalendarPeriods(filteredTx, periodType, days);
+    const gapPeriods = periods.filter((p: any) => p.balance < 0);
+
+    return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
+            <div className="flex justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">{companyName} — Кассовые разрывы</h3>
+                <div className="flex gap-2">
+                    <button onClick={() => setPeriodType('daily')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Дни</button>
+                    <button onClick={() => setPeriodType('weekly')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Недели</button>
+                    <button onClick={() => setPeriodType('monthly')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Месяцы</button>
+                </div>
+            </div>
+
+            {gapPeriods.length === 0 ? (
+                <div className="p-8 text-center">
+                    <p className="text-green-600 font-medium">Кассовых разрывов не прогнозируется</p>
+                </div>
+            ) : (
+                <>
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-red-700 font-medium">Обнаружено {gapPeriods.length} периодов с отрицательным остатком</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">Период</th>
+                                    {gapPeriods.map((gap: any) => (
+                                        <th key={gap.label} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{gap.label}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Остаток</td>
+                                    {gapPeriods.map((gap: any) => (
+                                        <td key={gap.label} className="px-4 py-3 text-sm text-right font-medium text-red-600 bg-red-50 whitespace-nowrap">{gap.balance.toLocaleString('ru-RU')} ₽</td>
+                                    ))}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
+// ============================================
+// GET CALENDAR PERIODS — с детализацией
+// ============================================
+function getCalendarPeriods(transactions: any[], periodType: string, count: number): any[] {
+    const today = new Date();
+    const periods: any[] = [];
+
+    for (let i = 0; i < count; i++) {
+        const date = new Date(today);
+
+        if (periodType === 'daily') {
+            date.setDate(date.getDate() + i);
+            const dateStr = date.toISOString().split('T')[0];
+            const dayTx = transactions.filter((t: any) => {
+                const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
+                return txDate === dateStr;
+            });
+            periods.push(buildCalendarPeriod(formatDay(dateStr), dayTx));
+        } else if (periodType === 'weekly') {
+            date.setDate(date.getDate() + i * 7);
+            const weekStart = date.toISOString().split('T')[0];
+            const weekEnd = new Date(date);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            const weekEndStr = weekEnd.toISOString().split('T')[0];
+            const weekTx = transactions.filter((t: any) => {
+                const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
+                return txDate >= weekStart && txDate <= weekEndStr;
+            });
+            periods.push(buildCalendarPeriod(`${i + 1} нед`, weekTx));
+        } else if (periodType === 'monthly') {
+            date.setMonth(date.getMonth() + i);
+            const monthStr = date.toISOString().substring(0, 7);
+            const monthTx = transactions.filter((t: any) => {
+                const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
+                return txDate.startsWith(monthStr);
+            });
+            periods.push(buildCalendarPeriod(formatMonth(monthStr), monthTx));
+        }
+    }
+    return periods;
+}
+
+// Helper: строит период с детализацией
+function buildCalendarPeriod(label: string, periodTx: any[]): any {
+    const inflowTransactions = periodTx.filter(t => t.type === 'income');
+    const outflowTransactions = periodTx.filter(t => t.type === 'expense');
+
+    const inflow = inflowTransactions.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+    const outflow = outflowTransactions.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+
+    // Детализация по контрагентам (для поступлений)
+    const inflowByCounterparty: { [key: string]: number } = {};
+    inflowTransactions.forEach(t => {
+        const cpName = t.counterparty_name || t.counterparty_id || 'Прочие';
+        inflowByCounterparty[cpName] = (inflowByCounterparty[cpName] || 0) + parseFloat(t.amount || 0);
+    });
+
+    // Детализация по статьям (для выбытий)
+    const outflowByCategory: { [key: string]: number } = {};
+    outflowTransactions.forEach(t => {
+        const catName = t.debit_account_name || t.debit_account_id || 'Прочие';
+        outflowByCategory[catName] = (outflowByCategory[catName] || 0) + parseFloat(t.amount || 0);
+    });
+
+    return {
+        label,
+        inflow,
+        outflow,
+        balance: inflow - outflow,
+        inflow_details: inflowByCounterparty,
+        outflow_details: outflowByCategory,
+    };
 }
 
 // ============================================
@@ -835,18 +1012,55 @@ function CalendarView({ transactions, companies, companyId, accounts }: any) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        <tr>
+                        {/* Поступления */}
+                        <tr className="bg-green-50/50">
                             <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Поступления</td>
                             {periods.map((p: any) => (
-                                <td key={p.label} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">{p.inflow > 0 ? '+' + p.inflow.toLocaleString('ru-RU') : ''}</td>
+                                <td key={p.label} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">
+                                    {p.inflow > 0 ? '+' + p.inflow.toLocaleString('ru-RU') : ''}
+                                </td>
                             ))}
                         </tr>
+                        {/* Детализация поступлений */}
+                        {periods.some(p => p.inflow > 0) && (
+                            <tr className="text-xs text-gray-500">
+                                <td className="px-4 py-2 pl-8 sticky left-0 bg-white">— по контрагентам</td>
+                                {periods.map((p: any) => (
+                                    <td key={p.label} className="px-4 py-2 text-right whitespace-nowrap">
+                                        {Object.entries(p.inflow_details || {}).map(([name, amount]: any) => (
+                                            <div key={name} className="text-xs text-green-700">
+                                                {name}: +{amount.toLocaleString('ru-RU')}
+                                            </div>
+                                        ))}
+                                    </td>
+                                ))}
+                            </tr>
+                        )}
+                        {/* Выбытия */}
                         <tr>
                             <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Выбытия</td>
                             {periods.map((p: any) => (
-                                <td key={p.label} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">{p.outflow > 0 ? '-' + p.outflow.toLocaleString('ru-RU') : ''}</td>
+                                <td key={p.label} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">
+                                    {p.outflow > 0 ? '-' + p.outflow.toLocaleString('ru-RU') : ''}
+                                </td>
                             ))}
                         </tr>
+                        {/* Детализация выбытий */}
+                        {periods.some(p => p.outflow > 0) && (
+                            <tr className="text-xs text-gray-500">
+                                <td className="px-4 py-2 pl-8 sticky left-0 bg-white">— по статьям</td>
+                                {periods.map((p: any) => (
+                                    <td key={p.label} className="px-4 py-2 text-right whitespace-nowrap">
+                                        {Object.entries(p.outflow_details || {}).map(([name, amount]: any) => (
+                                            <div key={name} className="text-xs text-red-700">
+                                                {name}: -{amount.toLocaleString('ru-RU')}
+                                            </div>
+                                        ))}
+                                    </td>
+                                ))}
+                            </tr>
+                        )}
+                        {/* Баланс */}
                         <tr>
                             <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-white">Баланс</td>
                             {periods.map((p: any) => (
@@ -858,105 +1072,4 @@ function CalendarView({ transactions, companies, companyId, accounts }: any) {
             </div>
         </div>
     );
-}
-
-// ============================================
-// CASH GAPS VIEW
-// ============================================
-function CashGapsView({ transactions, companies, companyId }: any) {
-    const [days, setDays] = useState(30);
-    const [periodType, setPeriodType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-
-    const filteredTx = companyId ? transactions.filter((t: any) => t.company_id === companyId) : transactions;
-    const companyName = companyId ? companies.find((c: any) => c.id === companyId)?.name || '' : 'Консолидированные';
-
-    const periods = getCalendarPeriods(filteredTx, periodType, days);
-    const gapPeriods = periods.filter((p: any) => p.balance < 0);
-
-    return (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
-            <div className="flex justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">{companyName} — Кассовые разрывы</h3>
-                <div className="flex gap-2">
-                    <button onClick={() => setPeriodType('daily')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Дни</button>
-                    <button onClick={() => setPeriodType('weekly')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Недели</button>
-                    <button onClick={() => setPeriodType('monthly')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Месяцы</button>
-                </div>
-            </div>
-
-            {gapPeriods.length === 0 ? (
-                <div className="p-8 text-center">
-                    <p className="text-green-600 font-medium">✅ Кассовых разрывов не прогнозируется</p>
-                </div>
-            ) : (
-                <>
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-red-700 font-medium">⚠️ Обнаружено {gapPeriods.length} периодов с отрицательным остатком</p>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">Период</th>
-                                    {gapPeriods.map((gap: any) => (
-                                        <th key={gap.label} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{gap.label}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Остаток</td>
-                                    {gapPeriods.map((gap: any) => (
-                                        <td key={gap.label} className="px-4 py-3 text-sm text-right font-medium text-red-600 bg-red-50 whitespace-nowrap">{gap.balance.toLocaleString('ru-RU')} ₽</td>
-                                    ))}
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </>
-            )}
-        </div>
-    );
-}
-
-// ============================================
-// GET CALENDAR PERIODS
-// ============================================
-function getCalendarPeriods(transactions: any[], periodType: string, count: number): any[] {
-    const today = new Date();
-    const periods: any[] = [];
-
-    for (let i = 0; i < count; i++) {
-        const date = new Date(today);
-
-        if (periodType === 'daily') {
-            date.setDate(date.getDate() + i);
-            const dateStr = date.toISOString().split('T')[0];
-            const dayTx = transactions.filter((t: any) => t.date?.startsWith(dateStr));
-            const inflow = dayTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
-            const outflow = dayTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
-            periods.push({ label: formatDay(dateStr), inflow, outflow, balance: inflow - outflow });
-        } else if (periodType === 'weekly') {
-            date.setDate(date.getDate() + i * 7);
-            const weekStart = date.toISOString().split('T')[0];
-            const weekEnd = new Date(date);
-            weekEnd.setDate(weekEnd.getDate() + 6);
-            const weekEndStr = weekEnd.toISOString().split('T')[0];
-            const weekTx = transactions.filter((t: any) => {
-                const txDate = t.date?.split('T')[0] || t.date;
-                return txDate >= weekStart && txDate <= weekEndStr;
-            });
-            const inflow = weekTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
-            const outflow = weekTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
-            periods.push({ label: `${i + 1} нед`, inflow, outflow, balance: inflow - outflow });
-        } else if (periodType === 'monthly') {
-            date.setMonth(date.getMonth() + i);
-            const monthStr = date.toISOString().substring(0, 7);
-            const monthTx = transactions.filter((t: any) => t.date?.startsWith(monthStr));
-            const inflow = monthTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
-            const outflow = monthTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + parseFloat(t.amount || 0), 0);
-            periods.push({ label: formatMonth(monthStr), inflow, outflow, balance: inflow - outflow });
-        }
-    }
-    return periods;
 }
