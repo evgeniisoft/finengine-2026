@@ -3,6 +3,7 @@ import { calculator } from '@/lib/engine/calculator';
 import { consolidationEngine } from '@/lib/engine/consolidation';
 import { monthlyEngine } from '@/lib/engine/monthly';
 import { taxEngine } from '@/lib/engine/tax';
+import { loadSystemAccounts } from '@/lib/config/accounts';
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
@@ -28,6 +29,8 @@ export async function GET(request: NextRequest) {
       gasGet('Budgets'),
       gasGet('Settings')
     ]);
+    // Загружаем системные счета
+    loadSystemAccounts(settings);
     const loadTime = Date.now() - loadStart;
 
     const checks: any[] = [];

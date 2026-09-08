@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { calculator } from '@/lib/engine/calculator';
 import { consolidationEngine } from '@/lib/engine/consolidation';
 import { taxEngine } from '@/lib/engine/tax';
+import { loadSystemAccounts } from '@/lib/config/accounts';
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
@@ -28,6 +29,8 @@ export async function GET(request: NextRequest) {
     ]);
 
     await taxEngine.loadSettings(settings);
+    // Загружаем системные счета
+    loadSystemAccounts(settings);
 
     console.log('Transactions:', transactions.length);
     console.log('Accounts:', accounts.length);

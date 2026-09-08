@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { budgetEngine } from '@/lib/engine/budget';
 import { taxEngine } from '@/lib/engine/tax';
+import { loadSystemAccounts } from '@/lib/config/accounts';
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
@@ -38,6 +39,9 @@ export async function GET(request: NextRequest) {
       gasGet('Accounts'),
       gasGet('Companies')
     ]);
+    // Загружаем системные счета
+    const settings = await gasGet('Settings');
+    loadSystemAccounts(settings);
 
     // Фильтруем бюджеты
     let filteredBudgets = budgets.filter((b: any) => {
