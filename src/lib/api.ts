@@ -1,4 +1,5 @@
 import { getSession } from './auth';
+import { dataCache, CACHE_KEYS } from './cache';
 
 export type SheetName = 
   | 'Settings'
@@ -30,6 +31,12 @@ class ApiClient {
   }
 
   async getAll(sheet: SheetName): Promise<any[]> {
+    // Проверяем кэш
+    const cached = dataCache.get(sheet);
+    if (cached) {
+      return cached;
+    }
+
     try {
       const url = `${this.baseUrl}?action=getAll&sheet=${sheet}`;
       const response = await fetch(url, {
@@ -41,28 +48,15 @@ class ApiClient {
         throw new Error(data.error);
       }
       
-      return Array.isArray(data) ? data : [];
+      const result = Array.isArray(data) ? data : [];
+      
+      // Кэшируем справочники дольше, операции меньше
+      const ttl = sheet === 'Transactions' || sheet === 'Budgets' ? 60 : 600;
+      dataCache.set(sheet, result, ttl);
+      
+      return result;
     } catch (error) {
       console.error(`Ошибка при получении данных из ${sheet}:`, error);
-      throw error;
-    }
-  }
-
-  async getById(sheet: SheetName, id: string): Promise<any> {
-    try {
-      const url = `${this.baseUrl}?action=getById&sheet=${sheet}&id=${encodeURIComponent(id)}`;
-      const response = await fetch(url, {
-        headers: this.getHeaders()
-      });
-      const data = await response.json();
-      
-      if (data && data.error) {
-        throw new Error(data.error);
-      }
-      
-      return data;
-    } catch (error) {
-      console.error(`Ошибка при получении записи из ${sheet}:`, error);
       throw error;
     }
   }
@@ -80,6 +74,9 @@ class ApiClient {
       if (result && result.error) {
         throw new Error(result.error);
       }
+      
+      // Инвалидируем кэш
+      dataCache.invalidate(sheet);
       
       return result;
     } catch (error) {
@@ -102,6 +99,9 @@ class ApiClient {
         throw new Error(result.error);
       }
       
+      // Инвалидируем кэш
+      dataCache.invalidate(sheet);
+      
       return result;
     } catch (error) {
       console.error(`Ошибка при обновлении записи в ${sheet}:`, error);
@@ -120,6 +120,9 @@ class ApiClient {
       if (result && result.error) {
         throw new Error(result.error);
       }
+      
+      // Инвалидируем кэш
+      dataCache.invalidate(sheet);
       
       return result.success || false;
     } catch (error) {
@@ -142,10 +145,21 @@ class ApiClient {
         throw new Error(result.error);
       }
       
+      // Инвалидируем кэш
+      dataCache.invalidate(sheet);
+      
       return result;
     } catch (error) {
       console.error(`Ошибка при массовом создании в ${sheet}:`, error);
       throw error;
+    }
+  }
+
+  invalidateCache(sheet?: SheetName): void {
+    if (sheet) {
+      dataCache.invalidate(sheet);
+    } else {
+      dataCache.invalidateAll();
     }
   }
 }
