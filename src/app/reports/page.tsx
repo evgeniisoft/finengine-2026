@@ -1228,6 +1228,7 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
         </div>
     );
 }
+
 // ============================================
 // GET TAX PAYMENTS — автоматические налоговые платежи
 // ============================================
