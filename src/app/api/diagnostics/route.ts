@@ -140,12 +140,22 @@ export async function GET(request: NextRequest) {
       message: unclassified.length > 0
         ? `${unclassified.length} операций требуют категоризации`
         : 'Все операции категоризированы',
-      details: unclassified.slice(0, 20).map(t => ({
-        id: t.id,
-        date: getDateStr(t.date),
-        amount: amountOf(t),
-        description: t.description || '(нет описания)'
-      })),
+      details: {
+        operations: unclassified.slice(0, 20).map(t => ({
+          id: t.id,
+          date: getDateStr(t.date),
+          amount: amountOf(t),
+          description: t.description || '(нет описания)'
+        })),
+        display: unclassified.length > 0 ? {
+          type: 'list',
+          items: unclassified.slice(0, 5).map(t => ({
+            label: `${getDateStr(t.date)} — ${t.description || '(нет описания)'}`,
+            value: `${amountOf(t).toLocaleString('ru-RU')} ₽`,
+            color: 'red' as const
+          }))
+        } : undefined
+      },
       recommendation: unclassified.length > 0 ? 'Присвойте категории операциям' : null,
       auto_fix: unclassified.length > 0,
       auto_fix_action: 'categorize_unclassified',
@@ -1128,10 +1138,20 @@ export async function GET(request: NextRequest) {
       name: 'Пустые статьи бюджета',
       count: emptyBudgets.length,
       message: emptyBudgets.length > 0 ? `${emptyBudgets.length} статей не заполнены` : 'Бюджет заполнен',
-      details: emptyBudgets.slice(0, 20).map(b => ({
-        period: String(b.period || '').replace(/^'/, '').substring(0, 7),
-        category: b.category_id
-      })),
+      details: {
+        budgets: emptyBudgets.slice(0, 20).map(b => ({
+          period: String(b.period || '').replace(/^'/, '').substring(0, 7),
+          category: b.category_id
+        })),
+        display: emptyBudgets.length > 0 ? {
+          type: 'list',
+          items: emptyBudgets.slice(0, 5).map(b => ({
+            label: String(b.period || '').replace(/^'/, '').substring(0, 7),
+            value: b.category_id,
+            color: 'yellow' as const
+          }))
+        } : undefined
+      },
       recommendation: emptyBudgets.length > 0 ? 'Заполните пустые статьи' : null,
       auto_fix: emptyBudgets.length > 0,
       auto_fix_action: 'fill_empty_budgets',
@@ -1465,7 +1485,7 @@ export async function GET(request: NextRequest) {
         : daysSinceLastTx > 0
           ? `Последняя операция: ${daysSinceLastTx} дн. назад (${lastTransactionDate})`
           : 'Данные актуальны',
-            details: {
+      details: {
         last_transaction: lastTransactionDate,
         days_ago: daysSinceLastTx,
         is_future_date: isFutureDate,
@@ -1630,7 +1650,17 @@ export async function GET(request: NextRequest) {
       message: consistencyIssues.length > 0
         ? `Найдено ${consistencyIssues.length} расхождений между отчётами`
         : 'Все отчёты согласованы',
-      details: consistencyIssues.slice(0, 30),
+      details: {
+        issues: consistencyIssues.slice(0, 30),
+        display: consistencyIssues.length > 0 ? {
+          type: 'list',
+          items: consistencyIssues.slice(0, 10).map(issue => ({
+            label: `${issue.period} — ${issue.company} — ${issue.check}`,
+            value: `${issue.difference.toLocaleString('ru-RU')} ₽`,
+            color: 'yellow' as const
+          }))
+        } : undefined
+      },
       recommendation: consistencyIssues.length > 0
         ? 'Проверьте расхождения и исправьте расчёты'
         : null
