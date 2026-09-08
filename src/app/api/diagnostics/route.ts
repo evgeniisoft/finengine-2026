@@ -387,7 +387,7 @@ export async function GET(request: NextRequest) {
         let insuranceForReduction = 0;
         if (company.is_individual) {
           insuranceForReduction = 57390;
-          if (dashboardRevenue > 300000) {
+          if (dashboardRevenue > parseFloat(taxSettings['ip_additional_threshold'] || '300000')) {
             insuranceForReduction += Math.min((dashboardRevenue - 300000) * 0.01, 321818);
           }
         } else {
@@ -535,7 +535,7 @@ export async function GET(request: NextRequest) {
         let insuranceForReduction = 0;
         if (company.is_individual) {
           insuranceForReduction = 57390;
-          if (rev > 300000) {
+          if (rev > parseFloat(taxSettings['ip_additional_threshold'] || '300000')) {
             insuranceForReduction += Math.min((rev - 300000) * 0.01, 321818);
           }
         } else {
@@ -844,7 +844,7 @@ export async function GET(request: NextRequest) {
         let insuranceForReduction = 0;
         if (company.is_individual) {
           insuranceForReduction = 57390;
-          if (rev > 300000) {
+          if (rev > parseFloat(taxSettings['ip_additional_threshold'] || '300000')) {
             insuranceForReduction += Math.min((rev - 300000) * 0.01, 321818);
           }
         } else {
@@ -948,7 +948,7 @@ export async function GET(request: NextRequest) {
         let insuranceForReduction = 0;
         if (company.is_individual) {
           insuranceForReduction = 57390;
-          if (rev > 300000) {
+          if (rev > parseFloat(taxSettings['ip_additional_threshold'] || '300000')) {
             insuranceForReduction += Math.min((rev - 300000) * 0.01, 321818);
           }
         } else {
@@ -1081,7 +1081,7 @@ export async function GET(request: NextRequest) {
         let insurance = 0;
         if (company.is_individual) {
           insurance = 57390;
-          if (rev > 300000) {
+          if (rev > parseFloat(taxSettings['ip_additional_threshold'] || '300000')) {
             insurance += Math.min((rev - 300000) * 0.01, 321818);
           }
         } else {
@@ -1770,7 +1770,7 @@ export async function GET(request: NextRequest) {
           );
 
           const pnlBalanceDiff = Math.abs(yearPnL.net_profit - yearBalance.equity.retained_earnings);
-          if (pnlBalanceDiff > 100) {
+          if (pnlBalanceDiff > consistencyErrorThreshold) {
             consistencyIssues.push({
               period: period.name,
               company: company.name,
@@ -1792,7 +1792,7 @@ export async function GET(request: NextRequest) {
         const sumMonthlyRevenue = monthlyBreakdown.reduce((s, m) => s + m.revenue, 0);
         const pnlRevenueDiff = Math.abs(sumMonthlyRevenue - pnl.revenue);
 
-        if (pnlRevenueDiff > 100) {
+        if (pnlRevenueDiff > consistencyErrorThreshold) {
           consistencyIssues.push({
             period: period.name,
             company: company.name,
@@ -1807,7 +1807,7 @@ export async function GET(request: NextRequest) {
         const sumMonthlyProfit = monthlyBreakdown.reduce((s, m) => s + m.profit, 0);
         const pnlProfitDiff = Math.abs(sumMonthlyProfit - pnl.net_profit);
 
-        if (pnlProfitDiff > 100) {
+        if (pnlProfitDiff > consistencyErrorThreshold) {
           consistencyIssues.push({
             period: period.name,
             company: company.name,

@@ -1,4 +1,4 @@
-'use client';import { getSystemAccount } from '@/lib/config/accounts';
+'use client'; import { getSystemAccount } from '@/lib/config/accounts';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -147,7 +147,8 @@ export default function Dashboard() {
 
   const gaps: any[] = [];
   let runningBalance = totalCash;
-  for (let i = 0; i < 30; i++) {
+  const cashGapForecastDays = parseInt(process.env.NEXT_PUBLIC_CASH_GAP_DAYS || '30');
+  for (let i = 0; i < cashGapForecastDays; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split('T')[0];
@@ -172,6 +173,8 @@ export default function Dashboard() {
 
   const totalAR = transactions.filter(t => t.debit_account_id === arAccount).reduce((s, t) => s + parseFloat(t.amount || 0), 0);
   const totalAP = transactions.filter(t => t.credit_account_id === apAccount).reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  const arAlertThreshold = parseFloat(process.env.NEXT_PUBLIC_AR_ALERT_THRESHOLD || '1000000');
+  const apAlertThreshold = parseFloat(process.env.NEXT_PUBLIC_AP_ALERT_THRESHOLD || '1000000');
   const unclassifiedTx = transactions.filter(t => t.debit_account_id === unclassifiedAccount || t.credit_account_id === unclassifiedAccount);
   const unclassifiedAmount = unclassifiedTx.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
 
