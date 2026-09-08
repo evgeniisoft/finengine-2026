@@ -141,17 +141,17 @@ export default function TaxesSettingsPage() {
     };
 
     const isPercent = (key: string) => {
-        return !key.includes('limit') &&
-            key !== 'mrot' &&
-            key !== 'ndfl_limit' &&
-            key !== 'ip_fixed' &&
-            key !== 'ip_fixed_contribution' &&
-            key !== 'ip_additional_threshold' &&
-            key !== 'ip_additional_max' &&
-            key !== 'ip_additional_threshold' &&
-            !key.startsWith('system_account_') &&
-            !key.includes('_day') &&
-            !key.includes('diagnostic_');
+        // Проценты только для ставок
+        const percentKeys = [
+            'vat_osno', 'vat_osno_reduced', 'vat_usn_5', 'vat_usn_7',
+            'profit_tax', 'usn_6', 'usn_15', 'usn_min_tax',
+            'insurance_base_rate', 'insurance_reduced_rate',
+            'insurance_msp_rate', 'insurance_it_rate',
+            'ndfl_base_rate', 'ndfl_increased_rate',
+            'ip_additional_rate'
+        ];
+
+        return percentKeys.includes(key);
     };
 
     const displayValue = (setting: any) => {
