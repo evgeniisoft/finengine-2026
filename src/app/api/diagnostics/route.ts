@@ -186,7 +186,17 @@ export async function GET(request: NextRequest) {
       name: 'Дублирующиеся операции',
       count: duplicates.length,
       message: duplicates.length > 0 ? `${duplicates.length} дублей` : 'Дублей нет',
-      details: duplicates.slice(0, 20).map(([hash, count]) => ({ hash, count })),
+      details: {
+        duplicates: duplicates.slice(0, 20).map(([hash, count]) => ({ hash, count })),
+        display: duplicates.length > 0 ? {
+          type: 'list',
+          items: duplicates.slice(0, 5).map(([hash, count]) => ({
+            label: `Hash: ${hash.substring(0, 16)}...`,
+            value: `${count} шт.`,
+            color: 'red' as const
+          }))
+        } : undefined
+      },
       recommendation: duplicates.length > 0 ? 'Удалите дублирующиеся операции' : null,
       auto_fix: duplicates.length > 0,
       auto_fix_action: 'delete_duplicates',
@@ -219,9 +229,17 @@ export async function GET(request: NextRequest) {
           usedAccounts.add(t.debit_account_id);
           usedAccounts.add(t.credit_account_id);
         });
+        const missingAccounts = Array.from(usedAccounts).filter(accId => !accounts.some(a => a.id === accId));
         return {
           company: c.name,
-          missing_accounts: Array.from(usedAccounts).filter(accId => !accounts.some(a => a.id === accId))
+          missing_accounts: missingAccounts,
+          display: {
+            type: 'list',
+            items: [
+              { label: 'Компания', value: c.name, bold: true },
+              ...missingAccounts.map(accId => ({ label: 'Счёт', value: accId, color: 'red' as const }))
+            ]
+          }
         };
       }),
       recommendation: companiesWithBadAccounts.length > 0 ? 'Исправьте привязку счетов' : null,
@@ -265,14 +283,24 @@ export async function GET(request: NextRequest) {
       message: anomalies.length > 0
         ? `${anomalies.length} операций с аномально большими суммами`
         : 'Аномалий не обнаружено',
-      details: anomalies.slice(0, 10).map(t => ({
-        id: t.id,
-        date: getDateStr(t.date),
-        amount: amountOf(t),
-        description: t.description,
-        avg_amount: Math.round(avgAmount),
-        std_dev: Math.round(stdDev)
-      })),
+      details: {
+        anomalies: anomalies.slice(0, 10).map(t => ({
+          id: t.id,
+          date: getDateStr(t.date),
+          amount: amountOf(t),
+          description: t.description,
+          avg_amount: Math.round(avgAmount),
+          std_dev: Math.round(stdDev)
+        })),
+        display: anomalies.length > 0 ? {
+          type: 'list',
+          items: anomalies.slice(0, 5).map(t => ({
+            label: `${getDateStr(t.date)} — ${t.description || '(нет описания)'}`,
+            value: `${amountOf(t).toLocaleString('ru-RU')} ₽`,
+            color: 'yellow' as const
+          }))
+        } : undefined
+      },
       recommendation: anomalies.length > 0 ? 'Проверьте аномально крупные операции' : null
     });
 
@@ -617,7 +645,18 @@ export async function GET(request: NextRequest) {
         total_assets: totalAssets,
         total_liabilities: totalLiabilities,
         total_equity: totalEquity,
-        difference: Math.abs(totalAssets - totalLiabilities - totalEquity)
+        difference: Math.abs(totalAssets - totalLiabilities - totalEquity),
+        display: {
+          type: 'key_value',
+          items: [
+            { label: 'Деньги', value: `${cash.toLocaleString('ru-RU')} ₽` },
+            { label: 'Дебиторка', value: `${ar.toLocaleString('ru-RU')} ₽` },
+            { label: 'Кредиторка', value: `${ap.toLocaleString('ru-RU')} ₽` },
+            { label: 'Активы', value: `${totalAssets.toLocaleString('ru-RU')} ₽`, bold: true },
+            { label: 'Пассивы', value: `${totalLiabilities.toLocaleString('ru-RU')} ₽`, bold: true },
+            { label: 'Капитал', value: `${totalEquity.toLocaleString('ru-RU')} ₽`, bold: true }
+          ]
+        }
       },
       recommendation: null
     });
@@ -1313,7 +1352,17 @@ export async function GET(request: NextRequest) {
       name: 'Кассовые разрывы',
       count: cashGaps.length,
       message: cashGaps.length > 0 ? `${cashGaps.length} кассовых разрывов` : 'Кассовых разрывов нет',
-      details: cashGaps.slice(0, 10),
+      details: {
+        gaps: cashGaps.slice(0, 10),
+        display: cashGaps.length > 0 ? {
+          type: 'list',
+          items: cashGaps.slice(0, 5).map(gap => ({
+            label: gap.date,
+            value: `-${gap.deficit.toLocaleString('ru-RU')} ₽`,
+            color: 'red' as const
+          }))
+        } : undefined
+      },
       recommendation: cashGaps.length > 0 ? 'Перенесите платежи или привлеките финансирование' : null
     });
 
@@ -1416,15 +1465,18 @@ export async function GET(request: NextRequest) {
         : daysSinceLastTx > 0
           ? `Последняя операция: ${daysSinceLastTx} дн. назад (${lastTransactionDate})`
           : 'Данные актуальны',
-      details: {
+            details: {
         last_transaction: lastTransactionDate,
         days_ago: daysSinceLastTx,
         is_future_date: isFutureDate,
-        future_dates: futureDateTransactions.slice(0, 10).map(t => ({
-          id: t.id,
-          date: getDateStr(t.date),
-          description: t.description
-        }))
+        display: {
+          type: 'key_value',
+          items: [
+            { label: 'Последняя операция', value: lastTransactionDate || '—' },
+            { label: 'Дней назад', value: daysSinceLastTx > 0 ? `${daysSinceLastTx} дн.` : 'Сегодня' },
+            ...(isFutureDate ? [{ label: 'Проблема', value: 'Будущая дата!', color: 'red' as const }] : [])
+          ]
+        }
       },
       recommendation: isFutureDate ? 'Исправьте дату операции' : daysSinceLastTx > 30 ? 'Обновите данные' : null,
       auto_fix: isFutureDate,
