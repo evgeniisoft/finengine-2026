@@ -14,6 +14,7 @@ import {
   JournalEntry
 } from './types';
 import { taxEngine } from './tax';
+import { getSystemAccount } from '@/lib/config/accounts';
 
 export class FinancialCalculator {
 
@@ -296,33 +297,35 @@ export class FinancialCalculator {
       if (creditIsCash) cash -= t.amount_rub;
 
       // Дебиторская задолженность (счёт acc-ar-001)
-      if (t.debit_account_id === 'acc-ar-001') accountsReceivable += t.amount_rub;
-      if (t.credit_account_id === 'acc-ar-001') accountsReceivable -= t.amount_rub;
+      const arAccount = getSystemAccount('ar');
+      if (t.debit_account_id === arAccount) accountsReceivable += t.amount_rub;
+      if (t.credit_account_id === arAccount) accountsReceivable -= t.amount_rub;
 
       // Запасы
       if (debitAccount.code === 'INVENTORY') inventory += t.amount_rub;
       if (creditAccount.code === 'INVENTORY') inventory -= t.amount_rub;
-
       // Основные средства
-      if (debitAccount.code === 'FIXED_ASSETS' || debitAccount.id === 'acc-fa-001') {
+      const fixedAssetsAccount = getSystemAccount('fixed_assets');
+      if (debitAccount.code === 'FIXED_ASSETS' || debitAccount.id === fixedAssetsAccount) {
         fixedAssets += t.amount_rub;
       }
-      if (creditAccount.code === 'FIXED_ASSETS' || creditAccount.id === 'acc-fa-001') {
+      if (creditAccount.code === 'FIXED_ASSETS' || creditAccount.id === fixedAssetsAccount) {
         fixedAssets -= t.amount_rub;
       }
 
       // Кредиторская задолженность (счёт acc-ap-001)
-      if (t.credit_account_id === 'acc-ap-001') accountsPayable += t.amount_rub;
-      if (t.debit_account_id === 'acc-ap-001') accountsPayable -= t.amount_rub;
+      const apAccount = getSystemAccount('ap');
+      if (t.credit_account_id === apAccount) accountsPayable += t.amount_rub;
+      if (t.debit_account_id === apAccount) accountsPayable -= t.amount_rub;
 
       // Кредиты
       if (creditAccount.code === 'LOANS') loans += t.amount_rub;
       if (debitAccount.code === 'LOANS') loans -= t.amount_rub;
 
       // Капитал (начальные остатки)
-      if (t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact') {
+      const equityAccount = getSystemAccount('equity');
+      if (t.credit_account_id === equityAccount && t.record_type === 'fact') {
         capital += t.amount_rub;
-        // Деньги уже учтены через debitIsCash выше — не дублируем
       }
     }
 

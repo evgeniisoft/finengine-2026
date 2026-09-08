@@ -2,7 +2,6 @@
  * ============================================
  * FinEngine 2026 - Конфигурация системных счетов
  * ============================================
- * Счета загружаются из Settings, не зашиты в коде
  */
 
 let systemAccounts: {
@@ -11,12 +10,16 @@ let systemAccounts: {
   ap: string;
   equity: string;
   unclassified: string;
+  fixed_assets: string;
+  revenue: string;
 } = {
   bank: 'acc-bank-001',
   ar: 'acc-ar-001',
   ap: 'acc-ap-001',
   equity: 'acc-equity-001',
   unclassified: 'acc-unclassified',
+  fixed_assets: 'acc-fa-001',
+  revenue: 'acc-in-revenue',
 };
 
 export function loadSystemAccounts(settings: any[]) {
@@ -31,6 +34,8 @@ export function loadSystemAccounts(settings: any[]) {
     ap: settingsMap['system_account_ap'] || systemAccounts.ap,
     equity: settingsMap['system_account_equity'] || systemAccounts.equity,
     unclassified: settingsMap['system_account_unclassified'] || systemAccounts.unclassified,
+    fixed_assets: settingsMap['system_account_fixed_assets'] || systemAccounts.fixed_assets,
+    revenue: settingsMap['system_account_revenue'] || systemAccounts.revenue,
   };
 }
 

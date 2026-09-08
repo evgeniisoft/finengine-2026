@@ -1,4 +1,4 @@
-'use client';
+'use client';import { getSystemAccount } from '@/lib/config/accounts';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -166,9 +166,13 @@ export default function Dashboard() {
   }).filter(e => e.amount > 0).sort((a, b) => b.amount - a.amount);
   const sumExpensesByCategory = expensesByCategory.reduce((s, e) => s + e.amount, 0);
 
-  const totalAR = transactions.filter(t => t.debit_account_id === 'acc-ar-001').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
-  const totalAP = transactions.filter(t => t.credit_account_id === 'acc-ap-001').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
-  const unclassifiedTx = transactions.filter(t => t.debit_account_id === 'acc-unclassified' || t.credit_account_id === 'acc-unclassified');
+  const arAccount = getSystemAccount('ar');
+  const apAccount = getSystemAccount('ap');
+  const unclassifiedAccount = getSystemAccount('unclassified');
+
+  const totalAR = transactions.filter(t => t.debit_account_id === arAccount).reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  const totalAP = transactions.filter(t => t.credit_account_id === apAccount).reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+  const unclassifiedTx = transactions.filter(t => t.debit_account_id === unclassifiedAccount || t.credit_account_id === unclassifiedAccount);
   const unclassifiedAmount = unclassifiedTx.reduce((s, t) => s + parseFloat(t.amount || 0), 0);
 
   if (loading) {
