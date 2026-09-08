@@ -800,12 +800,13 @@ export async function GET(request: NextRequest) {
 
     if (runRate > 0 && avgHistorical > 0) {
       const deviation = Math.abs(runRate - avgHistorical) / avgHistorical * 100;
+      const runRateDeviationThreshold = parseFloat(taxSettings['diagnostic_run_rate_deviation'] || '30');
       checks.push({
         id: 'run_rate_check',
         category: 'financial',
-        severity: deviation > 30 ? 'warning' : 'ok',
+        severity: deviation > runRateDeviationThreshold ? 'warning' : 'ok',
         name: 'Run Rate отклонение',
-        message: deviation > 30
+        message: deviation > runRateDeviationThreshold
           ? `Run Rate отклоняется на ${deviation.toFixed(1)}%`
           : `Run Rate в норме (${deviation.toFixed(1)}%)`,
         details: {
@@ -1301,10 +1302,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const budgetDeviationsThreshold = parseFloat(taxSettings['diagnostic_budget_deviations'] || '10');
     checks.push({
       id: 'budget_deviations',
       category: 'planning',
-      severity: deviations.length > 10 ? 'warning' : deviations.length > 0 ? 'info' : 'ok',
+      severity: deviations.length > budgetDeviationsThreshold ? 'warning' : deviations.length > 0 ? 'info' : 'ok',
       name: 'Отклонения план/факт',
       count: deviations.length,
       message: deviations.length > 0
@@ -1580,10 +1582,11 @@ export async function GET(request: NextRequest) {
         .filter(t => t.credit_account_id === getSystemAccount('ar'))
         .reduce((sum, t) => sum + amountOf(t), 0);
 
+    const arWarningThreshold = parseFloat(taxSettings['diagnostic_ar_warning'] || '1000000');
     checks.push({
       id: 'accounts_receivable',
       category: 'risks',
-      severity: arBalance > 1000000 ? 'warning' : arBalance > 0 ? 'info' : 'ok',
+      severity: arBalance > arWarningThreshold ? 'warning' : arBalance > 0 ? 'info' : 'ok',
       name: 'Дебиторская задолженность',
       message: arBalance > 0
         ? `Дебиторка: ${arBalance.toLocaleString('ru-RU')} ₽`
@@ -1608,10 +1611,11 @@ export async function GET(request: NextRequest) {
         .filter(t => t.debit_account_id === getSystemAccount('ap'))
         .reduce((sum, t) => sum + amountOf(t), 0);
 
+    const apWarningThreshold = parseFloat(taxSettings['diagnostic_ap_warning'] || '1000000');
     checks.push({
       id: 'accounts_payable',
       category: 'risks',
-      severity: apBalance > 1000000 ? 'warning' : apBalance > 0 ? 'info' : 'ok',
+      severity: apBalance > apWarningThreshold ? 'warning' : apBalance > 0 ? 'info' : 'ok',
       name: 'Кредиторская задолженность',
       message: apBalance > 0
         ? `Кредиторка: ${apBalance.toLocaleString('ru-RU')} ₽`
@@ -1652,10 +1656,12 @@ export async function GET(request: NextRequest) {
       return txDate && new Date(txDate).getTime() > new Date().getTime();
     });
 
+    const staleDataWarning = parseFloat(taxSettings['diagnostic_stale_warning'] || '30');
+    const staleDataInfo = parseFloat(taxSettings['diagnostic_stale_info'] || '7');
     checks.push({
       id: 'data_currency',
       category: 'processes',
-      severity: isFutureDate ? 'critical' : daysSinceLastTx > 30 ? 'warning' : daysSinceLastTx > 7 ? 'info' : 'ok',
+      severity: isFutureDate ? 'critical' : daysSinceLastTx > staleDataWarning ? 'warning' : daysSinceLastTx > staleDataInfo ? 'info' : 'ok',
       name: 'Актуальность данных',
       message: isFutureDate
         ? `Обнаружена операция с будущей датой: ${lastTransactionDate}`
@@ -1733,7 +1739,8 @@ export async function GET(request: NextRequest) {
         const actualDifference = Math.abs(cashFlow.ending_balance - balance.assets.cash);
         const diffError = Math.abs(expectedDifference - actualDifference);
 
-        if (diffError > 100) {
+        const consistencyErrorThreshold = parseFloat(taxSettings['diagnostic_consistency_threshold'] || '100');
+        if (diffError > consistencyErrorThreshold) {
           consistencyIssues.push({
             period: period.name,
             company: company.name,
