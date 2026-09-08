@@ -1113,6 +1113,7 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
                                                 {txDate.substring(8, 10)}.{txDate.substring(5, 7)} — {t.description || t.debit_account_name || t.debit_account_id || 'Платёж'}
                                             </p>
                                             {cp?.name && <p className="text-xs text-gray-500">{cp.name}</p>}
+                                            {t.company_name && !cp?.name && <p className="text-xs text-gray-400">{t.company_name}</p>}
                                             {t.is_tax && (
                                                 <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">
                                                     Обязательный
@@ -1168,30 +1169,62 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
             </div>
 
             {/* Прогноз по дням */}
-            {forecast.length > 0 && (
-                <div className="p-6 border-t border-gray-100 bg-gray-50/50">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3">ПРОГНОЗ ПО ДНЯМ</h4>
-                    <div className="space-y-2">
-                        {forecast.slice(0, 10).map((f: any, idx: number) => (
-                            <div key={idx} className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">
-                                    {f.date.substring(8, 10)}.{f.date.substring(5, 7)}: {f.description || (f.type === 'income' ? 'Поступление' : 'Платёж')}
-                                </span>
-                                <span className="font-medium text-gray-900">
-                                    {f.balance_after.toLocaleString('ru-RU')} ₽
-                                </span>
-                            </div>
-                        ))}
-                    </div>
+            {forecast.length > 0 && (() => {
+                // Группируем прогноз по датам
+                const groupedByDate = new Map<string, any[]>();
+                forecast.forEach(f => {
+                    if (!groupedByDate.has(f.date)) {
+                        groupedByDate.set(f.date, []);
+                    }
+                    groupedByDate.get(f.date)!.push(f);
+                });
 
-                    {/* Предупреждение о кассовом разрыве */}
-                    {forecast.some(f => f.balance_after < 0) && (
-                        <div className="mt-3 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-                            ⚠️ Обнаружен кассовый разрыв! Остаток станет отрицательным.
+                return (
+                    <div className="p-6 border-t border-gray-100 bg-gray-50/50">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">ПРОГНОЗ ПО ДНЯМ</h4>
+                        <div className="space-y-3">
+                            {Array.from(groupedByDate.entries()).slice(0, 10).map(([date, items]: any) => {
+                                const dayInflows = items.filter((f: any) => f.type === 'income').reduce((s: number, f: any) => s + f.amount, 0);
+                                const dayOutflows = items.filter((f: any) => f.type === 'expense').reduce((s: number, f: any) => s + f.amount, 0);
+                                const dayEndBalance = items[items.length - 1].balance_after;
+
+                                return (
+                                    <div key={date} className="border border-gray-200 rounded-lg p-3 bg-white">
+                                        <div className="font-medium text-gray-900 mb-2">
+                                            {date.substring(8, 10)}.{date.substring(5, 7)}.{date.substring(0, 4)}
+                                        </div>
+                                        <div className="space-y-1 text-sm">
+                                            {dayInflows > 0 && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-500">Поступления ({items.filter((f: any) => f.type === 'income').length})</span>
+                                                    <span className="text-green-600 font-medium">+{dayInflows.toLocaleString('ru-RU')} ₽</span>
+                                                </div>
+                                            )}
+                                            {dayOutflows > 0 && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-500">Платежи ({items.filter((f: any) => f.type === 'expense').length})</span>
+                                                    <span className="text-red-600 font-medium">-{dayOutflows.toLocaleString('ru-RU')} ₽</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between border-t pt-1 mt-1">
+                                                <span className="text-gray-700 font-medium">Остаток на конец дня</span>
+                                                <span className="font-bold text-gray-900">{dayEndBalance.toLocaleString('ru-RU')} ₽</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
-                    )}
-                </div>
-            )}
+
+                        {/* Предупреждение о кассовом разрыве */}
+                        {forecast.some(f => f.balance_after < 0) && (
+                            <div className="mt-3 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                                ⚠️ Обнаружен кассовый разрыв! Остаток станет отрицательным.
+                            </div>
+                        )}
+                    </div>
+                );
+            })()}
         </div>
     );
 }
