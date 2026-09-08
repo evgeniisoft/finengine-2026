@@ -21,8 +21,9 @@ class SheetsRepository implements Repository {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = process.env.GAS_URL || 
-      process.env.NEXT_PUBLIC_GAS_URL || '';
+    this.baseUrl = process.env.GAS_URL ||
+      process.env.NEXT_PUBLIC_GAS_URL ||
+      'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
   }
 
   async getAll(entity: string): Promise<any[]> {
@@ -114,14 +115,14 @@ let repositoryInstance: Repository | null = null;
 export function getRepository(): Repository {
   if (!repositoryInstance) {
     const dbType = process.env.DB_TYPE || 'sheets';
-    
+
     if (dbType === 'postgresql') {
       repositoryInstance = new PostgresRepository();
     } else {
       repositoryInstance = new SheetsRepository();
     }
   }
-  
+
   return repositoryInstance;
 }
 
