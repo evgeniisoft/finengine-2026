@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { monthlyEngine } from '@/lib/engine/monthly';
 import { taxEngine } from '@/lib/engine/tax';
 
-const GAS_URL = 'process.env.NEXT_PUBLIC_GAS_URL || ''';
+const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL || '';
 
 async function gasGet(sheet: string): Promise<any[]> {
   const url = `${GAS_URL}?action=getAll&sheet=${sheet}`;

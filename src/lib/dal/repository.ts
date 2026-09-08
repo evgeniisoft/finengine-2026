@@ -22,7 +22,7 @@ class SheetsRepository implements Repository {
 
   constructor() {
     this.baseUrl = process.env.GAS_URL || 
-      'process.env.NEXT_PUBLIC_GAS_URL || ''';
+      process.env.NEXT_PUBLIC_GAS_URL || '';
   }
 
   async getAll(entity: string): Promise<any[]> {

@@ -4,7 +4,7 @@ import { consolidationEngine } from '@/lib/engine/consolidation';
 import { taxEngine } from '@/lib/engine/tax';
 import { loadSystemAccounts } from '@/lib/config/accounts';
 
-const GAS_URL = 'process.env.NEXT_PUBLIC_GAS_URL || ''';
+const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL || '';
 
 async function gasGet(sheet: string): Promise<any[]> {
   const url = `${GAS_URL}?action=getAll&sheet=${sheet}`;
