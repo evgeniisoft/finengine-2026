@@ -1187,30 +1187,57 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
                                 const dayInflows = items.filter((f: any) => f.type === 'income').reduce((s: number, f: any) => s + f.amount, 0);
                                 const dayOutflows = items.filter((f: any) => f.type === 'expense').reduce((s: number, f: any) => s + f.amount, 0);
                                 const dayEndBalance = items[items.length - 1].balance_after;
+                                const [expandedDay, setExpandedDay] = useState<string | null>(null);
+                                const isExpanded = expandedDay === date;
 
                                 return (
-                                    <div key={date} className="border border-gray-200 rounded-lg p-3 bg-white">
-                                        <div className="font-medium text-gray-900 mb-2">
-                                            {date.substring(8, 10)}.{date.substring(5, 7)}.{date.substring(0, 4)}
-                                        </div>
-                                        <div className="space-y-1 text-sm">
-                                            {dayInflows > 0 && (
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-500">Поступления ({items.filter((f: any) => f.type === 'income').length})</span>
-                                                    <span className="text-green-600 font-medium">+{dayInflows.toLocaleString('ru-RU')} ₽</span>
+                                    <div key={date} className="border border-gray-200 rounded-lg bg-white">
+                                        <div
+                                            className="p-3 cursor-pointer hover:bg-gray-50"
+                                            onClick={() => setExpandedDay(isExpanded ? null : date)}
+                                        >
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="font-medium text-gray-900">
+                                                    {date.substring(8, 10)}.{date.substring(5, 7)}.{date.substring(0, 4)}
+                                                </span>
+                                                <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                                            </div>
+                                            <div className="space-y-1 text-sm">
+                                                {dayInflows > 0 && (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-500">Поступления ({items.filter((f: any) => f.type === 'income').length})</span>
+                                                        <span className="text-green-600 font-medium">+{dayInflows.toLocaleString('ru-RU')} ₽</span>
+                                                    </div>
+                                                )}
+                                                {dayOutflows > 0 && (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-500">Платежи ({items.filter((f: any) => f.type === 'expense').length})</span>
+                                                        <span className="text-red-600 font-medium">-{dayOutflows.toLocaleString('ru-RU')} ₽</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between border-t pt-1 mt-1">
+                                                    <span className="text-gray-700 font-medium">Остаток на конец дня</span>
+                                                    <span className="font-bold text-gray-900">{dayEndBalance.toLocaleString('ru-RU')} ₽</span>
                                                 </div>
-                                            )}
-                                            {dayOutflows > 0 && (
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-500">Платежи ({items.filter((f: any) => f.type === 'expense').length})</span>
-                                                    <span className="text-red-600 font-medium">-{dayOutflows.toLocaleString('ru-RU')} ₽</span>
-                                                </div>
-                                            )}
-                                            <div className="flex justify-between border-t pt-1 mt-1">
-                                                <span className="text-gray-700 font-medium">Остаток на конец дня</span>
-                                                <span className="font-bold text-gray-900">{dayEndBalance.toLocaleString('ru-RU')} ₽</span>
                                             </div>
                                         </div>
+
+                                        {/* Раскрытие деталей */}
+                                        {isExpanded && (
+                                            <div className="p-3 border-t border-gray-100 bg-gray-50/50">
+                                                {items.map((item: any, idx: number) => (
+                                                    <div key={idx} className="flex justify-between text-sm py-1">
+                                                        <span className="text-gray-600">
+                                                            {item.description || (item.type === 'income' ? 'Поступление' : 'Платёж')}
+                                                            {item.counterparty_name ? ` — ${item.counterparty_name}` : ''}
+                                                        </span>
+                                                        <span className={`font-medium ${item.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                                                            {item.type === 'income' ? '+' : '-'}{item.amount.toLocaleString('ru-RU')} ₽
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
