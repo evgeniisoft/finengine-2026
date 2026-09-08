@@ -61,18 +61,11 @@ export async function GET(request: NextRequest) {
     const revenueByCompany = new Map<string, number>();
     const expensesByCompany = new Map<string, number>();
 
-    // Заполняем данными по всем компаниям
+    // Используем calculator.calculatePnL для корректного расчёта
     for (const company of companies) {
-      const companyTx = transactions.filter(t => t.company_id === company.id);
-      const revenue = companyTx
-        .filter(t => accounts.find(a => a.id === t.credit_account_id)?.type === 'I')
-        .reduce((sum, t) => sum + amountOf(t), 0);
-      const expenses = companyTx
-        .filter(t => accounts.find(a => a.id === t.debit_account_id)?.type === 'X')
-        .reduce((sum, t) => sum + amountOf(t), 0);
-
-      revenueByCompany.set(company.id, revenue);
-      expensesByCompany.set(company.id, expenses);
+      const pnl = calculator.calculatePnL(transactions, accounts, company.id, '2026-01-01', '2026-12-31', company);
+      revenueByCompany.set(company.id, pnl.revenue);
+      expensesByCompany.set(company.id, pnl.operating_expenses + pnl.cost_of_goods_sold);
     }
 
     // ============================================
@@ -449,22 +442,7 @@ export async function GET(request: NextRequest) {
     // ============================================
 
     const totalRevenue = Array.from(revenueByCompany.values()).reduce((s, v) => s + v, 0);
-    let allTransactionsRevenue = 0;
-    for (const company of companies) {
-      const vatIncludedCheck = String(company.vat_included).toLowerCase() === 'true';
-      const companyRevenue = transactions
-        .filter(t => t.company_id === company.id)
-        .filter(t => accounts.find(a => a.id === t.credit_account_id)?.type === 'I')
-        .reduce((sum, t) => sum + amountOf(t), 0);
-
-      if (vatIncludedCheck) {
-        const vatRateCheck = parseFloat(String(company.vat_rate || '0.22'));
-        allTransactionsRevenue += companyRevenue / (1 + vatRateCheck);
-      } else {
-        allTransactionsRevenue += companyRevenue;
-      }
-    }
-
+    const allTransactionsRevenue = totalRevenue; // Используем тот же расчёт
     checks.push({
       id: 'revenue_crosscheck',
       category: 'financial',
@@ -560,28 +538,19 @@ export async function GET(request: NextRequest) {
       recommendation: null
     });
 
-    // 3.3 Баланс - активы = пассивы + капитал
+    // 3.3 Баланс - используем calculator для каждой компании
     let cash = 0, ar = 0, ap = 0, inventory = 0, fixedAssets = 0, loans = 0, capital = 0;
 
-    for (const t of transactions) {
-      const amt = amountOf(t);
-      const debitAcc = accounts.find(a => a.id === t.debit_account_id);
-      const creditAcc = accounts.find(a => a.id === t.credit_account_id);
-
-      if (!debitAcc || !creditAcc) continue;
-
-      if (debitAcc.is_cash_flow === true || debitAcc.is_cash_flow === 'true') cash += amt;
-      if (creditAcc.is_cash_flow === true || creditAcc.is_cash_flow === 'true') cash -= amt;
-      if (t.debit_account_id === getSystemAccount('ar')) ar += amt;
-      if (t.credit_account_id === getSystemAccount('ar')) ar -= amt;
-      if (t.credit_account_id === getSystemAccount('ap')) ap += amt;
-      if (t.debit_account_id === getSystemAccount('ap')) ap -= amt;
-      if (t.credit_account_id === getSystemAccount('equity') && t.record_type === 'fact') {
-        capital += amt;
-        cash += amt;
-      }
+    for (const company of companies) {
+      const balance = calculator.calculateBalanceSheet(transactions, accounts, company.id, '2026-12-31', company);
+      cash += balance.assets.cash;
+      ar += balance.assets.accounts_receivable;
+      inventory += balance.assets.inventory;
+      fixedAssets += balance.assets.fixed_assets;
+      ap += balance.liabilities.accounts_payable;
+      loans += balance.liabilities.loans;
+      capital += balance.equity.capital;
     }
-
     const totalAssets = cash + ar + inventory + fixedAssets;
     const totalLiabilities = ap + loans;
     const totalEquity = totalAssets - totalLiabilities;
