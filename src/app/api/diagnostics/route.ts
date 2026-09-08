@@ -1301,7 +1301,7 @@ export async function GET(request: NextRequest) {
     // ============================================
 
     // 7.1 Кассовые разрывы
-    const today = new Date().toISOString().split('T')[0];
+    const calendarToday = new Date().toISOString().split('T')[0];
     let projectedCash = cash;
     const cashGaps: any[] = [];
 
@@ -1642,6 +1642,65 @@ export async function GET(request: NextRequest) {
       },
       recommendation: consistencyIssues.length > 0
         ? 'Проверьте расхождения и исправьте расчёты'
+        : null
+    });
+
+    // ============================================
+    // БЛОК 10: СОГЛАСОВАННОСТЬ ПЛАТЁЖНОГО КАЛЕНДАРЯ
+    // ============================================
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Текущий остаток (все операции до сегодня)
+    const calendarBalance = transactions
+      .filter(t => {
+        const txDate = getDateStr(t.date);
+        return txDate < today;
+      })
+      .reduce((balance, t) => {
+        if (t.type === 'income') return balance + amountOf(t);
+        if (t.type === 'expense') return balance - amountOf(t);
+        return balance;
+      }, 7000000); // Начальный остаток
+
+    // Предстоящие платежи
+    const upcomingPayments = transactions
+      .filter(t => {
+        const txDate = getDateStr(t.date);
+        return txDate >= today && t.type === 'expense';
+      })
+      .reduce((sum, t) => sum + amountOf(t), 0);
+
+    // Предстоящие поступления
+    const upcomingInflows = transactions
+      .filter(t => {
+        const txDate = getDateStr(t.date);
+        return txDate >= today && t.type === 'income';
+      })
+      .reduce((sum, t) => sum + amountOf(t), 0);
+
+    checks.push({
+      id: 'calendar_balance',
+      category: 'reports',
+      severity: 'info',
+      name: 'Календарь: Текущий остаток',
+      message: `Текущий остаток: ${calendarBalance.toLocaleString('ru-RU')} ₽`,
+      details: {
+        current_balance: calendarBalance,
+        upcoming_payments: upcomingPayments,
+        upcoming_inflows: upcomingInflows,
+        display: {
+          type: 'key_value',
+          items: [
+            { label: 'Текущий остаток', value: `${calendarBalance.toLocaleString('ru-RU')} ₽`, bold: true },
+            { label: 'Предстоящие платежи', value: `${upcomingPayments.toLocaleString('ru-RU')} ₽`, color: 'red' as const },
+            { label: 'Предстоящие поступления', value: `${upcomingInflows.toLocaleString('ru-RU')} ₽`, color: 'green' as const },
+            { label: 'Прогноз после платежей', value: `${(calendarBalance - upcomingPayments + upcomingInflows).toLocaleString('ru-RU')} ₽`, bold: true }
+          ]
+        }
+      },
+      recommendation: calendarBalance - upcomingPayments + upcomingInflows < 0
+        ? 'Внимание: прогнозный остаток станет отрицательным!'
         : null
     });
 
