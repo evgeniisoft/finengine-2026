@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL || '';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
 async function gasGet(sheet: string): Promise<any[]> {
-  const url = `${GAS_URL}?action=getAll&sheet=${sheet}`;
+  const url = `${baseUrl}?action=getAllconst url = `${baseUrl}?action=getAllconst url = `${baseUrl}?action=getAllconst url = `${GAS_URL}?action=getAll&sheet=${sheet}`;sheet=${sheet}`;sheet=${sheet}`;sheet=${sheet}`;
   const response = await fetch(url);
   const data = await response.json();
   return Array.isArray(data) ? data : [];

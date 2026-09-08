@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL || '';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
 async function gasBatchCreate(sheet: string, dataArray: any[]): Promise<any> {
   const response = await fetch(GAS_URL, {
