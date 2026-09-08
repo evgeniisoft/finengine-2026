@@ -240,26 +240,37 @@ export async function GET(request: NextRequest) {
       message: companiesWithBadAccounts.length > 0
         ? `${companiesWithBadAccounts.length} компаний имеют операции с несуществующими счетами`
         : 'Все счета существуют',
-      details: companiesWithBadAccounts.map(c => {
-        const companyTx = transactions.filter(t => t.company_id === c.id);
-        const usedAccounts = new Set<string>();
-        companyTx.forEach(t => {
-          usedAccounts.add(t.debit_account_id);
-          usedAccounts.add(t.credit_account_id);
-        });
-        const missingAccounts = Array.from(usedAccounts).filter(accId => !accounts.some(a => a.id === accId));
-        return {
-          company: c.name,
-          missing_accounts: missingAccounts,
-          display: {
-            type: 'list',
-            items: [
-              { label: 'Компания', value: c.name, bold: true },
-              ...missingAccounts.map(accId => ({ label: 'Счёт', value: accId, color: 'red' as const }))
-            ]
-          }
-        };
-      }),
+      details: {
+        companies: companiesWithBadAccounts.map(c => {
+          const companyTx = transactions.filter(t => t.company_id === c.id);
+          const usedAccounts = new Set<string>();
+          companyTx.forEach(t => {
+            usedAccounts.add(t.debit_account_id);
+            usedAccounts.add(t.credit_account_id);
+          });
+          return {
+            company: c.name,
+            missing_accounts: Array.from(usedAccounts).filter(accId => !accounts.some(a => a.id === accId))
+          };
+        }),
+        display: {
+          type: 'list',
+          items: companiesWithBadAccounts.flatMap(c => {
+            const companyTx = transactions.filter(t => t.company_id === c.id);
+            const usedAccounts = new Set<string>();
+            companyTx.forEach(t => {
+              usedAccounts.add(t.debit_account_id);
+              usedAccounts.add(t.credit_account_id);
+            });
+            const missing = Array.from(usedAccounts).filter(accId => !accounts.some(a => a.id === accId));
+            return missing.map(accId => ({
+              label: `${c.name}`,
+              value: accId,
+              color: 'red' as const
+            }));
+          })
+        }
+      },
       recommendation: companiesWithBadAccounts.length > 0 ? 'Исправьте привязку счетов' : null,
       auto_fix: companiesWithBadAccounts.length > 0,
       auto_fix_action: 'create_missing_account',
