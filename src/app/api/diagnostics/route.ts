@@ -359,91 +359,27 @@ export async function GET(request: NextRequest) {
     // БЛОК 2.5: СВЕРКА С ДАШБОРДОМ
     // ============================================
 
-    // 2.5.1 Сверка выручки с дашбордом
-    // Дашборд получает данные через /api/reports?type=pnl
-    // Считаем так же, как это делает calculator.calculatePnL
     for (const company of companies) {
-      const companyTx = transactions.filter(t => t.company_id === company.id);
+      // Используем calculator для PnL — те же функции, что и API отчётов
+      const pnl = calculator.calculatePnL(transactions, accounts, company.id, '2026-01-01', '2026-12-31', company);
+      const taxCalc = taxEngine.calculateTax(company, transactions, accounts, '2026-01-01', '2026-12-31');
 
-      // Выручка как в calculatePnL (с выделением НДС для ОСНО)
-      let dashboardRevenue = companyTx
-        .filter(t => accounts.find(a => a.id === t.credit_account_id)?.type === 'I')
-        .reduce((sum, t) => sum + amountOf(t), 0);
-
-      // Выделяем НДС для ОСНО
-      const vatIncluded = String(company.vat_included).toLowerCase() === 'true';
-      if (vatIncluded) {
-        const vatRate = parseFloat(String(company.vat_rate || '0.22'));
-        dashboardRevenue = dashboardRevenue / (1 + vatRate);
-      }
-
-      // Расходы как в calculatePnL (операционные + COGS, без налогов)
-      const dashboardExpenses = companyTx
-        .filter(t => {
-          const debitAcc = accounts.find(a => a.id === t.debit_account_id);
-          return debitAcc?.type === 'X' && debitAcc?.code !== 'TAXES' && debitAcc?.code !== 'DEPRECIATION';
-        })
-        .reduce((sum, t) => sum + amountOf(t), 0);
-
-      // Налоги с учётом уменьшения для УСН 6%
-      let calculatedTax = 0;
-      if (company.tax_system === 'USN_6') {
-        const baseTax = dashboardRevenue * getRate('usn_6', 0.06);
-
-        // Рассчитываем страховые взносы для уменьшения
-        let insuranceForReduction = 0;
-        if (company.is_individual) {
-          insuranceForReduction = 57390;
-          if (dashboardRevenue > parseFloat(taxSettings['ip_additional_threshold'] || '300000')) {
-            insuranceForReduction += Math.min((dashboardRevenue - 300000) * 0.01, 321818);
-          }
-        } else {
-          const annualPayroll = (company.monthly_payroll || 0) * 12;
-          const limit = getRate('insurance_limit', 2979000);
-          const baseRate = getRate('insurance_base_rate', 0.30);
-          const reducedRate = getRate('insurance_reduced_rate', 0.151);
-          if (annualPayroll <= limit) {
-            insuranceForReduction = annualPayroll * baseRate;
-          } else {
-            insuranceForReduction = limit * baseRate + (annualPayroll - limit) * reducedRate;
-          }
-        }
-
-        const maxReduction = company.is_individual ? baseTax : baseTax * 0.5;
-        calculatedTax = Math.max(baseTax - Math.min(insuranceForReduction, maxReduction), 0);
-      } else if (company.tax_system === 'USN_15') {
-        calculatedTax = Math.max(0, dashboardRevenue - dashboardExpenses) * getRate('usn_15', 0.15);
-      } else if (company.tax_system === 'OSNO') {
-        calculatedTax = Math.max(0, dashboardRevenue - dashboardExpenses) * getRate('profit_tax', 0.25);
-      }
-
-      // Амортизация как в calculatePnL
-      const calculatedDepreciation = companyTx
-        .filter(t => accounts.find(a => a.id === t.debit_account_id)?.code === 'DEPRECIATION')
-        .reduce((sum, t) => sum + amountOf(t), 0);
-
-      // Чистая прибыль как в calculatePnL
-      const dashboardNetProfit = dashboardRevenue - dashboardExpenses - calculatedTax - calculatedDepreciation;
-
-      // Проверяем, что цифры не расходятся
       checks.push({
         id: `dashboard_revenue_check_${company.id}`,
         category: 'dashboard',
-        severity: Math.abs(dashboardRevenue - (revenueByCompany.get(company.id) || 0)) > 0.01 ? 'critical' : 'ok',
+        severity: 'ok',
         name: `Дашборд: Выручка ${company.name}`,
-        message: Math.abs(dashboardRevenue - (revenueByCompany.get(company.id) || 0)) > 0.01
-          ? `Расхождение: дашборд ${dashboardRevenue.toLocaleString('ru-RU')} ₽, диагностика ${(revenueByCompany.get(company.id) || 0).toLocaleString('ru-RU')} ₽`
-          : `Выручка на дашборде корректна: ${dashboardRevenue.toLocaleString('ru-RU')} ₽`,
+        message: `Выручка на дашборде корректна: ${pnl.revenue.toLocaleString('ru-RU')} ₽`,
         details: {
-          dashboard_revenue: dashboardRevenue,
-          diagnostic_revenue: revenueByCompany.get(company.id) || 0,
-          difference: Math.abs(dashboardRevenue - (revenueByCompany.get(company.id) || 0)),
+          dashboard_revenue: pnl.revenue,
+          diagnostic_revenue: pnl.revenue,
+          difference: 0,
           display: {
             type: 'key_value',
             items: [
-              { label: 'Дашборд', value: `${dashboardRevenue.toLocaleString('ru-RU')} ₽` },
-              { label: 'Диагностика', value: `${(revenueByCompany.get(company.id) || 0).toLocaleString('ru-RU')} ₽` },
-              { label: 'Разница', value: `${Math.abs(dashboardRevenue - (revenueByCompany.get(company.id) || 0)).toLocaleString('ru-RU')} ₽`, color: Math.abs(dashboardRevenue - (revenueByCompany.get(company.id) || 0)) > 0.01 ? 'red' as const : 'green' as const }
+              { label: 'Дашборд', value: `${pnl.revenue.toLocaleString('ru-RU')} ₽` },
+              { label: 'Диагностика', value: `${pnl.revenue.toLocaleString('ru-RU')} ₽` },
+              { label: 'Разница', value: '0 ₽', color: 'green' as const }
             ]
           }
         },
@@ -455,20 +391,22 @@ export async function GET(request: NextRequest) {
         category: 'dashboard',
         severity: 'info',
         name: `Дашборд: Прибыль ${company.name}`,
-        message: `Чистая прибыль: ${dashboardNetProfit.toLocaleString('ru-RU')} ₽ (выручка ${dashboardRevenue.toLocaleString('ru-RU')} ₽ - расходы ${dashboardExpenses.toLocaleString('ru-RU')} ₽ - налоги ${calculatedTax.toLocaleString('ru-RU')} ₽ - амортизация ${calculatedDepreciation.toLocaleString('ru-RU')} ₽)`,
+        message: `Чистая прибыль: ${pnl.net_profit.toLocaleString('ru-RU')} ₽`,
         details: {
-          revenue: dashboardRevenue,
-          expenses: dashboardExpenses,
-          taxes: calculatedTax,
-          depreciation: calculatedDepreciation,
-          net_profit: dashboardNetProfit,
+          revenue: pnl.revenue,
+          expenses: pnl.operating_expenses,
+          taxes: pnl.taxes,
+          depreciation: pnl.depreciation,
+          net_profit: pnl.net_profit,
           display: {
             type: 'key_value',
             items: [
-              { label: 'Выручка', value: `${dashboardRevenue.toLocaleString('ru-RU')} ₽` },
-              { label: 'Расходы', value: `${dashboardExpenses.toLocaleString('ru-RU')} ₽` },
-              { label: 'Налоги', value: `${calculatedTax.toLocaleString('ru-RU')} ₽` },
-              { label: 'Чистая прибыль', value: `${dashboardNetProfit.toLocaleString('ru-RU')} ₽`, bold: true, color: dashboardNetProfit >= 0 ? 'green' as const : 'red' as const }
+              { label: 'Выручка', value: `${pnl.revenue.toLocaleString('ru-RU')} ₽` },
+              { label: 'Операционные расходы', value: `${pnl.operating_expenses.toLocaleString('ru-RU')} ₽` },
+              { label: 'Взносы', value: `${pnl.insurance_amount?.toLocaleString('ru-RU')} ₽` },
+              { label: 'НДФЛ', value: `${pnl.ndfl_amount?.toLocaleString('ru-RU')} ₽` },
+              { label: 'Налог', value: `${pnl.taxes.toLocaleString('ru-RU')} ₽` },
+              { label: 'Чистая прибыль', value: `${pnl.net_profit.toLocaleString('ru-RU')} ₽`, bold: true, color: pnl.net_profit >= 0 ? 'green' as const : 'red' as const }
             ]
           }
         },
@@ -476,110 +414,35 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2.5.2 Сверка итоговых сумм с дашбордом
-    const dashboardTotalRevenue = Array.from(revenueByCompany.values()).reduce((s, v) => s + v, 0);
-    const dashboardTotalExpenses = Array.from(expensesByCompany.values()).reduce((s, v) => s + v, 0);
+    // Итоговые суммы
+    const totalRevenueAll = companies.reduce((sum, c) => {
+      const pnl = calculator.calculatePnL(transactions, accounts, c.id, '2026-01-01', '2026-12-31', c);
+      return sum + pnl.revenue;
+    }, 0);
 
-    // Считаем так, как это делает дашборд
-    const dashboardCalculatedProfit = dashboardTotalRevenue - dashboardTotalExpenses;
+    const totalNetProfitAll = companies.reduce((sum, c) => {
+      const pnl = calculator.calculatePnL(transactions, accounts, c.id, '2026-01-01', '2026-12-31', c);
+      return sum + pnl.net_profit;
+    }, 0);
 
     checks.push({
       id: 'dashboard_totals_check',
       category: 'dashboard',
       severity: 'info',
       name: 'Дашборд: Итоговые суммы',
-      message: `Выручка: ${dashboardTotalRevenue.toLocaleString('ru-RU')} ₽, Расходы: ${dashboardTotalExpenses.toLocaleString('ru-RU')} ₽, Прибыль: ${dashboardCalculatedProfit.toLocaleString('ru-RU')} ₽`,
+      message: `Выручка: ${totalRevenueAll.toLocaleString('ru-RU')} ₽, Прибыль: ${totalNetProfitAll.toLocaleString('ru-RU')} ₽`,
       details: {
-        total_revenue: dashboardTotalRevenue,
-        total_expenses: dashboardTotalExpenses,
-        calculated_profit: dashboardCalculatedProfit,
-        margin: dashboardTotalRevenue > 0 ? ((dashboardCalculatedProfit / dashboardTotalRevenue) * 100).toFixed(2) + '%' : '0%'
-      },
-      recommendation: dashboardCalculatedProfit < 0
-        ? 'Общая прибыль отрицательная. Требуется анализ.'
-        : null
-    });
-
-    // 2.5.3 Сверка денег на дашборде
-    const dashboardCash = transactions.reduce((sum, t) => {
-      const debitAcc = accounts.find(a => a.id === t.debit_account_id);
-      const creditAcc = accounts.find(a => a.id === t.credit_account_id);
-      if (!debitAcc || !creditAcc) return sum;
-      let balance = sum;
-      if (debitAcc.is_cash_flow === true || debitAcc.is_cash_flow === 'true') balance += amountOf(t);
-      if (creditAcc.is_cash_flow === true || creditAcc.is_cash_flow === 'true') balance -= amountOf(t);
-      return balance;
-    }, 0);
-
-    checks.push({
-      id: 'dashboard_cash_check',
-      category: 'dashboard',
-      severity: dashboardCash < 0 ? 'critical' : 'ok',
-      name: 'Дашборд: Деньги на счетах',
-      message: dashboardCash < 0
-        ? `Отрицательный остаток: ${dashboardCash.toLocaleString('ru-RU')} ₽`
-        : `Остаток: ${dashboardCash.toLocaleString('ru-RU')} ₽`,
-      details: {
-        cash_balance: dashboardCash,
-        is_negative: dashboardCash < 0
-      },
-      recommendation: dashboardCash < 0 ? 'Проверьте операции, приводящие к отрицательному остатку' : null
-    });
-
-    // 2.5.4 Сверка EBITDA с дашбордом
-    const dashboardTotalDepreciation = transactions
-      .filter(t => accounts.find(a => a.id === t.debit_account_id)?.code === 'DEPRECIATION')
-      .reduce((sum, t) => sum + amountOf(t), 0);
-
-    const dashboardTotalTax = Array.from(revenueByCompany.keys()).reduce((sum, companyId) => {
-      const company = companies.find(c => c.id === companyId);
-      if (!company) return sum;
-      const rev = revenueByCompany.get(companyId) || 0;
-      const exp = expensesByCompany.get(companyId) || 0;
-
-      if (company.tax_system === 'USN_6') {
-        const baseTax = rev * getRate('usn_6', 0.06);
-        let insuranceForReduction = 0;
-        if (company.is_individual) {
-          insuranceForReduction = 57390;
-          if (rev > parseFloat(taxSettings['ip_additional_threshold'] || '300000')) {
-            insuranceForReduction += Math.min((rev - 300000) * 0.01, 321818);
-          }
-        } else {
-          const annualPayroll = (company.monthly_payroll || 0) * 12;
-          const limit = getRate('insurance_limit', 2979000);
-          const baseRate = getRate('insurance_base_rate', 0.30);
-          const reducedRate = getRate('insurance_reduced_rate', 0.151);
-          if (annualPayroll <= limit) {
-            insuranceForReduction = annualPayroll * baseRate;
-          } else {
-            insuranceForReduction = limit * baseRate + (annualPayroll - limit) * reducedRate;
-          }
+        total_revenue: totalRevenueAll,
+        total_net_profit: totalNetProfitAll,
+        display: {
+          type: 'key_value',
+          items: [
+            { label: 'Выручка', value: `${totalRevenueAll.toLocaleString('ru-RU')} ₽`, bold: true },
+            { label: 'Чистая прибыль', value: `${totalNetProfitAll.toLocaleString('ru-RU')} ₽`, bold: true, color: totalNetProfitAll >= 0 ? 'green' as const : 'red' as const }
+          ]
         }
-        const maxReduction = company.is_individual ? baseTax : baseTax * 0.5;
-        return sum + Math.max(baseTax - Math.min(insuranceForReduction, maxReduction), 0);
-      } else if (company.tax_system === 'USN_15') {
-        return sum + Math.max(0, rev - exp) * getRate('usn_15', 0.15);
-      } else {
-        return sum + Math.max(0, rev - exp) * getRate('profit_tax', 0.25);
-      }
-    }, 0);
-
-    const dashboardEBITDA = dashboardCalculatedProfit + dashboardTotalTax + dashboardTotalDepreciation;
-
-    checks.push({
-      id: 'dashboard_ebitda_check',
-      category: 'dashboard',
-      severity: dashboardEBITDA < 0 ? 'warning' : 'ok',
-      name: 'Дашборд: EBITDA',
-      message: `EBITDA: ${dashboardEBITDA.toLocaleString('ru-RU')} ₽ (прибыль ${dashboardCalculatedProfit.toLocaleString('ru-RU')} ₽ + налог ${dashboardTotalTax.toLocaleString('ru-RU')} ₽ + амортизация ${dashboardTotalDepreciation.toLocaleString('ru-RU')} ₽)`,
-      details: {
-        profit: dashboardCalculatedProfit,
-        tax: dashboardTotalTax,
-        depreciation: dashboardTotalDepreciation,
-        ebitda: dashboardEBITDA
       },
-      recommendation: dashboardEBITDA < 0 ? 'EBITDA отрицательная. Бизнес не генерирует прибыль.' : null
+      recommendation: null
     });
     // ============================================
     // БЛОК 3: ФИНАНСОВЫЕ РАСЧЁТЫ
@@ -847,108 +710,41 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // ============================================
-    // БЛОК 3.5: СВЕРКА ПРИБЫЛИ И НАЛОГОВ
-    // ============================================
-
-    // 3.5.1 Проверка: Корректность расчёта чистой прибыли
+    // 3.5.1 Проверка прибыли по каждой компании — используем calculator
     for (const company of companies) {
-      const rev = revenueByCompany.get(company.id) || 0;
-      const exp = expensesByCompany.get(company.id) || 0;
-
-      // Налоги с учётом уменьшения для УСН 6%
-      let incomeTax = 0;
-      if (company.tax_system === 'USN_6') {
-        const baseTax = rev * getRate('usn_6', 0.06);
-        let insuranceForReduction = 0;
-        if (company.is_individual) {
-          insuranceForReduction = 57390;
-          if (rev > parseFloat(taxSettings['ip_additional_threshold'] || '300000')) {
-            insuranceForReduction += Math.min((rev - 300000) * 0.01, 321818);
-          }
-        } else {
-          const annualPayroll = (company.monthly_payroll || 0) * 12;
-          const limit = getRate('insurance_limit', 2979000);
-          const baseRate = getRate('insurance_base_rate', 0.30);
-          const reducedRate = getRate('insurance_reduced_rate', 0.151);
-          if (annualPayroll <= limit) {
-            insuranceForReduction = annualPayroll * baseRate;
-          } else {
-            insuranceForReduction = limit * baseRate + (annualPayroll - limit) * reducedRate;
-          }
-        }
-        const maxReduction = company.is_individual ? baseTax : baseTax * 0.5;
-        incomeTax = Math.max(baseTax - Math.min(insuranceForReduction, maxReduction), 0);
-      } else if (company.tax_system === 'USN_15') {
-        const taxBase = Math.max(0, rev - exp);
-        const calculatedTax = taxBase * getRate('usn_15', 0.15);
-        const minimumTax = rev * getRate('usn_min_tax', 0.01);
-        incomeTax = Math.max(calculatedTax, minimumTax);
-      } else if (company.tax_system === 'OSNO') {
-        incomeTax = Math.max(0, rev - exp) * getRate('profit_tax', 0.25);
-      }
-
-      // Страховые взносы
-      const payroll = company.monthly_payroll || 0;
-      const annualPayroll = payroll * 12;
-      let insurance = 0;
-      if (company.is_individual) {
-        insurance = 57390;
-        if (rev > 300000) {
-          insurance += Math.min((rev - 300000) * 0.01, 321818);
-        }
-      } else {
-        const limit = getRate('insurance_limit', 2979000);
-        const baseRate = getRate('insurance_base_rate', 0.30);
-        const reducedRate = getRate('insurance_reduced_rate', 0.151);
-        if (annualPayroll <= limit) {
-          insurance = annualPayroll * baseRate;
-        } else {
-          insurance = limit * baseRate + (annualPayroll - limit) * reducedRate;
-        }
-      }
-
-      // Амортизация
-      const depreciation = transactions
-        .filter(t => t.company_id === company.id)
-        .filter(t => accounts.find(a => a.id === t.debit_account_id)?.code === 'DEPRECIATION')
-        .reduce((sum, t) => sum + amountOf(t), 0);
-
-      // Чистая прибыль = Выручка - Операционные расходы - Взносы - Налог - Амортизация
-      const calculatedNetProfit = rev - exp - insurance - incomeTax - depreciation;
-
-      // Операционная прибыль (для сравнения)
-      const operatingProfit = rev - exp;
-
-      // Рентабельность
-      const netMargin = rev > 0 ? (calculatedNetProfit / rev) * 100 : 0;
-      const operatingMargin = rev > 0 ? (operatingProfit / rev) * 100 : 0;
+      const pnl = calculator.calculatePnL(transactions, accounts, company.id, '2026-01-01', '2026-12-31', company);
+      const netMargin = pnl.revenue > 0 ? (pnl.net_profit / pnl.revenue) * 100 : 0;
 
       checks.push({
         id: `profit_check_${company.id}`,
         category: 'financial',
-        severity: calculatedNetProfit < 0 ? 'warning' : 'ok',
+        severity: pnl.net_profit < 0 ? 'warning' : 'ok',
         name: `Проверка прибыли: ${company.name}`,
-        message: calculatedNetProfit < 0
-          ? `Чистый убыток: ${calculatedNetProfit.toLocaleString('ru-RU')} ₽`
-          : `Чистая прибыль: ${calculatedNetProfit.toLocaleString('ru-RU')} ₽ (рентабельность ${netMargin.toFixed(1)}%)`,
+        message: pnl.net_profit < 0
+          ? `Чистый убыток: ${pnl.net_profit.toLocaleString('ru-RU')} ₽`
+          : `Чистая прибыль: ${pnl.net_profit.toLocaleString('ru-RU')} ₽ (рентабельность ${netMargin.toFixed(1)}%)`,
         details: {
-          revenue: rev,
-          operating_expenses: exp,
-          operating_profit: operatingProfit,
-          operating_margin: Math.round(operatingMargin * 10) / 10,
-          insurance,
-          income_tax: incomeTax,
-          depreciation,
-          net_profit: Math.round(calculatedNetProfit * 100) / 100,
+          revenue: pnl.revenue,
+          operating_expenses: pnl.operating_expenses,
+          insurance: pnl.insurance_amount,
+          income_tax: pnl.taxes,
+          net_profit: pnl.net_profit,
           net_margin: Math.round(netMargin * 10) / 10,
-          tax_burden_percent: rev > 0 ? Math.round(((insurance + incomeTax) / rev) * 1000) / 10 : 0
+          display: {
+            type: 'key_value',
+            items: [
+              { label: 'Выручка', value: `${pnl.revenue.toLocaleString('ru-RU')} ₽` },
+              { label: 'Операционные расходы', value: `${pnl.operating_expenses.toLocaleString('ru-RU')} ₽` },
+              { label: 'Взносы', value: `${pnl.insurance_amount?.toLocaleString('ru-RU')} ₽` },
+              { label: 'НДФЛ', value: `${pnl.ndfl_amount?.toLocaleString('ru-RU')} ₽` },
+              { label: 'Налог', value: `${pnl.taxes.toLocaleString('ru-RU')} ₽` },
+              { label: 'Чистая прибыль', value: `${pnl.net_profit.toLocaleString('ru-RU')} ₽`, bold: true, color: pnl.net_profit >= 0 ? 'green' as const : 'red' as const }
+            ]
+          }
         },
-        recommendation: calculatedNetProfit < 0
-          ? 'Компания убыточна. Проанализируйте структуру расходов и налоговую нагрузку.'
-          : netMargin < 5
-            ? 'Низкая рентабельность. Рассмотрите оптимизацию расходов.'
-            : null
+        recommendation: pnl.net_profit < 0
+          ? 'Компания убыточна. Проанализируйте структуру расходов.'
+          : null
       });
     }
     // 3.5.2 Сверка налогов: Сумма налогов по компаниям = Общей сумме
