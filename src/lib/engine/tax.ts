@@ -78,9 +78,9 @@ export class TaxEngine {
     const periodFraction = this.getPeriodFraction(periodStart, periodEnd);
 
     // Определяем параметры НДС
-    const vatIncluded = Boolean(company.vat_included);
+    const vatIncluded = String(company.vat_included).toLowerCase() === 'true';
     const vatRate = vatIncluded
-      ? (company.vat_rate || parseFloat(this.settings['vat_osno'] || '0.22'))
+      ? parseFloat(String(company.vat_rate || this.settings['vat_osno'] || '0.22'))
       : 0;
 
     // Выручка (как в операциях)
