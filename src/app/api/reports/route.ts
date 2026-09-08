@@ -3,6 +3,7 @@ import { calculator } from '@/lib/engine/calculator';
 import { consolidationEngine } from '@/lib/engine/consolidation';
 import { taxEngine } from '@/lib/engine/tax';
 import { loadSystemAccounts } from '@/lib/config/accounts';
+import { dataCache, CACHE_PREFIXES } from '@/lib/cache';
 
 const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL || 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
@@ -20,6 +21,12 @@ export async function GET(request: NextRequest) {
     const companyId = url.searchParams.get('company_id');
     const periodStart = url.searchParams.get('period_start') || '2026-01-01';
     const periodEnd = url.searchParams.get('period_end') || '2026-12-31';
+    // Проверяем кэш
+    const cacheKey = `${CACHE_PREFIXES.REPORTS}_${reportType}_${companyId || 'all'}_${periodStart}_${periodEnd}`;
+    const cached = dataCache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
 
     const [transactions, accounts, companies, settings] = await Promise.all([
       gasGet('Transactions'),
@@ -51,6 +58,7 @@ export async function GET(request: NextRequest) {
           const tax = taxEngine.calculateTax(company, transactions, accounts, periodStart, periodEnd);
           return { company, report: pnl, tax };
         });
+        dataCache.set(cacheKey, reports, 300);
         return NextResponse.json(reports);
       }
 
@@ -66,6 +74,7 @@ export async function GET(request: NextRequest) {
             company
           )
         }));
+        dataCache.set(cacheKey, reports, 300);
         return NextResponse.json(reports);
       }
 
@@ -80,6 +89,7 @@ export async function GET(request: NextRequest) {
             company
           )
         }));
+        dataCache.set(cacheKey, reports, 300);
         return NextResponse.json(reports);
       }
 

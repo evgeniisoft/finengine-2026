@@ -1,7 +1,7 @@
 import { getSession } from './auth';
-import { dataCache, CACHE_KEYS } from './cache';
+import { dataCache, CACHE_PREFIXES } from './cache';
 
-export type SheetName = 
+export type SheetName =
   | 'Settings'
   | 'Companies'
   | 'Accounts'
@@ -43,17 +43,17 @@ class ApiClient {
         headers: this.getHeaders()
       });
       const data = await response.json();
-      
+
       if (data && data.error) {
         throw new Error(data.error);
       }
-      
+
       const result = Array.isArray(data) ? data : [];
-      
+
       // Кэшируем справочники дольше, операции меньше
       const ttl = sheet === 'Transactions' || sheet === 'Budgets' ? 60 : 600;
       dataCache.set(sheet, result, ttl);
-      
+
       return result;
     } catch (error) {
       console.error(`Ошибка при получении данных из ${sheet}:`, error);
@@ -70,14 +70,14 @@ class ApiClient {
       });
 
       const result = await response.json();
-      
+
       if (result && result.error) {
         throw new Error(result.error);
       }
-      
+
       // Инвалидируем кэш
       dataCache.invalidate(sheet);
-      
+
       return result;
     } catch (error) {
       console.error(`Ошибка при создании записи в ${sheet}:`, error);
@@ -94,14 +94,14 @@ class ApiClient {
       });
 
       const result = await response.json();
-      
+
       if (result && result.error) {
         throw new Error(result.error);
       }
-      
+
       // Инвалидируем кэш
       dataCache.invalidate(sheet);
-      
+
       return result;
     } catch (error) {
       console.error(`Ошибка при обновлении записи в ${sheet}:`, error);
@@ -116,14 +116,14 @@ class ApiClient {
         headers: this.getHeaders()
       });
       const result = await response.json();
-      
+
       if (result && result.error) {
         throw new Error(result.error);
       }
-      
+
       // Инвалидируем кэш
       dataCache.invalidate(sheet);
-      
+
       return result.success || false;
     } catch (error) {
       console.error(`Ошибка при удалении записи из ${sheet}:`, error);
@@ -140,14 +140,14 @@ class ApiClient {
       });
 
       const result = await response.json();
-      
+
       if (result && result.error) {
         throw new Error(result.error);
       }
-      
+
       // Инвалидируем кэш
       dataCache.invalidate(sheet);
-      
+
       return result;
     } catch (error) {
       console.error(`Ошибка при массовом создании в ${sheet}:`, error);

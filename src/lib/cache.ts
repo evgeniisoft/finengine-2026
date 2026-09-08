@@ -2,50 +2,58 @@
  * ============================================
  * FinEngine 2026 - Кэширование данных
  * ============================================
+ * Server-side in-memory кэш
  */
 
 class DataCache {
-  private cache: Map<string, { data: any; timestamp: number }> = new Map();
-  private defaultTTL: number;
-
-  constructor(defaultTTLSeconds: number = 300) {
-    this.defaultTTL = defaultTTLSeconds * 1000;
-  }
+  private cache: Map<string, { data: any; expiresAt: number }> = new Map();
 
   get(key: string): any | null {
     const cached = this.cache.get(key);
     if (!cached) return null;
-    if (Date.now() - cached.timestamp > this.defaultTTL) {
+    if (Date.now() > cached.expiresAt) {
       this.cache.delete(key);
       return null;
     }
     return cached.data;
   }
 
-  set(key: string, data: any, ttlSeconds?: number): void {
+  set(key: string, data: any, ttlSeconds: number = 300): void {
     this.cache.set(key, { 
       data, 
-      timestamp: Date.now() + (ttlSeconds ? ttlSeconds * 1000 : 0) 
+      expiresAt: Date.now() + ttlSeconds * 1000 
     });
   }
 
-  invalidate(key: string): void {
-    this.cache.delete(key);
+  invalidate(prefix: string): void {
+    const keysToDelete: string[] = [];
+    this.cache.forEach((_, key) => {
+      if (key.startsWith(prefix)) {
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach(key => this.cache.delete(key));
   }
 
   invalidateAll(): void {
     this.cache.clear();
   }
+
+  getStats() {
+    return {
+      size: this.cache.size,
+      keys: Array.from(this.cache.keys()),
+    };
+  }
 }
 
-export const dataCache = new DataCache(300); // 5 минут TTL по умолчанию
+export const dataCache = new DataCache();
 
 // Ключи кэша
-export const CACHE_KEYS = {
-  ACCOUNTS: 'accounts',
-  COMPANIES: 'companies',
-  SETTINGS: 'settings',
-  COUNTERPARTIES: 'counterparties',
-  TRANSACTIONS: 'transactions',
-  BUDGETS: 'budgets',
+export const CACHE_PREFIXES = {
+  REPORTS: 'reports',
+  BALANCE: 'balance',
+  DIAGNOSTICS: 'diagnostics',
+  DATA: 'data',
+  USN_LIMITS: 'usn-limits',
 };
