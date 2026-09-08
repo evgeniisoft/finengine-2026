@@ -1655,13 +1655,14 @@ export async function GET(request: NextRequest) {
     const calendarBalance = transactions
       .filter(t => {
         const txDate = getDateStr(t.date);
-        return txDate < calendarToday2;
+        const isInitialBalance = t.credit_account_id === getSystemAccount('equity') && t.record_type === 'fact';
+        return txDate < calendarToday && !isInitialBalance;
       })
       .reduce((balance, t) => {
         if (t.type === 'income') return balance + amountOf(t);
         if (t.type === 'expense') return balance - amountOf(t);
         return balance;
-      }, 7000000); // Начальный остаток
+      }, 7000000);
 
     // Предстоящие платежи
     const upcomingPayments = transactions
