@@ -985,96 +985,174 @@ function buildCalendarPeriod(label: string, periodTx: any[], accounts?: any[], c
 }
 
 // ============================================
-// CALENDAR VIEW
+// CALENDAR VIEW — Рабочий стол казначея
 // ============================================
 function CalendarView({ transactions, companies, companyId, accounts, counterparties }: any) {
-    const [days, setDays] = useState(12);
-    const [periodType, setPeriodType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+    const [showMode, setShowMode] = useState<'upcoming' | 'all'>('upcoming');
+    const [days, setDays] = useState(30);
 
-    const filteredTx = companyId ? transactions.filter((t: any) => t.company_id === companyId) : transactions;
-    const companyName = companyId ? companies.find((c: any) => c.id === companyId)?.name || '' : 'Консолидированный';
+    const filteredTx = companyId
+        ? transactions.filter((t: any) => t.company_id === companyId)
+        : transactions;
+    const companyName = companyId
+        ? companies.find((c: any) => c.id === companyId)?.name || ''
+        : 'Консолидированный';
 
-    const periods = getCalendarPeriods(filteredTx, periodType, days, accounts, counterparties);
+    // Текущий остаток — из всех операций до сегодня
+    const today = new Date().toISOString().split('T')[0];
+    const pastTx = filteredTx.filter((t: any) => {
+        const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
+        return txDate < today;
+    });
+    const currentBalance = pastTx.reduce((balance: number, t: any) => {
+        if (t.type === 'income') return balance + parseFloat(t.amount || 0);
+        if (t.type === 'expense') return balance - parseFloat(t.amount || 0);
+        return balance;
+    }, 0);
+
+    // Предстоящие операции
+    const upcomingTx = filteredTx
+        .filter((t: any) => {
+            const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
+            return txDate >= today;
+        })
+        .sort((a: any, b: any) => {
+            const da = typeof a.date === 'string' ? a.date.split('T')[0] : a.date;
+            const db = typeof b.date === 'string' ? b.date.split('T')[0] : b.date;
+            return da.localeCompare(db);
+        });
+
+    const upcomingPayments = upcomingTx.filter((t: any) => t.type === 'expense');
+    const upcomingInflows = upcomingTx.filter((t: any) => t.type === 'income');
+
+    // Прогноз по дням
+    const forecast: any[] = [];
+    let runningBalance = currentBalance;
+
+    for (const t of upcomingTx) {
+        const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
+        const amount = parseFloat(t.amount || 0);
+        if (t.type === 'income') runningBalance += amount;
+        if (t.type === 'expense') runningBalance -= amount;
+
+        forecast.push({
+            date: txDate,
+            description: t.description || '',
+            type: t.type,
+            amount,
+            balance_after: runningBalance,
+        });
+    }
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
-            <div className="flex justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">{companyName} — Платёжный календарь</h3>
-                <div className="flex gap-2">
-                    <button onClick={() => setPeriodType('daily')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Дни</button>
-                    <button onClick={() => setPeriodType('weekly')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Недели</button>
-                    <button onClick={() => setPeriodType('monthly')} className={`px-3 py-1.5 rounded-lg text-xs ${periodType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Месяцы</button>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+            {/* Шапка */}
+            <div className="p-6 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{companyName} — Платёжный календарь</h3>
+                        <p className="text-sm text-gray-500 mt-1">Текущий остаток: <span className="font-semibold text-gray-900">{currentBalance.toLocaleString('ru-RU')} ₽</span></p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => setShowMode('upcoming')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${showMode === 'upcoming' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Предстоящие</button>
+                        <button onClick={() => setShowMode('all')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${showMode === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>Все операции</button>
+                    </div>
                 </div>
             </div>
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase sticky left-0 bg-gray-50">Статья</th>
-                            {periods.map((p: any) => (
-                                <th key={p.label} className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{p.label}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                        {/* Поступления */}
-                        <tr className="bg-green-50/50">
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Поступления</td>
-                            {periods.map((p: any) => (
-                                <td key={p.label} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">
-                                    {p.inflow > 0 ? '+' + p.inflow.toLocaleString('ru-RU') : ''}
-                                </td>
-                            ))}
-                        </tr>
-                        {/* Детализация поступлений */}
-                        {periods.some(p => p.inflow > 0) && (
-                            <tr className="text-xs text-gray-500">
-                                <td className="px-4 py-2 pl-8 sticky left-0 bg-white">— по контрагентам</td>
-                                {periods.map((p: any) => (
-                                    <td key={p.label} className="px-4 py-2 text-right whitespace-nowrap">
-                                        {Object.entries(p.inflow_details || {}).map(([name, amount]: any) => (
-                                            <div key={name} className="text-xs text-green-700">
-                                                {name}: +{amount.toLocaleString('ru-RU')}
-                                            </div>
-                                        ))}
-                                    </td>
-                                ))}
-                            </tr>
-                        )}
-                        {/* Выбытия */}
-                        <tr>
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Выбытия</td>
-                            {periods.map((p: any) => (
-                                <td key={p.label} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">
-                                    {p.outflow > 0 ? '-' + p.outflow.toLocaleString('ru-RU') : ''}
-                                </td>
-                            ))}
-                        </tr>
-                        {/* Детализация выбытий */}
-                        {periods.some(p => p.outflow > 0) && (
-                            <tr className="text-xs text-gray-500">
-                                <td className="px-4 py-2 pl-8 sticky left-0 bg-white">— по статьям</td>
-                                {periods.map((p: any) => (
-                                    <td key={p.label} className="px-4 py-2 text-right whitespace-nowrap">
-                                        {Object.entries(p.outflow_details || {}).map(([name, amount]: any) => (
-                                            <div key={name} className="text-xs text-red-700">
-                                                {name}: -{amount.toLocaleString('ru-RU')}
-                                            </div>
-                                        ))}
-                                    </td>
-                                ))}
-                            </tr>
-                        )}
-                        {/* Баланс */}
-                        <tr>
-                            <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-white">Баланс</td>
-                            {periods.map((p: any) => (
-                                <td key={p.label} className={`px-4 py-3 text-sm text-right font-medium whitespace-nowrap ${p.balance < 0 ? 'text-red-600 bg-red-50' : 'text-gray-900'}`}>{p.balance.toLocaleString('ru-RU')}</td>
-                            ))}
-                        </tr>
-                    </tbody>
-                </table>
+
+            {/* Две колонки */}
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                {/* Платежи */}
+                <div className="p-6">
+                    <h4 className="text-sm font-semibold text-red-600 mb-4">
+                        ПРЕДСТОЯЩИЕ ПЛАТЕЖИ ({upcomingPayments.length})
+                    </h4>
+                    {upcomingPayments.length === 0 ? (
+                        <p className="text-sm text-gray-400">Нет предстоящих платежей</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {upcomingPayments.slice(0, 10).map((t: any, idx: number) => {
+                                const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
+                                const acc = accounts?.find((a: any) => a.id === t.debit_account_id);
+                                const cp = counterparties?.find((c: any) => c.id === t.counterparty_id);
+                                const amount = parseFloat(t.amount || 0);
+
+                                return (
+                                    <div key={idx} className="flex items-start justify-between p-3 bg-red-50/50 rounded-lg">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-900">
+                                                {txDate.substring(8, 10)}.{txDate.substring(5, 7)} — {acc?.name || t.debit_account_id}
+                                            </p>
+                                            {cp?.name && <p className="text-xs text-gray-500">{cp.name}</p>}
+                                        </div>
+                                        <span className="text-sm font-semibold text-red-600 whitespace-nowrap">
+                                            -{amount.toLocaleString('ru-RU')}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Поступления */}
+                <div className="p-6">
+                    <h4 className="text-sm font-semibold text-green-600 mb-4">
+                        ПРЕДСТОЯЩИЕ ПОСТУПЛЕНИЯ ({upcomingInflows.length})
+                    </h4>
+                    {upcomingInflows.length === 0 ? (
+                        <p className="text-sm text-gray-400">Нет предстоящих поступлений</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {upcomingInflows.slice(0, 10).map((t: any, idx: number) => {
+                                const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
+                                const cp = counterparties?.find((c: any) => c.id === t.counterparty_id);
+                                const amount = parseFloat(t.amount || 0);
+
+                                return (
+                                    <div key={idx} className="flex items-start justify-between p-3 bg-green-50/50 rounded-lg">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-900">
+                                                {txDate.substring(8, 10)}.{txDate.substring(5, 7)} — {cp?.name || 'Клиент'}
+                                            </p>
+                                            <p className="text-xs text-gray-500">{t.description || ''}</p>
+                                        </div>
+                                        <span className="text-sm font-semibold text-green-600 whitespace-nowrap">
+                                            +{amount.toLocaleString('ru-RU')}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {/* Прогноз по дням */}
+            {forecast.length > 0 && (
+                <div className="p-6 border-t border-gray-100 bg-gray-50/50">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">ПРОГНОЗ ПО ДНЯМ</h4>
+                    <div className="space-y-2">
+                        {forecast.slice(0, 10).map((f: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">
+                                    {f.date.substring(8, 10)}.{f.date.substring(5, 7)}: {f.description || (f.type === 'income' ? 'Поступление' : 'Платёж')}
+                                </span>
+                                <span className="font-medium text-gray-900">
+                                    {f.balance_after.toLocaleString('ru-RU')} ₽
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Предупреждение о кассовом разрыве */}
+                    {forecast.some(f => f.balance_after < 0) && (
+                        <div className="mt-3 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                            ⚠️ Обнаружен кассовый разрыв! Остаток станет отрицательным.
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
