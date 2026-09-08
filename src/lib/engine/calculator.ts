@@ -202,8 +202,8 @@ export class FinancialCalculator {
 
     // Классифицируем расходы
     // Определяем, включает ли компания НДС
-    const vatIncluded = Boolean(company?.vat_included);
-    const vatRate = company?.vat_rate || 0;
+    const vatIncluded = String(company?.vat_included).toLowerCase() === 'true';
+    const vatRate = parseFloat(String(company?.vat_rate || '0'));
 
     // Классифицируем расходы (с выделением НДС для ОСНО)
     for (const t of filtered) {
