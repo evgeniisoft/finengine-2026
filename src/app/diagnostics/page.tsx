@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import FormattedDetails from './FormattedDetails';
 
 interface DiagnosticCheck {
   id: string;
@@ -484,9 +485,13 @@ export default function DiagnosticsPage() {
               {selectedCheck.details && (
                 <div className="mb-4">
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">Детали</h4>
-                  <pre className="text-xs text-gray-600 bg-gray-50 p-4 rounded-lg overflow-x-auto">
-                    {JSON.stringify(selectedCheck.details, null, 2)}
-                  </pre>
+                  {selectedCheck.details?.display ? (
+                    <FormattedDetails display={selectedCheck.details.display} />
+                  ) : (
+                    <pre className="text-xs text-gray-600 bg-gray-50 p-4 rounded-lg overflow-x-auto">
+                      {JSON.stringify(selectedCheck.details, null, 2)}
+                    </pre>
+                  )}
                 </div>
               )}
 

@@ -1265,7 +1265,17 @@ export async function GET(request: NextRequest) {
             severity: 'info',
             name: `Лимиты УСН: ${company.name}`,
             message: `Выручка ${limits.current_revenue.toLocaleString('ru-RU')} ₽ (${limits.limits.exempt.used_percent}% от порога НДС 20 млн)`,
-            details: limits,
+            details: {
+              ...limits,
+              entity: 'companies',
+              display: {
+                type: 'progress_bar',
+                title: `Порог НДС (20 млн)`,
+                percent: limits.limits.exempt.used_percent,
+                threshold: limits.limits.exempt.threshold,
+                threshold_label: 'НДС 5%'
+              }
+            },
             recommendation: null
           });
         }
