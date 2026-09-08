@@ -1110,9 +1110,14 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
                                     <div key={idx} className="flex items-start justify-between p-3 bg-red-50/50 rounded-lg">
                                         <div>
                                             <p className="text-sm font-medium text-gray-900">
-                                                {txDate.substring(8, 10)}.{txDate.substring(5, 7)} — {acc?.name || t.debit_account_id}
+                                                {txDate.substring(8, 10)}.{txDate.substring(5, 7)} — {t.description || t.debit_account_name || t.debit_account_id || 'Платёж'}
                                             </p>
                                             {cp?.name && <p className="text-xs text-gray-500">{cp.name}</p>}
+                                            {t.is_tax && (
+                                                <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">
+                                                    Обязательный
+                                                </span>
+                                            )}
                                         </div>
                                         <span className="text-sm font-semibold text-red-600 whitespace-nowrap">
                                             -{amount.toLocaleString('ru-RU')}
@@ -1139,12 +1144,17 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
                                 const amount = parseFloat(t.amount || 0);
 
                                 return (
-                                    <div key={idx} className="flex items-start justify-between p-3 bg-green-50/50 rounded-lg">
+                                    <div key={idx} className="flex items-start justify-between p-3 bg-red-50/50 rounded-lg">
                                         <div>
                                             <p className="text-sm font-medium text-gray-900">
-                                                {txDate.substring(8, 10)}.{txDate.substring(5, 7)} — {cp?.name || 'Клиент'}
+                                                {txDate.substring(8, 10)}.{txDate.substring(5, 7)} — {t.description || t.debit_account_name || t.debit_account_id || 'Платёж'}
                                             </p>
-                                            <p className="text-xs text-gray-500">{t.description || ''}</p>
+                                            {cp?.name && <p className="text-xs text-gray-500">{cp.name}</p>}
+                                            {t.is_tax && (
+                                                <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">
+                                                    Обязательный
+                                                </span>
+                                            )}
                                         </div>
                                         <span className="text-sm font-semibold text-green-600 whitespace-nowrap">
                                             +{amount.toLocaleString('ru-RU')}
