@@ -1012,7 +1012,12 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
         .filter((t: any) => t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact')
         .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
 
-    const currentBalance = initialBalance + pastTx.reduce((balance: number, t: any) => {
+    // Исключаем начальные остатки из прошлых операций
+    const pastTxWithoutInitial = pastTx.filter((t: any) =>
+        !(t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact')
+    );
+
+    const currentBalance = initialBalance + pastTxWithoutInitial.reduce((balance: number, t: any) => {
         if (t.type === 'income') return balance + parseFloat(t.amount || 0);
         if (t.type === 'expense') return balance - parseFloat(t.amount || 0);
         return balance;
