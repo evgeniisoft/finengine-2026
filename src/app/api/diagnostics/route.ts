@@ -177,7 +177,17 @@ export async function GET(request: NextRequest) {
       name: 'Операции без даты',
       count: noDate.length,
       message: noDate.length > 0 ? `${noDate.length} операций без даты` : 'Все операции имеют дату',
-      details: noDate.slice(0, 20).map(t => ({ id: t.id, description: t.description })),
+      details: {
+        operations: noDate.slice(0, 20).map(t => ({ id: t.id, description: t.description })),
+        display: noDate.length > 0 ? {
+          type: 'list',
+          items: noDate.slice(0, 5).map(t => ({
+            label: t.id.substring(0, 8),
+            value: t.description || '(нет описания)',
+            color: 'red' as const
+          }))
+        } : undefined
+      },
       recommendation: noDate.length > 0 ? 'Добавьте даты операциям' : null
     });
 
@@ -327,7 +337,17 @@ export async function GET(request: NextRequest) {
       message: companiesWithoutTx.length > 0
         ? `${companiesWithoutTx.length} компаний без операций`
         : 'Все компании имеют операции',
-      details: companiesWithoutTx.map(c => ({ id: c.id, name: c.name })),
+      details: {
+        companies: companiesWithoutTx.map(c => ({ id: c.id, name: c.name })),
+        display: companiesWithoutTx.length > 0 ? {
+          type: 'list',
+          items: companiesWithoutTx.map(c => ({
+            label: c.name,
+            value: 'нет операций',
+            color: 'yellow' as const
+          }))
+        } : undefined
+      },
       recommendation: companiesWithoutTx.length > 0 ? 'Добавьте операции или удалите компании' : null
     });
     // ============================================
@@ -405,7 +425,15 @@ export async function GET(request: NextRequest) {
         details: {
           dashboard_revenue: dashboardRevenue,
           diagnostic_revenue: revenueByCompany.get(company.id) || 0,
-          difference: Math.abs(dashboardRevenue - (revenueByCompany.get(company.id) || 0))
+          difference: Math.abs(dashboardRevenue - (revenueByCompany.get(company.id) || 0)),
+          display: {
+            type: 'key_value',
+            items: [
+              { label: 'Дашборд', value: `${dashboardRevenue.toLocaleString('ru-RU')} ₽` },
+              { label: 'Диагностика', value: `${(revenueByCompany.get(company.id) || 0).toLocaleString('ru-RU')} ₽` },
+              { label: 'Разница', value: `${Math.abs(dashboardRevenue - (revenueByCompany.get(company.id) || 0)).toLocaleString('ru-RU')} ₽`, color: Math.abs(dashboardRevenue - (revenueByCompany.get(company.id) || 0)) > 0.01 ? 'red' as const : 'green' as const }
+            ]
+          }
         },
         recommendation: null
       });
@@ -421,7 +449,16 @@ export async function GET(request: NextRequest) {
           expenses: dashboardExpenses,
           taxes: calculatedTax,
           depreciation: calculatedDepreciation,
-          net_profit: dashboardNetProfit
+          net_profit: dashboardNetProfit,
+          display: {
+            type: 'key_value',
+            items: [
+              { label: 'Выручка', value: `${dashboardRevenue.toLocaleString('ru-RU')} ₽` },
+              { label: 'Расходы', value: `${dashboardExpenses.toLocaleString('ru-RU')} ₽` },
+              { label: 'Налоги', value: `${calculatedTax.toLocaleString('ru-RU')} ₽` },
+              { label: 'Чистая прибыль', value: `${dashboardNetProfit.toLocaleString('ru-RU')} ₽`, bold: true, color: dashboardNetProfit >= 0 ? 'green' as const : 'red' as const }
+            ]
+          }
         },
         recommendation: null
       });
@@ -556,7 +593,18 @@ export async function GET(request: NextRequest) {
         })),
         total_by_company: totalRevenue,
         total_overall: allTransactionsRevenue,
-        difference: Math.abs(totalRevenue - allTransactionsRevenue)
+        difference: Math.abs(totalRevenue - allTransactionsRevenue),
+        display: {
+          type: 'key_value',
+          items: [
+            ...Array.from(revenueByCompany.entries()).map(([id, rev]) => ({
+              label: companies.find(c => c.id === id)?.name || id,
+              value: `${rev.toLocaleString('ru-RU')} ₽`
+            })),
+            { label: 'Итого по компаниям', value: `${totalRevenue.toLocaleString('ru-RU')} ₽`, bold: true },
+            { label: 'Общая выручка', value: `${allTransactionsRevenue.toLocaleString('ru-RU')} ₽`, bold: true }
+          ]
+        }
       },
       recommendation: null
     });
@@ -610,7 +658,17 @@ export async function GET(request: NextRequest) {
         total_outflow: ddOutflow,
         calculated_ending: ddCalculatedEnding,
         actual_ending: actualCashBalance,
-        difference: Math.abs(ddCalculatedEnding - actualCashBalance)
+        difference: Math.abs(ddCalculatedEnding - actualCashBalance),
+        display: {
+          type: 'key_value',
+          items: [
+            { label: 'Начальный остаток', value: `${initialBalance.toLocaleString('ru-RU')} ₽` },
+            { label: 'Притоки', value: `${ddInflow.toLocaleString('ru-RU')} ₽`, color: 'green' as const },
+            { label: 'Оттоки', value: `${ddOutflow.toLocaleString('ru-RU')} ₽`, color: 'red' as const },
+            { label: 'Расчётный конечный', value: `${ddCalculatedEnding.toLocaleString('ru-RU')} ₽`, bold: true },
+            { label: 'Фактический конечный', value: `${actualCashBalance.toLocaleString('ru-RU')} ₽`, bold: true }
+          ]
+        }
       },
       recommendation: null
     });
@@ -749,7 +807,16 @@ export async function GET(request: NextRequest) {
           current_month_revenue: currentMonthRevenue,
           projected_run_rate: Math.round(runRate),
           avg_historical: Math.round(avgHistorical),
-          deviation_percent: Math.round(deviation * 10) / 10
+          deviation_percent: Math.round(deviation * 10) / 10,
+          display: {
+            type: 'key_value',
+            items: [
+              { label: 'Текущий месяц', value: `${currentMonthRevenue.toLocaleString('ru-RU')} ₽` },
+              { label: 'Run Rate', value: `${Math.round(runRate).toLocaleString('ru-RU')} ₽/мес` },
+              { label: 'Среднее за 3 мес', value: `${Math.round(avgHistorical).toLocaleString('ru-RU')} ₽` },
+              { label: 'Отклонение', value: `${Math.round(deviation * 10) / 10}%`, color: deviation > 30 ? 'yellow' as const : 'green' as const }
+            ]
+          }
         },
         recommendation: deviation > 30 ? 'Проверьте причины отклонения выручки' : null
       });
@@ -943,7 +1010,17 @@ export async function GET(request: NextRequest) {
         insurance: totalInsurance,
         ndfl: totalNdfl,
         total: totalTaxBurden,
-        effective_rate: totalRevenue > 0 ? (totalTaxBurden / totalRevenue * 100).toFixed(2) + '%' : '0%'
+        effective_rate: totalRevenue > 0 ? (totalTaxBurden / totalRevenue * 100).toFixed(2) + '%' : '0%',
+        display: {
+          type: 'key_value',
+          items: [
+            { label: 'Налог УСН/прибыль', value: `${totalIncomeTax.toLocaleString('ru-RU')} ₽` },
+            { label: 'Страховые взносы', value: `${totalInsurance.toLocaleString('ru-RU')} ₽` },
+            { label: 'НДФЛ', value: `${totalNdfl.toLocaleString('ru-RU')} ₽` },
+            { label: 'Итого налоги', value: `${totalTaxBurden.toLocaleString('ru-RU')} ₽`, bold: true },
+            { label: 'Эффективная ставка', value: totalRevenue > 0 ? (totalTaxBurden / totalRevenue * 100).toFixed(2) + '%' : '0%' }
+          ]
+        }
       },
       recommendation: null
     });
@@ -967,7 +1044,15 @@ export async function GET(request: NextRequest) {
       details: {
         taxes_in_transactions: pnlTaxes,
         calculated_income_tax: totalIncomeTax,
-        possible_double_count: pnlTaxes > 0 && Math.abs(pnlTaxes - totalIncomeTax) < 100
+        possible_double_count: pnlTaxes > 0 && Math.abs(pnlTaxes - totalIncomeTax) < 100,
+        display: {
+          type: 'key_value',
+          items: [
+            { label: 'Налоги в операциях', value: `${pnlTaxes.toLocaleString('ru-RU')} ₽` },
+            { label: 'Рассчитанный налог', value: `${totalIncomeTax.toLocaleString('ru-RU')} ₽` },
+            { label: 'Задвоение', value: pnlTaxes > 0 && Math.abs(pnlTaxes - totalIncomeTax) < 100 ? 'Да' : 'Нет', color: pnlTaxes > 0 && Math.abs(pnlTaxes - totalIncomeTax) < 100 ? 'red' as const : 'green' as const }
+          ]
+        }
       },
       recommendation: pnlTaxes > 0
         ? 'Проверьте, не учтены ли налоги и в операциях, и в налоговом движке'
@@ -1020,7 +1105,17 @@ export async function GET(request: NextRequest) {
             tax_rate: getRate('usn_6', 0.06),
             tax_before_deduction: expectedTax,
             insurance_deduction: Math.min(insurance, maxReduction),
-            final_tax: actualTax
+            final_tax: actualTax,
+            display: {
+              type: 'key_value',
+              items: [
+                { label: 'Выручка', value: `${rev.toLocaleString('ru-RU')} ₽` },
+                { label: 'Ставка', value: `${(getRate('usn_6', 0.06) * 100).toFixed(0)}%` },
+                { label: 'Налог до вычета', value: `${expectedTax.toLocaleString('ru-RU')} ₽` },
+                { label: 'Вычет взносов', value: `${Math.min(insurance, maxReduction).toLocaleString('ru-RU')} ₽` },
+                { label: 'Итого налог', value: `${Math.round(actualTax).toLocaleString('ru-RU')} ₽`, bold: true }
+              ]
+            }
           },
           recommendation: null
         });
@@ -1091,7 +1186,16 @@ export async function GET(request: NextRequest) {
           monthly_payroll: payroll,
           annual_payroll: annualPayroll,
           rate: insuranceRate,
-          annual_contributions: Math.round(insurance)
+          annual_contributions: Math.round(insurance),
+          display: {
+            type: 'key_value',
+            items: [
+              { label: 'ФОТ (мес)', value: `${payroll.toLocaleString('ru-RU')} ₽` },
+              { label: 'ФОТ (год)', value: `${annualPayroll.toLocaleString('ru-RU')} ₽` },
+              { label: 'Ставка', value: `${insuranceRate}%` },
+              { label: 'Взносы за год', value: `${Math.round(insurance).toLocaleString('ru-RU')} ₽`, bold: true }
+            ]
+          }
         },
         recommendation: null
       });
@@ -1119,7 +1223,17 @@ export async function GET(request: NextRequest) {
           limit: ndflLimit,
           base_rate: ndflBaseRate,
           increased_rate: ndflIncreasedRate,
-          annual_ndfl: Math.round(ndfl)
+          annual_ndfl: Math.round(ndfl),
+          display: {
+            type: 'key_value',
+            items: [
+              { label: 'ФОТ (год)', value: `${annualPayroll.toLocaleString('ru-RU')} ₽` },
+              { label: 'Порог', value: `${ndflLimit.toLocaleString('ru-RU')} ₽` },
+              { label: 'Ставка базовая', value: `${(ndflBaseRate * 100).toFixed(0)}%` },
+              { label: 'Ставка повышенная', value: `${(ndflIncreasedRate * 100).toFixed(0)}%` },
+              { label: 'НДФЛ за год', value: `${Math.round(ndfl).toLocaleString('ru-RU')} ₽`, bold: true }
+            ]
+          }
         },
         recommendation: null
       });
@@ -1190,7 +1304,17 @@ export async function GET(request: NextRequest) {
       message: deviations.length > 0
         ? `${deviations.length} статей с отклонением >20%`
         : 'Отклонений нет',
-      details: deviations.slice(0, 20),
+      details: {
+        deviations: deviations.slice(0, 20),
+        display: deviations.length > 0 ? {
+          type: 'list',
+          items: deviations.slice(0, 5).map(d => ({
+            label: `${d.period} — ${d.category}`,
+            value: `${d.deviation_percent}%`,
+            color: 'yellow' as const
+          }))
+        } : undefined
+      },
       recommendation: deviations.length > 10 ? 'Пересмотрите плановые показатели' : null
     });
 
@@ -1226,7 +1350,17 @@ export async function GET(request: NextRequest) {
       message: unclosedSequential.length > 0
         ? `Нарушена последовательность: ${unclosedSequential.join(', ')}`
         : 'Последовательность соблюдена',
-      details: unclosedSequential,
+      details: {
+        months: unclosedSequential,
+        display: unclosedSequential.length > 0 ? {
+          type: 'list',
+          items: unclosedSequential.map(m => ({
+            label: m,
+            value: 'не закрыт',
+            color: 'yellow' as const
+          }))
+        } : undefined
+      },
       recommendation: unclosedSequential.length > 0 ? 'Закройте месяцы по порядку' : null
     });
 
@@ -1252,12 +1386,22 @@ export async function GET(request: NextRequest) {
       message: intercompanyTx.length > 0
         ? `${intercompanyTx.length} потенциальных ВГО`
         : 'ВГО не обнаружены',
-      details: intercompanyTx.slice(0, 10).map(t => ({
-        id: t.id,
-        date: getDateStr(t.date),
-        amount: amountOf(t),
-        description: t.description
-      })),
+      details: {
+        operations: intercompanyTx.slice(0, 10).map(t => ({
+          id: t.id,
+          date: getDateStr(t.date),
+          amount: amountOf(t),
+          description: t.description
+        })),
+        display: intercompanyTx.length > 0 ? {
+          type: 'list',
+          items: intercompanyTx.slice(0, 5).map(t => ({
+            label: `${getDateStr(t.date)} — ${t.description}`,
+            value: `${amountOf(t).toLocaleString('ru-RU')} ₽`,
+            color: 'gray' as const
+          }))
+        } : undefined
+      },
       recommendation: intercompanyTx.length > 0 ? 'Проверьте исключение ВГО из консолидации' : null
     });
 
@@ -1273,7 +1417,15 @@ export async function GET(request: NextRequest) {
       details: {
         sum_by_company: totalRevenue,
         total_overall: allTransactionsRevenue,
-        difference: Math.abs(totalRevenue - allTransactionsRevenue)
+        difference: Math.abs(totalRevenue - allTransactionsRevenue),
+        display: {
+          type: 'key_value',
+          items: [
+            { label: 'Сумма по компаниям', value: `${totalRevenue.toLocaleString('ru-RU')} ₽` },
+            { label: 'Общая', value: `${allTransactionsRevenue.toLocaleString('ru-RU')} ₽` },
+            { label: 'Разница', value: `${Math.abs(totalRevenue - allTransactionsRevenue).toLocaleString('ru-RU')} ₽`, color: Math.abs(totalRevenue - allTransactionsRevenue) > 0.01 ? 'red' as const : 'green' as const }
+          ]
+        }
       },
       recommendation: null
     });
@@ -1427,7 +1579,15 @@ export async function GET(request: NextRequest) {
       message: arBalance > 0
         ? `Дебиторка: ${arBalance.toLocaleString('ru-RU')} ₽`
         : 'Дебиторки нет',
-      details: { balance: arBalance },
+      details: {
+        balance: arBalance,
+        display: {
+          type: 'key_value',
+          items: [
+            { label: 'Дебиторская задолженность', value: `${arBalance.toLocaleString('ru-RU')} ₽`, bold: true }
+          ]
+        }
+      },
       recommendation: arBalance > 1000000 ? 'Проверьте просроченную дебиторку' : null
     });
 
@@ -1447,7 +1607,15 @@ export async function GET(request: NextRequest) {
       message: apBalance > 0
         ? `Кредиторка: ${apBalance.toLocaleString('ru-RU')} ₽`
         : 'Кредиторки нет',
-      details: { balance: apBalance },
+      details: {
+        balance: apBalance,
+        display: {
+          type: 'key_value',
+          items: [
+            { label: 'Кредиторская задолженность', value: `${apBalance.toLocaleString('ru-RU')} ₽`, bold: true }
+          ]
+        }
+      },
       recommendation: apBalance > 1000000 ? 'Проверьте сроки оплаты' : null
     });
 
