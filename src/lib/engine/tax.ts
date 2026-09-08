@@ -290,28 +290,37 @@ export class TaxEngine {
     let rate = 0;
 
     if (Boolean(company.is_individual)) {
-      contributions = 57390;
-      if (revenue > 300000) {
-        const additional = (revenue - 300000) * 0.01;
-        contributions += Math.min(additional, 321818);
+      contributions = parseFloat(this.settings['ip_fixed_contribution'] || '57390');
+      const threshold = parseFloat(this.settings['ip_additional_threshold'] || '300000');
+      const additionalRate = parseFloat(this.settings['ip_additional_rate'] || '0.01');
+      const additionalMax = parseFloat(this.settings['ip_additional_max'] || '321818');
+
+      if (revenue > threshold) {
+        const additional = (revenue - threshold) * additionalRate;
+        contributions += Math.min(additional, additionalMax);
       }
       rate = 0;
     } else if (company.industry_type === 'it') {
-      const limit = 2979000;
+      const limit = parseFloat(this.settings['insurance_limit'] || '2979000');
+      const itRate = parseFloat(this.settings['insurance_it_rate'] || '0.076');
+      const itBaseRate = parseFloat(this.settings['insurance_msp_rate'] || '0.15');
+
       if (annualPayroll <= limit) {
-        contributions = annualPayroll * 0.15;
-        rate = 15;
+        contributions = annualPayroll * itBaseRate;
+        rate = itBaseRate * 100;
       } else {
-        contributions = limit * 0.15 + (annualPayroll - limit) * 0.076;
-        rate = 7.6;
+        contributions = limit * itBaseRate + (annualPayroll - limit) * itRate;
+        rate = itRate * 100;
       }
     } else if (company.industry_type === 'msp_priority') {
-      const mrot = 27093;
+      const mrot = parseFloat(this.settings['mrot'] || '27093');
+      const mspRate = parseFloat(this.settings['insurance_msp_rate'] || '0.15');
+      const baseRate = parseFloat(this.settings['insurance_base_rate'] || '0.30');
       const threshold = mrot * 1.5;
       const monthlyBase = Math.min(payroll, threshold);
       const excess = Math.max(0, payroll - threshold);
-      contributions = (monthlyBase * 0.30 + excess * 0.15) * 12;
-      rate = 15;
+      contributions = (monthlyBase * baseRate + excess * mspRate) * 12;
+      rate = mspRate * 100;
     } else {
       const limit = parseFloat(this.settings['insurance_limit'] || '2979000');
       const baseRate = parseFloat(this.settings['insurance_base_rate'] || '0.30');
@@ -325,12 +334,15 @@ export class TaxEngine {
       }
     }
 
-    const ndflLimit = 5000000;
+    const ndflLimit = parseFloat(this.settings['ndfl_limit'] || '5000000');
+    const ndflBaseRate = parseFloat(this.settings['ndfl_base_rate'] || '0.13');
+    const ndflIncreasedRate = parseFloat(this.settings['ndfl_increased_rate'] || '0.15');
+
     let ndfl = 0;
     if (annualPayroll <= ndflLimit) {
-      ndfl = annualPayroll * 0.13;
+      ndfl = annualPayroll * ndflBaseRate;
     } else {
-      ndfl = ndflLimit * 0.13 + (annualPayroll - ndflLimit) * 0.15;
+      ndfl = ndflLimit * ndflBaseRate + (annualPayroll - ndflLimit) * ndflIncreasedRate;
     }
 
     return {
