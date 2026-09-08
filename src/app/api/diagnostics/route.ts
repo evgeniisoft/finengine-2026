@@ -1306,7 +1306,7 @@ export async function GET(request: NextRequest) {
     const cashGaps: any[] = [];
 
     const futureTx = transactions
-      .filter(t => getDateStr(t.date) >= today)
+      .filter(t => getDateStr(t.date) >= calendarToday)
       .sort((a, b) => getDateStr(a.date).localeCompare(getDateStr(b.date)));
 
     for (const t of futureTx) {
@@ -1649,13 +1649,13 @@ export async function GET(request: NextRequest) {
     // БЛОК 10: СОГЛАСОВАННОСТЬ ПЛАТЁЖНОГО КАЛЕНДАРЯ
     // ============================================
 
-    const today = new Date().toISOString().split('T')[0];
+    const calendarToday2 = new Date().toISOString().split('T')[0];
 
     // Текущий остаток (все операции до сегодня)
     const calendarBalance = transactions
       .filter(t => {
         const txDate = getDateStr(t.date);
-        return txDate < today;
+        return txDate < calendarToday2;
       })
       .reduce((balance, t) => {
         if (t.type === 'income') return balance + amountOf(t);
@@ -1667,7 +1667,7 @@ export async function GET(request: NextRequest) {
     const upcomingPayments = transactions
       .filter(t => {
         const txDate = getDateStr(t.date);
-        return txDate >= today && t.type === 'expense';
+        return txDate >= calendarToday2 && t.type === 'expense';
       })
       .reduce((sum, t) => sum + amountOf(t), 0);
 
@@ -1675,7 +1675,7 @@ export async function GET(request: NextRequest) {
     const upcomingInflows = transactions
       .filter(t => {
         const txDate = getDateStr(t.date);
-        return txDate >= today && t.type === 'income';
+        return txDate >= calendarToday2 && t.type === 'income';
       })
       .reduce((sum, t) => sum + amountOf(t), 0);
 
