@@ -24,6 +24,7 @@ export default function ReportsPage() {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [accounts, setAccounts] = useState<any[]>([]);
     const [companies, setCompanies] = useState<any[]>([]);
+    const [counterparties, setCounterparties] = useState<any[]>([]);
 
     // UI state
     const [loading, setLoading] = useState(true);
@@ -46,12 +47,14 @@ export default function ReportsPage() {
         try {
             setLoading(true);
 
-            const [accountsData, companiesData] = await Promise.all([
+            const [accountsData, companiesData, counterpartiesData] = await Promise.all([
                 api.getAll('Accounts'),
-                api.getAll('Companies')
+                api.getAll('Companies'),
+                api.getAll('Counterparties')
             ]);
             setAccounts(accountsData);
             setCompanies(companiesData);
+            setCounterparties(counterpartiesData);
 
             if (activeTab === 'calendar' || activeTab === 'gaps') {
                 const txData = await api.getAll('Transactions');
@@ -428,17 +431,17 @@ export default function ReportsPage() {
                                 ))}
 
                             {activeTab === 'calendar' && viewMode === 'consolidated' && (
-                                <CalendarView transactions={transactions} companies={companies} companyId={null} accounts={accounts} />
+                                <CalendarView transactions={transactions} companies={companies} companyId={null} accounts={accounts} counterparties={counterparties} />
                             )}
                             {activeTab === 'calendar' && viewMode === 'by_company' && companies.map((company: any) => (
-                                <CalendarView key={company.id} transactions={transactions} companies={companies} companyId={company.id} accounts={accounts} />
+                                <CalendarView key={company.id} transactions={transactions} companies={companies} companyId={company.id} accounts={accounts} counterparties={counterparties} />
                             ))}
 
                             {activeTab === 'gaps' && viewMode === 'consolidated' && (
-                                <CashGapsView transactions={transactions} companies={companies} companyId={null} />
+                                <CashGapsView transactions={transactions} companies={companies} companyId={null} accounts={accounts} counterparties={counterparties} />
                             )}
                             {activeTab === 'gaps' && viewMode === 'by_company' && companies.map((company: any) => (
-                                <CashGapsView key={company.id} transactions={transactions} companies={companies} companyId={company.id} />
+                                <CashGapsView key={company.id} transactions={transactions} companies={companies} companyId={company.id} accounts={accounts} counterparties={counterparties} />
                             ))}
                         </>
                     )}
@@ -849,14 +852,14 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
 // ============================================
 // CASH GAPS VIEW
 // ============================================
-function CashGapsView({ transactions, companies, companyId }: any) {
-    const [days, setDays] = useState(30);
+function CashGapsView({ transactions, companies, companyId, accounts, counterparties }: any) {
+    const [days, setDays] = useState(12);
     const [periodType, setPeriodType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
     const filteredTx = companyId ? transactions.filter((t: any) => t.company_id === companyId) : transactions;
     const companyName = companyId ? companies.find((c: any) => c.id === companyId)?.name || '' : 'Консолидированные';
 
-    const periods = getCalendarPeriods(filteredTx, periodType, days);
+    const periods = getCalendarPeriods(filteredTx, periodType, days, accounts, counterparties);
     const gapPeriods = periods.filter((p: any) => p.balance < 0);
 
     return (
@@ -908,7 +911,7 @@ function CashGapsView({ transactions, companies, companyId }: any) {
 // ============================================
 // GET CALENDAR PERIODS — с детализацией
 // ============================================
-function getCalendarPeriods(transactions: any[], periodType: string, count: number): any[] {
+function getCalendarPeriods(transactions: any[], periodType: string, count: number, accounts?: any[], counterparties?: any[]): any[] {
     const today = new Date();
     const periods: any[] = [];
 
@@ -922,7 +925,7 @@ function getCalendarPeriods(transactions: any[], periodType: string, count: numb
                 const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
                 return txDate === dateStr;
             });
-            periods.push(buildCalendarPeriod(formatDay(dateStr), dayTx));
+            periods.push(buildCalendarPeriod(formatDay(dateStr), dayTx, accounts, counterparties));
         } else if (periodType === 'weekly') {
             date.setDate(date.getDate() + i * 7);
             const weekStart = date.toISOString().split('T')[0];
@@ -933,7 +936,7 @@ function getCalendarPeriods(transactions: any[], periodType: string, count: numb
                 const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
                 return txDate >= weekStart && txDate <= weekEndStr;
             });
-            periods.push(buildCalendarPeriod(`${i + 1} нед`, weekTx));
+            periods.push(buildCalendarPeriod(`${i + 1} нед`, weekTx, accounts, counterparties));
         } else if (periodType === 'monthly') {
             date.setMonth(date.getMonth() + i);
             const monthStr = date.toISOString().substring(0, 7);
@@ -941,14 +944,14 @@ function getCalendarPeriods(transactions: any[], periodType: string, count: numb
                 const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
                 return txDate.startsWith(monthStr);
             });
-            periods.push(buildCalendarPeriod(formatMonth(monthStr), monthTx));
+            periods.push(buildCalendarPeriod(formatMonth(monthStr), monthTx, accounts, counterparties));
         }
     }
     return periods;
 }
 
 // Helper: строит период с детализацией
-function buildCalendarPeriod(label: string, periodTx: any[]): any {
+function buildCalendarPeriod(label: string, periodTx: any[], accounts?: any[], counterparties?: any[]): any {
     const inflowTransactions = periodTx.filter(t => t.type === 'income');
     const outflowTransactions = periodTx.filter(t => t.type === 'expense');
 
@@ -958,14 +961,16 @@ function buildCalendarPeriod(label: string, periodTx: any[]): any {
     // Детализация по контрагентам (для поступлений)
     const inflowByCounterparty: { [key: string]: number } = {};
     inflowTransactions.forEach(t => {
-        const cpName = t.counterparty_name || t.counterparty_id || 'Прочие';
+        const cp = counterparties?.find((c: any) => c.id === t.counterparty_id);
+        const cpName = cp?.name || t.counterparty_name || t.counterparty_id || 'Прочие';
         inflowByCounterparty[cpName] = (inflowByCounterparty[cpName] || 0) + parseFloat(t.amount || 0);
     });
 
     // Детализация по статьям (для выбытий)
     const outflowByCategory: { [key: string]: number } = {};
     outflowTransactions.forEach(t => {
-        const catName = t.debit_account_name || t.debit_account_id || 'Прочие';
+        const acc = accounts?.find((a: any) => a.id === t.debit_account_id);
+        const catName = acc?.name || t.debit_account_name || t.debit_account_id || 'Прочие';
         outflowByCategory[catName] = (outflowByCategory[catName] || 0) + parseFloat(t.amount || 0);
     });
 
@@ -982,14 +987,14 @@ function buildCalendarPeriod(label: string, periodTx: any[]): any {
 // ============================================
 // CALENDAR VIEW
 // ============================================
-function CalendarView({ transactions, companies, companyId, accounts }: any) {
-    const [days, setDays] = useState(30);
+function CalendarView({ transactions, companies, companyId, accounts, counterparties }: any) {
+    const [days, setDays] = useState(12);
     const [periodType, setPeriodType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
     const filteredTx = companyId ? transactions.filter((t: any) => t.company_id === companyId) : transactions;
     const companyName = companyId ? companies.find((c: any) => c.id === companyId)?.name || '' : 'Консолидированный';
 
-    const periods = getCalendarPeriods(filteredTx, periodType, days);
+    const periods = getCalendarPeriods(filteredTx, periodType, days, accounts, counterparties);
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 overflow-hidden">
