@@ -26,7 +26,7 @@ export default function Dashboard() {
   const [usnLimits, setUsnLimits] = useState<any[]>([]);
 
   const [period, setPeriod] = useState({ start: '2026-01-01', end: '2026-12-31' });
-  const [activePeriod, setActivePeriod] = useState<'month' | 'quarter' | 'year' | 'custom'>('year');
+  const [activePeriod, setActivePeriod] = useState<'month' | 'quarter' | 'year' | 'today' | 'custom'>('year');
   const [periodLabel, setPeriodLabel] = useState('2026 год');
   const [expandedPanels, setExpandedPanels] = useState<{ [key: string]: boolean }>({});
 
@@ -69,11 +69,17 @@ export default function Dashboard() {
     }
   };
 
-  const applyPeriod = (type: 'month' | 'quarter' | 'year') => {
+  const applyPeriod = (type: 'month' | 'quarter' | 'year' | 'today') => {
     const now = new Date();
     const year = now.getFullYear();
     let start = ''; let end = ''; let label = '';
-    if (type === 'month') {
+
+    if (type === 'today') {
+      const todayStr = now.toISOString().split('T')[0];
+      start = todayStr;
+      end = todayStr;
+      label = `Сегодня: ${todayStr}`;
+    } else if (type === 'month') {
       const m = now.getMonth();
       start = `${year}-${String(m + 1).padStart(2, '0')}-01`;
       end = `${year}-${String(m + 1).padStart(2, '0')}-${String(new Date(year, m + 1, 0).getDate()).padStart(2, '0')}`;
@@ -87,6 +93,7 @@ export default function Dashboard() {
     } else {
       start = `${year}-01-01`; end = `${year}-12-31`; label = `${year} год`;
     }
+
     setPeriod({ start, end });
     setActivePeriod(type);
     setPeriodLabel(label);
@@ -201,6 +208,7 @@ export default function Dashboard() {
           <p className="text-gray-500 mt-1">Финансовое здоровье бизнеса • {periodLabel}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => applyPeriod('today')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'today' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Сегодня</button>
           <button onClick={() => applyPeriod('month')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Месяц</button>
           <button onClick={() => applyPeriod('quarter')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'quarter' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Квартал</button>
           <button onClick={() => applyPeriod('year')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'year' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Год</button>
