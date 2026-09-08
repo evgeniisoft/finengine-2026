@@ -12,6 +12,7 @@ export default function ReportsPage() {
     const [viewMode, setViewMode] = useState<'consolidated' | 'by_company'>('consolidated');
     const [periodType, setPeriodType] = useState<'monthly' | 'weekly' | 'daily' | 'quarterly'>('monthly');
     const [showPeriods, setShowPeriods] = useState(false);
+    const [settings, setSettings] = useState<any[]>([]);
 
     const [period, setPeriod] = useState({
         start: '2026-01-01',
@@ -47,14 +48,16 @@ export default function ReportsPage() {
         try {
             setLoading(true);
 
-            const [accountsData, companiesData, counterpartiesData] = await Promise.all([
+            const [accountsData, companiesData, counterpartiesData, settingsData] = await Promise.all([
                 api.getAll('Accounts'),
                 api.getAll('Companies'),
-                api.getAll('Counterparties')
+                api.getAll('Counterparties'),
+                api.getAll('Settings')
             ]);
             setAccounts(accountsData);
             setCompanies(companiesData);
             setCounterparties(counterpartiesData);
+            setSettings(settingsData);
 
             if (activeTab === 'calendar' || activeTab === 'gaps') {
                 const txData = await api.getAll('Transactions');
@@ -431,7 +434,7 @@ export default function ReportsPage() {
                                 ))}
 
                             {activeTab === 'calendar' && viewMode === 'consolidated' && (
-                                <CalendarView transactions={transactions} companies={companies} companyId={null} accounts={accounts} counterparties={counterparties} />
+                                <CalendarView transactions={transactions} companies={companies} companyId={null} accounts={accounts} counterparties={counterparties} settings={settings} />
                             )}
                             {activeTab === 'calendar' && viewMode === 'by_company' && companies.map((company: any) => (
                                 <CalendarView key={company.id} transactions={transactions} companies={companies} companyId={company.id} accounts={accounts} counterparties={counterparties} />
@@ -987,23 +990,26 @@ function buildCalendarPeriod(label: string, periodTx: any[], accounts?: any[], c
 // ============================================
 // CALENDAR VIEW — Рабочий стол казначея
 // ============================================
-function CalendarView({ transactions, companies, companyId, accounts, counterparties }: any) {
+function CalendarView({ transactions, companies, companyId, accounts, counterparties, settings }: any) {
     const [showMode, setShowMode] = useState<'upcoming' | 'all'>('upcoming');
-    // Горизонт: текущий месяц + следующий месяц
-    const now = new Date();
-    const horizonEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0); // Последний день следующего месяца
-    const horizonEndStr = horizonEnd.toISOString().split('T')[0];
+    const [days, setDays] = useState(30);
 
     const filteredTx = companyId
         ? transactions.filter((t: any) => t.company_id === companyId)
         : transactions;
+
+    // Добавляем налоговые платежи
+    const taxPayments = getTaxPayments(companies, accounts, settings || []);
+    const taxPaymentsForCompany = taxPayments.filter(tp => !companyId || tp.company_id === companyId);
+    const allTransactions = [...filteredTx, ...taxPaymentsForCompany];
+
     const companyName = companyId
         ? companies.find((c: any) => c.id === companyId)?.name || ''
         : 'Консолидированный';
 
     // Текущий остаток — из всех операций до сегодня
     const today = new Date().toISOString().split('T')[0];
-    const pastTx = filteredTx.filter((t: any) => {
+    const pastTx = allTransactions.filter((t: any) => {
         const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
         return txDate < today;
     });
@@ -1023,8 +1029,12 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
         return balance;
     }, 0);
 
+    // Горизонт: текущий месяц + следующий месяц
+    const now = new Date();
+    const horizonEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+    const horizonEndStr = horizonEnd.toISOString().split('T')[0];
     // Предстоящие операции
-    const upcomingTx = filteredTx
+    const upcomingTx = allTransactions
         .filter((t: any) => {
             const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
             return txDate >= today && txDate <= horizonEndStr;
@@ -1038,11 +1048,11 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
     // Показывать только предстоящие или все (включая прошедшие)
     const displayPayments = showMode === 'upcoming'
         ? upcomingTx.filter((t: any) => t.type === 'expense')
-        : filteredTx.filter((t: any) => t.type === 'expense');
+        : allTransactions.filter((t: any) => t.type === 'expense');
 
     const displayInflows = showMode === 'upcoming'
         ? upcomingTx.filter((t: any) => t.type === 'income')
-        : filteredTx.filter((t: any) => t.type === 'income');
+        : allTransactions.filter((t: any) => t.type === 'income');
 
     // Прогноз по дням
     const forecast: any[] = [];
@@ -1174,4 +1184,132 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
             )}
         </div>
     );
+}
+// ============================================
+// GET TAX PAYMENTS — автоматические налоговые платежи
+// ============================================
+function getTaxPayments(companies: any[], accounts: any[], settings: any[]): any[] {
+    const payments: any[] = [];
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+
+    // Настройки
+    const settingsMap: any = {};
+    settings.forEach(s => {
+        settingsMap[s.key] = s.value;
+    });
+
+    const vatDay = parseInt(settingsMap['vat_payment_day'] || '28');
+    const usnDay = parseInt(settingsMap['usn_payment_day'] || '28');
+    const insuranceDay = parseInt(settingsMap['insurance_payment_day'] || '15');
+    const ndflDay = parseInt(settingsMap['ndfl_payment_day'] || '15');
+
+    for (const company of companies) {
+        const hasEmployees = company.has_employees === true || company.has_employees === 'true';
+        const payroll = company.monthly_payroll || 0;
+
+        // Страховые взносы — ежемесячно до 15 числа следующего месяца
+        if (hasEmployees && payroll > 0) {
+            const insuranceAmount = payroll * parseFloat(settingsMap['insurance_base_rate'] || '0.30');
+
+            // Следующие 3 месяца
+            for (let i = 0; i < 3; i++) {
+                const paymentMonth = currentMonth + i + 1; // следующий месяц
+                const paymentYear = currentYear + Math.floor((paymentMonth - 1) / 12);
+                const actualMonth = ((paymentMonth - 1) % 12) + 1;
+                const paymentDate = `${paymentYear}-${String(actualMonth).padStart(2, '0')}-${String(insuranceDay).padStart(2, '0')}`;
+
+                payments.push({
+                    date: paymentDate,
+                    company_id: company.id,
+                    company_name: company.name,
+                    type: 'expense',
+                    description: 'Страховые взносы',
+                    amount: Math.round(insuranceAmount * 100) / 100,
+                    counterparty_name: 'ИФНС',
+                    is_tax: true,
+                    tax_type: 'insurance',
+                    record_type: 'plan'
+                });
+            }
+        }
+
+        // НДФЛ — ежемесячно до 15 числа следующего месяца
+        if (hasEmployees && payroll > 0) {
+            const ndflAmount = payroll * parseFloat(settingsMap['ndfl_base_rate'] || '0.13');
+
+            for (let i = 0; i < 3; i++) {
+                const paymentMonth = currentMonth + i + 1;
+                const paymentYear = currentYear + Math.floor((paymentMonth - 1) / 12);
+                const actualMonth = ((paymentMonth - 1) % 12) + 1;
+                const paymentDate = `${paymentYear}-${String(actualMonth).padStart(2, '0')}-${String(ndflDay).padStart(2, '0')}`;
+
+                payments.push({
+                    date: paymentDate,
+                    company_id: company.id,
+                    company_name: company.name,
+                    type: 'expense',
+                    description: 'НДФЛ',
+                    amount: Math.round(ndflAmount * 100) / 100,
+                    counterparty_name: 'ИФНС',
+                    is_tax: true,
+                    tax_type: 'ndfl',
+                    record_type: 'plan'
+                });
+            }
+        }
+
+        // УСН / Налог на прибыль — ежеквартально
+        if (company.tax_system === 'USN_6' || company.tax_system === 'USN_15' || company.tax_system === 'OSNO') {
+            const quarterMonths = [3, 6, 9, 12]; // Конец кварталов
+            const currentQuarter = Math.ceil(currentMonth / 3);
+
+            for (const qMonth of quarterMonths) {
+                if (qMonth > currentMonth) {
+                    const taxDate = `${currentYear}-${String(qMonth).padStart(2, '0')}-${String(usnDay).padStart(2, '0')}`;
+                    const taxLabel = company.tax_system === 'OSNO' ? 'Налог на прибыль' : 'УСН';
+
+                    payments.push({
+                        date: taxDate,
+                        company_id: company.id,
+                        company_name: company.name,
+                        type: 'expense',
+                        description: taxLabel,
+                        amount: 0, // Рассчитывается в налоговом движке
+                        counterparty_name: 'ИФНС',
+                        is_tax: true,
+                        tax_type: company.tax_system === 'OSNO' ? 'profit' : 'usn',
+                        record_type: 'plan'
+                    });
+                }
+            }
+        }
+
+        // НДС — ежеквартально (для ОСНО)
+        if (company.tax_system === 'OSNO') {
+            const quarterMonths = [3, 6, 9, 12];
+
+            for (const qMonth of quarterMonths) {
+                if (qMonth > currentMonth) {
+                    const vatDate = `${currentYear}-${String(qMonth).padStart(2, '0')}-${String(vatDay).padStart(2, '0')}`;
+
+                    payments.push({
+                        date: vatDate,
+                        company_id: company.id,
+                        company_name: company.name,
+                        type: 'expense',
+                        description: 'НДС',
+                        amount: 0,
+                        counterparty_name: 'ИФНС',
+                        is_tax: true,
+                        tax_type: 'vat',
+                        record_type: 'plan'
+                    });
+                }
+            }
+        }
+    }
+
+    return payments;
 }
