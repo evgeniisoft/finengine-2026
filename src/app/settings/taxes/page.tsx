@@ -104,15 +104,54 @@ export default function TaxesSettingsPage() {
             ndfl_base_rate: 'НДФЛ базовая',
             ndfl_increased_rate: 'НДФЛ повышенная',
             ndfl_limit: 'Порог НДФЛ',
-            ip_fixed: 'Фиксированный взнос',
+            ip_fixed_contribution: 'Фиксированный взнос ИП',
+            ip_additional_threshold: 'Порог доп. взноса ИП',
             ip_additional_rate: 'Доп. взнос %',
             ip_additional_max: 'Макс. доп. взнос',
+            // Системные счета
+            system_account_bank: 'Основной банк',
+            system_account_ar: 'Дебиторка',
+            system_account_ap: 'Кредиторка',
+            system_account_equity: 'Капитал',
+            system_account_unclassified: 'Некатегоризированное',
+            system_account_fixed_assets: 'Основные средства',
+            system_account_revenue: 'Выручка',
+
+            // Сроки платежей
+            vat_payment_day: 'День уплаты НДС',
+            usn_payment_day: 'День уплаты УСН',
+            insurance_payment_day: 'День уплаты взносов',
+            ndfl_payment_day: 'День уплаты НДФЛ',
+
+            // Пороги диагностики
+            diagnostic_slow_warning: 'Порог GAS warning (мс)',
+            diagnostic_slow_critical: 'Порог GAS critical (мс)',
+            diagnostic_budget_warning: 'Порог пустых бюджетов',
+            diagnostic_warning_threshold: 'Порог warning %',
+            diagnostic_critical_threshold: 'Порог critical %',
+            diagnostic_run_rate_deviation: 'Отклонение Run Rate %',
+            diagnostic_budget_deviations: 'Отклонения бюджета',
+            diagnostic_ar_warning: 'Порог дебиторки ₽',
+            diagnostic_ap_warning: 'Порог кредиторки ₽',
+            diagnostic_stale_warning: 'Устаревание (дней)',
+            diagnostic_stale_info: 'Инфо (дней)',
+            diagnostic_consistency_threshold: 'Порог расхождений ₽',
         };
         return labels[key] || key;
     };
 
     const isPercent = (key: string) => {
-        return !key.includes('limit') && key !== 'mrot' && key !== 'ndfl_limit' && key !== 'ip_fixed' && key !== 'ip_additional_max';
+        return !key.includes('limit') &&
+            key !== 'mrot' &&
+            key !== 'ndfl_limit' &&
+            key !== 'ip_fixed' &&
+            key !== 'ip_fixed_contribution' &&
+            key !== 'ip_additional_threshold' &&
+            key !== 'ip_additional_max' &&
+            key !== 'ip_additional_threshold' &&
+            !key.startsWith('system_account_') &&
+            !key.includes('_day') &&
+            !key.includes('diagnostic_');
     };
 
     const displayValue = (setting: any) => {
@@ -141,6 +180,9 @@ export default function TaxesSettingsPage() {
         { title: 'Страховые взносы', category: 'insurance' },
         { title: 'НДФЛ', category: 'ndfl' },
         { title: 'Взносы ИП', category: 'ip' },
+        { title: 'Системные счета', category: 'system' },
+        { title: 'Сроки платежей', category: 'deadlines' },
+        { title: 'Пороги диагностики', category: 'diagnostics' },
     ];
 
     return (
