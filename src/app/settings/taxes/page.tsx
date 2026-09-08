@@ -30,10 +30,17 @@ export default function TaxesSettingsPage() {
     };
 
     const handleSave = async (setting: any) => {
-        let newValue = parseFloat(editValue.replace(',', '.'));
-        if (isNaN(newValue)) {
-            alert('Введите число');
-            return;
+        let newValue: any = editValue;
+
+        // Для системных счетов — это строки
+        if (setting.key.startsWith('system_account_')) {
+            newValue = editValue.trim();
+        } else {
+            newValue = parseFloat(editValue.replace(',', '.'));
+            if (isNaN(newValue)) {
+                alert('Введите число');
+                return;
+            }
         }
 
         // Если поле процентное — конвертируем в десятичную дробь
@@ -156,6 +163,9 @@ export default function TaxesSettingsPage() {
 
     const displayValue = (setting: any) => {
         const value = parseFloat(setting.value);
+        if (isNaN(value)) {
+            return String(setting.value);
+        }
         if (isPercent(setting.key)) {
             return (value * 100).toFixed(value < 0.1 ? 1 : 0) + '%';
         }
@@ -164,6 +174,9 @@ export default function TaxesSettingsPage() {
 
     const getInputValue = (setting: any) => {
         const value = parseFloat(setting.value);
+        if (isNaN(value)) {
+            return String(setting.value);
+        }
         if (isPercent(setting.key)) {
             return String(value * 100);
         }
