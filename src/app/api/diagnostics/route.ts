@@ -365,10 +365,17 @@ export async function GET(request: NextRequest) {
     for (const company of companies) {
       const companyTx = transactions.filter(t => t.company_id === company.id);
 
-      // Выручка как в calculatePnL
-      const dashboardRevenue = companyTx
+      // Выручка как в calculatePnL (с выделением НДС для ОСНО)
+      let dashboardRevenue = companyTx
         .filter(t => accounts.find(a => a.id === t.credit_account_id)?.type === 'I')
         .reduce((sum, t) => sum + amountOf(t), 0);
+
+      // Выделяем НДС для ОСНО
+      const vatIncluded = String(company.vat_included).toLowerCase() === 'true';
+      if (vatIncluded) {
+        const vatRate = parseFloat(String(company.vat_rate || '0.22'));
+        dashboardRevenue = dashboardRevenue / (1 + vatRate);
+      }
 
       // Расходы как в calculatePnL (операционные + COGS, без налогов)
       const dashboardExpenses = companyTx
