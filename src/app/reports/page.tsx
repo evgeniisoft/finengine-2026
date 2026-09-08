@@ -989,7 +989,10 @@ function buildCalendarPeriod(label: string, periodTx: any[], accounts?: any[], c
 // ============================================
 function CalendarView({ transactions, companies, companyId, accounts, counterparties }: any) {
     const [showMode, setShowMode] = useState<'upcoming' | 'all'>('upcoming');
-    const [days, setDays] = useState(30);
+    // Горизонт: текущий месяц + следующий месяц
+    const now = new Date();
+    const horizonEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0); // Последний день следующего месяца
+    const horizonEndStr = horizonEnd.toISOString().split('T')[0];
 
     const filteredTx = companyId
         ? transactions.filter((t: any) => t.company_id === companyId)
@@ -1004,7 +1007,12 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
         const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
         return txDate < today;
     });
-    const currentBalance = pastTx.reduce((balance: number, t: any) => {
+    // Начальные остатки — операции с equity
+    const initialBalance = pastTx
+        .filter((t: any) => t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+
+    const currentBalance = initialBalance + pastTx.reduce((balance: number, t: any) => {
         if (t.type === 'income') return balance + parseFloat(t.amount || 0);
         if (t.type === 'expense') return balance - parseFloat(t.amount || 0);
         return balance;
@@ -1014,7 +1022,7 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
     const upcomingTx = filteredTx
         .filter((t: any) => {
             const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
-            return txDate >= today;
+            return txDate >= today && txDate <= horizonEndStr;
         })
         .sort((a: any, b: any) => {
             const da = typeof a.date === 'string' ? a.date.split('T')[0] : a.date;
@@ -1022,8 +1030,14 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
             return da.localeCompare(db);
         });
 
-    const upcomingPayments = upcomingTx.filter((t: any) => t.type === 'expense');
-    const upcomingInflows = upcomingTx.filter((t: any) => t.type === 'income');
+    // Показывать только предстоящие или все (включая прошедшие)
+    const displayPayments = showMode === 'upcoming'
+        ? upcomingTx.filter((t: any) => t.type === 'expense')
+        : filteredTx.filter((t: any) => t.type === 'expense');
+
+    const displayInflows = showMode === 'upcoming'
+        ? upcomingTx.filter((t: any) => t.type === 'income')
+        : filteredTx.filter((t: any) => t.type === 'income');
 
     // Прогноз по дням
     const forecast: any[] = [];
@@ -1065,13 +1079,13 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
                 {/* Платежи */}
                 <div className="p-6">
                     <h4 className="text-sm font-semibold text-red-600 mb-4">
-                        ПРЕДСТОЯЩИЕ ПЛАТЕЖИ ({upcomingPayments.length})
+                        ПРЕДСТОЯЩИЕ ПЛАТЕЖИ ({displayPayments.length})
                     </h4>
-                    {upcomingPayments.length === 0 ? (
+                    {displayPayments.length === 0 ? (
                         <p className="text-sm text-gray-400">Нет предстоящих платежей</p>
                     ) : (
                         <div className="space-y-3">
-                            {upcomingPayments.slice(0, 10).map((t: any, idx: number) => {
+                            {displayPayments.slice(0, 10).map((t: any, idx: number) => {
                                 const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
                                 const acc = accounts?.find((a: any) => a.id === t.debit_account_id);
                                 const cp = counterparties?.find((c: any) => c.id === t.counterparty_id);
@@ -1098,13 +1112,13 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
                 {/* Поступления */}
                 <div className="p-6">
                     <h4 className="text-sm font-semibold text-green-600 mb-4">
-                        ПРЕДСТОЯЩИЕ ПОСТУПЛЕНИЯ ({upcomingInflows.length})
+                        ПРЕДСТОЯЩИЕ ПОСТУПЛЕНИЯ ({displayInflows.length})
                     </h4>
-                    {upcomingInflows.length === 0 ? (
+                    {displayInflows.length === 0 ? (
                         <p className="text-sm text-gray-400">Нет предстоящих поступлений</p>
                     ) : (
                         <div className="space-y-3">
-                            {upcomingInflows.slice(0, 10).map((t: any, idx: number) => {
+                            {displayInflows.slice(0, 10).map((t: any, idx: number) => {
                                 const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
                                 const cp = counterparties?.find((c: any) => c.id === t.counterparty_id);
                                 const amount = parseFloat(t.amount || 0);
