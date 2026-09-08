@@ -3,7 +3,7 @@ import { calculator } from '@/lib/engine/calculator';
 import { consolidationEngine } from '@/lib/engine/consolidation';
 import { monthlyEngine } from '@/lib/engine/monthly';
 import { taxEngine } from '@/lib/engine/tax';
-import { loadSystemAccounts } from '@/lib/config/accounts';
+import { loadSystemAccounts, getSystemAccount } from '@/lib/config/accounts';
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdcT2cZO5ynSBVMWakir1Y5aAaf5MJaqRq1C8zXDrECdaLbtT_yw3idz7FUNjpMShriw/exec';
 
@@ -131,8 +131,8 @@ export async function GET(request: NextRequest) {
     // 2.1 Операции без категории
     const unclassified = transactions.filter(t =>
       !t.debit_account_id || !t.credit_account_id ||
-      t.debit_account_id === 'acc-unclassified' ||
-      t.credit_account_id === 'acc-unclassified'
+      t.debit_account_id === getSystemAccount('unclassified') ||
+      t.credit_account_id === getSystemAccount('unclassified')
     );
     checks.push({
       id: 'unclassified',
@@ -633,7 +633,7 @@ export async function GET(request: NextRequest) {
 
     // Начальный остаток - операции с equity до начала периода
     const initialBalance = transactions
-      .filter(t => t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact')
+      .filter(t => t.credit_account_id === getSystemAccount('equity') && t.record_type === 'fact')
       .reduce((sum, t) => sum + amountOf(t), 0);
 
     const ddCalculatedEnding = initialBalance + ddInflow - ddOutflow;
@@ -688,11 +688,11 @@ export async function GET(request: NextRequest) {
 
       if (debitAcc.is_cash_flow === true || debitAcc.is_cash_flow === 'true') cash += amt;
       if (creditAcc.is_cash_flow === true || creditAcc.is_cash_flow === 'true') cash -= amt;
-      if (t.debit_account_id === 'acc-ar-001') ar += amt;
-      if (t.credit_account_id === 'acc-ar-001') ar -= amt;
-      if (t.credit_account_id === 'acc-ap-001') ap += amt;
-      if (t.debit_account_id === 'acc-ap-001') ap -= amt;
-      if (t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact') {
+      if (t.debit_account_id === getSystemAccount('ar')) ar += amt;
+      if (t.credit_account_id === getSystemAccount('ar')) ar -= amt;
+      if (t.credit_account_id === getSystemAccount('ap')) ap += amt;
+      if (t.debit_account_id === getSystemAccount('ap')) ap -= amt;
+      if (t.credit_account_id === getSystemAccount('equity') && t.record_type === 'fact') {
         capital += amt;
         cash += amt;
       }
@@ -1568,10 +1568,10 @@ export async function GET(request: NextRequest) {
 
     // 7.3 Дебиторская задолженность
     const arBalance = transactions
-      .filter(t => t.debit_account_id === 'acc-ar-001')
+      .filter(t => t.debit_account_id === getSystemAccount('ar'))
       .reduce((sum, t) => sum + amountOf(t), 0) -
       transactions
-        .filter(t => t.credit_account_id === 'acc-ar-001')
+        .filter(t => t.credit_account_id === getSystemAccount('ar'))
         .reduce((sum, t) => sum + amountOf(t), 0);
 
     checks.push({
@@ -1596,10 +1596,10 @@ export async function GET(request: NextRequest) {
 
     // 7.4 Кредиторская задолженность
     const apBalance = transactions
-      .filter(t => t.credit_account_id === 'acc-ap-001')
+      .filter(t => t.credit_account_id === getSystemAccount('ap'))
       .reduce((sum, t) => sum + amountOf(t), 0) -
       transactions
-        .filter(t => t.debit_account_id === 'acc-ap-001')
+        .filter(t => t.debit_account_id === getSystemAccount('ap'))
         .reduce((sum, t) => sum + amountOf(t), 0);
 
     checks.push({

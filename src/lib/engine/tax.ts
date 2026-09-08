@@ -13,6 +13,7 @@
  */
 
 import { Company, Transaction, Account, Budget } from './types';
+import { getSystemAccount } from '@/lib/config/accounts';
 
 export interface TaxCalculation {
   company_id: string;
@@ -230,7 +231,7 @@ export class TaxEngine {
     for (const budget of budgets) {
       if (budget.company_id !== company.id) continue;
       const accountId = budget.category_id || budget.account_id;
-      if (accountId !== 'acc-in-revenue') continue;
+      if (accountId !== getSystemAccount('revenue')) continue;
       const rawPeriod = String(budget.period || '').replace(/^'/, '');
       const month = rawPeriod.substring(0, 7);
       revenueByMonth.set(month, (revenueByMonth.get(month) || 0) + budget.planned_amount);
