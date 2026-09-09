@@ -31,7 +31,8 @@ export class MonthlyEngine {
     periodStart: string,
     periodEnd: string,
     periodType: PeriodType = 'monthly',
-    company?: Company
+    company?: Company,
+    reportType: 'pnl' | 'cashflow' | 'balance' = 'pnl'
   ): PeriodReport[] {
 
     const filtered = transactions.filter(t =>
@@ -145,29 +146,30 @@ export class MonthlyEngine {
 
       // Записываем налоги в details ДЕТАЛИЗИРОВАННО
       if (taxCalc) {
-        // Ежемесячные налоги
-        details['acc-tax-insurance'] = taxCalc.insurance_amount;
-        details['acc-tax-ndfl'] = taxCalc.ndfl_amount;
+        if (reportType === 'pnl' || reportType === 'cashflow') {
+          // Ежемесячные налоги
+          details['acc-tax-insurance'] = taxCalc.insurance_amount;
+          details['acc-tax-ndfl'] = taxCalc.ndfl_amount;
 
-        // Квартальные налоги — только в последний месяц квартала
-        const monthNum = parseInt(period.substring(5, 7));
-        const isQuarterEnd = monthNum === 3 || monthNum === 6 || monthNum === 9 || monthNum === 12;
+          // Квартальные налоги — только в последний месяц квартала
+          const monthNum = parseInt(period.substring(5, 7));
+          const isQuarterEnd = monthNum === 3 || monthNum === 6 || monthNum === 9 || monthNum === 12;
 
-        if (isQuarterEnd) {
-          details['acc-tax-vat'] = taxCalc.vat_to_pay;
+          if (isQuarterEnd) {
+            details['acc-tax-vat'] = taxCalc.vat_to_pay;
 
-          if (company?.tax_system === 'USN_6' || company?.tax_system === 'USN_15') {
-            details['acc-tax-usn'] = taxCalc.income_tax_amount;
-            details['acc-tax-profit'] = 0;
-          } else if (company?.tax_system === 'OSNO') {
+            if (company?.tax_system === 'USN_6' || company?.tax_system === 'USN_15') {
+              details['acc-tax-usn'] = taxCalc.income_tax_amount;
+              details['acc-tax-profit'] = 0;
+            } else if (company?.tax_system === 'OSNO') {
+              details['acc-tax-usn'] = 0;
+              details['acc-tax-profit'] = taxCalc.income_tax_amount;
+            }
+          } else {
+            details['acc-tax-vat'] = 0;
             details['acc-tax-usn'] = 0;
-            details['acc-tax-profit'] = taxCalc.income_tax_amount;
+            details['acc-tax-profit'] = 0;
           }
-        } else {
-          // Не квартальный месяц — нули
-          details['acc-tax-vat'] = 0;
-          details['acc-tax-usn'] = 0;
-          details['acc-tax-profit'] = 0;
         }
       }
       // Налоговые выбытия за период

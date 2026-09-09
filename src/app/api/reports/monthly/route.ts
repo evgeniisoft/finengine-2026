@@ -41,7 +41,8 @@ export async function GET(request: NextRequest) {
         periodStart,
         periodEnd,
         periodType as any,
-        company
+        company,
+        reportType as any
       );
     } else {
       // Агрегируем по всем компаниям
@@ -53,10 +54,10 @@ export async function GET(request: NextRequest) {
           periodStart,
           periodEnd,
           periodType as any,
-          company
+          company,
+          reportType as any
         )
       );
-
       // Агрегируем по периодам
       const periodsMap = new Map<string, any>();
 
