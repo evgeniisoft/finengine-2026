@@ -157,8 +157,16 @@ export class MonthlyEngine {
 
         // Для баланса: revenue/expenses/profit не нужны
         const totalAssets = this.calculateTotalAssets(details, accounts);
-        const totalLiabilities = this.calculateTotalLiabilities(details, accounts);
-        const totalEquity = this.calculateTotalEquity(details, accounts);
+        let totalLiabilities = this.calculateTotalLiabilities(details, accounts);
+
+        // Добавляем задолженность по налогам как обязательство
+        if (taxCalc) {
+          const taxLiability = taxCalc.income_tax_amount + taxCalc.insurance_amount + taxCalc.ndfl_amount + taxCalc.vat_to_pay;
+          totalLiabilities += taxLiability;
+          details['acc-tax-liability'] = taxLiability;
+        }
+
+        const totalEquity = totalAssets - totalLiabilities;
 
         reports.push({
           period,
@@ -224,10 +232,6 @@ export class MonthlyEngine {
             cashOutflowAmount = cashOutflowAmount / (1 + company.vat_rate);
           }
           cashOut += cashOutflowAmount;
-          // Детализируем выбытия по расходным счетам
-          if (debitAccount.type === 'X') {
-            details[debitAccount.id] = (details[debitAccount.id] || 0) + cashOutflowAmount;
-          }
         }
       }
 
@@ -283,11 +287,7 @@ export class MonthlyEngine {
       }
 
       const startingBalanceForPeriod = runningBalance;
-      if (reportType === 'cashflow') {
-        runningBalance += cashIn - cashOut - taxOutflow;
-      } else {
-        runningBalance += cashIn - cashOut;
-      }
+      runningBalance += cashIn - cashOut;
 
       reports.push({
         period,

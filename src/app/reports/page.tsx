@@ -777,9 +777,20 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                     rowType: 'all'
                 }));
 
+                // Задолженность по налогам
+                rows.push({
+                    id: 'acc-tax-liability',
+                    label: '  Задолженность по налогам',
+                    getValue: (d: any) => d.details?.['acc-tax-liability'] || 0,
+                    color: 'text-red-600',
+                    bold: false,
+                    rowType: 'all'
+                });
+
                 const totalLiabValue = (d: any) => {
                     let total = 0;
                     liabilityAccounts.forEach((a: any) => total += d.details?.[a.id] || 0);
+                    total += d.details?.['acc-tax-liability'] || 0;
                     return total;
                 };
 
@@ -823,11 +834,19 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                         {rows.map((row: any, rowIdx: number) => (
                             <tr key={rowIdx} className="hover:bg-gray-50 cursor-pointer" onClick={() => onDrilldown && row.rowType && onDrilldown(row.id, row.rowType)}>
                                 <td className={`px-4 py-3 text-sm sticky left-0 bg-white ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{row.label}</td>
-                                {data.map((d: any, dataIdx: number) => (
-                                    <td key={dataIdx} className={`px-6 py-3 text-sm text-right whitespace-nowrap ${row.bold ? 'font-bold' : 'font-medium'} ${row.color}`}>
-                                        {Number(row.getValue(d) || 0).toLocaleString('ru-RU')} ₽
-                                    </td>
-                                ))}
+                                {data.map((d: any, dataIdx: number) => {
+                                    const value = row.getValue(d);
+                                    if (value === '' || value === null || value === undefined) {
+                                        return (
+                                            <td key={dataIdx} className="px-6 py-3 text-sm text-right whitespace-nowrap"></td>
+                                        );
+                                    }
+                                    return (
+                                        <td key={dataIdx} className={`px-6 py-3 text-sm text-right whitespace-nowrap ${row.bold ? 'font-bold' : 'font-medium'} ${row.color}`}>
+                                            {Number(value || 0).toLocaleString('ru-RU')} ₽
+                                        </td>
+                                    );
+                                })}
                             </tr>
                         ))}
                     </tbody>

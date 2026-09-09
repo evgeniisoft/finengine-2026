@@ -151,8 +151,7 @@ export class FinancialCalculator {
     const endingBalance = startingBalance +
       operatingInflow - operatingOutflow +
       investingInflow - investingOutflow +
-      financingInflow - financingOutflow -
-      taxOutflow;
+      financingInflow - financingOutflow;
 
     return {
       period_start: periodStart,
@@ -329,11 +328,16 @@ export class FinancialCalculator {
       }
     }
 
-    // Баланс показывает фактический остаток на счёте
-    // Налоги — это будущие платежи, они учитываются в ДДС, а не в Балансе
+    // Рассчитываем налоги за период
+    let taxLiabilities = 0;
+    if (company) {
+      const taxCalc = taxEngine.calculateTax(company, transactions, accounts, '2000-01-01', date);
+      taxLiabilities = taxCalc.income_tax_amount + taxCalc.insurance_amount + taxCalc.ndfl_amount + taxCalc.vat_to_pay;
+    }
+
     const totalAssets = cash + accountsReceivable + inventory + fixedAssets;
 
-    const totalLiabilities = accountsPayable + loans;
+    const totalLiabilities = accountsPayable + loans + taxLiabilities;
     // Капитал = Активы - Пассивы
     const totalEquity = totalAssets - totalLiabilities;
 
