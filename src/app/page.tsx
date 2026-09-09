@@ -340,8 +340,8 @@ export default function Dashboard() {
           {totalTaxData.map((tax: any) => (
             <div key={tax.company_id} className="mb-2">
               <p className="text-xs font-medium text-gray-900">{tax.company_name}</p>
-              <div className="flex justify-between text-sm ml-3 py-1"><span className="text-gray-600">Налог</span><span className="font-medium">{tax.income_tax_amount.toLocaleString('ru-RU')} ₽</span></div>
-              <div className="flex justify-between text-sm ml-3 py-1"><span className="text-gray-600">Взносы</span><span className="font-medium">{tax.insurance_amount.toLocaleString('ru-RU')} ₽</span></div>
+              <div className="flex justify-between text-sm ml-3 py-1"><span className="text-gray-600">Налог</span><span className="font-medium">{Number(tax.income_tax_amount || 0).toLocaleString('ru-RU')} ₽</span></div>
+              <div className="flex justify-between text-sm ml-3 py-1"><span className="text-gray-600">Взносы</span><span className="font-medium">{Number(tax.insurance_amount || 0).toLocaleString('ru-RU')} ₽</span></div>
               <div className="flex justify-between text-sm ml-3 py-1"><span className="text-gray-600">НДФЛ</span><span className="font-medium">{tax.ndfl_amount?.toLocaleString('ru-RU') || 0} ₽</span></div>
             </div>
           ))}
@@ -509,14 +509,14 @@ export default function Dashboard() {
             <div className="flex justify-between text-sm py-1"><span className="text-gray-600">Входящий</span><span className="font-medium">-{totalTaxData.reduce((s, t) => s + (t.incoming_vat || 0), 0).toLocaleString('ru-RU')} ₽</span></div>
             <div className="mt-3"><p className="text-xs font-medium mb-2">Сроки уплаты:</p>
               {quarterlyVat.map(q => (
-                <div key={q.quarter} className="flex justify-between text-sm py-1"><span className="text-gray-600">{q.quarter} ({q.date})</span><span className="font-medium">{q.amount.toLocaleString('ru-RU')} ₽</span></div>
+                <div key={q.quarter} className="flex justify-between text-sm py-1"><span className="text-gray-600">{q.quarter} ({q.date})</span><span className="font-medium">{Number(q.amount || 0).toLocaleString('ru-RU')} ₽</span></div>
               ))}
             </div>
           </Widget>
           <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
             <h3 className="font-semibold text-gray-900 mb-2">Кассовые разрывы (30 дней)</h3>
             {gaps.length === 0 ? <p className="text-green-600">Нет разрывов</p> : gaps.slice(0, 5).map((gap, idx) => (
-              <div key={idx} className="flex justify-between text-sm text-red-600 py-1"><span>{formatDay(gap.date)}</span><span>-{gap.deficit.toLocaleString('ru-RU')} ₽</span></div>
+              <div key={idx} className="flex justify-between text-sm text-red-600 py-1"><span>{formatDay(gap.date)}</span><span>-{Number(gap.deficit || 0).toLocaleString('ru-RU')} ₽</span></div>
             ))}
           </div>
         </div>
