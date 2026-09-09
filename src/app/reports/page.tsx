@@ -1391,3 +1391,4 @@ function getTaxPayments(companies: any[], accounts: any[], settings: any[]): any
 
     return payments;
 }
+
