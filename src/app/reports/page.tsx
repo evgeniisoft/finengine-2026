@@ -39,7 +39,7 @@ export default function ReportsPage() {
     // ============================================
     useEffect(() => {
         loadData();
-    }, [activeTab, viewMode, showPeriods, periodType]);
+    }, [activeTab, viewMode, showPeriods, periodType, period.start, period.end]);
 
     // ============================================
     // LOAD DATA
