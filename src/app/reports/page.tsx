@@ -636,6 +636,12 @@ function DrilldownPanel({ data, loading, active }: any) {
 // MONTHLY TABLE VIEW
 // ============================================
 function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drilldownData, drilldownLoading, activeDrilldown }: any) {
+    if (!accounts || accounts.length === 0) {
+        console.error('MonthlyTableView: accounts пустой');
+    }
+    if (!data || data.length === 0) {
+        console.error('MonthlyTableView: data пустой');
+    }
     if (!data || data.length === 0) {
         return (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
