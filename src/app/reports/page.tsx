@@ -862,7 +862,7 @@ function CashGapsView({ transactions, companies, companyId, accounts, counterpar
     const filteredTx = companyId ? transactions.filter((t: any) => t.company_id === companyId) : transactions;
     const companyName = companyId ? companies.find((c: any) => c.id === companyId)?.name || '' : 'Консолидированные';
 
-    const periods = getCalendarPeriods(filteredTx, periodType, days, accounts, counterparties);
+    const periods = getCalendarPeriodsDetailed(filteredTx, periodType, days, accounts, counterparties);
     const gapPeriods = periods.filter((p: any) => p.balance < 0);
 
     return (
@@ -914,7 +914,7 @@ function CashGapsView({ transactions, companies, companyId, accounts, counterpar
 // ============================================
 // GET CALENDAR PERIODS — с детализацией
 // ============================================
-function getCalendarPeriods(transactions: any[], periodType: string, count: number, accounts?: any[], counterparties?: any[]): any[] {
+function getCalendarPeriodsDetailed(transactions: any[], periodType: string, count: number, accounts?: any[], counterparties?: any[]): any[] {
     const today = new Date();
     const periods: any[] = [];
 
