@@ -74,8 +74,9 @@ export default function ReportsPage() {
                     setMonthlyData(Array.isArray(monthlyResult.periods) ? monthlyResult.periods : []);
                 } else {
                     // По компаниям — загружаем для каждой компании
+                    const companiesForMonthly = companiesData.length > 0 ? companiesData : await api.getAll('Companies');
                     const allMonthly: any[] = [];
-                    for (const company of companiesData) {
+                    for (const company of companiesForMonthly) {
                         const monthlyUrl = `/api/reports/monthly?company_id=${company.id}&period_start=${period.start}&period_end=${period.end}&period_type=${periodType}&report_type=${activeTab}`;
                         const monthlyResponse = await fetch(monthlyUrl);
                         const monthlyResult = await monthlyResponse.json();
