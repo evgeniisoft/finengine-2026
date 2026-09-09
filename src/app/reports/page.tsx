@@ -791,7 +791,7 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                             <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Поступления</td>
                             {periods.map((p: any) => (
                                 <td key={p.label} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">
-                                    {p.inflow > 0 ? '+' + p.inflow.toLocaleString('ru-RU') : ''}
+                                    {p?.inflow > 0 ? '+' + Number(p.inflow || 0).toLocaleString('ru-RU') : ''}
                                 </td>
                             ))}
                         </tr>
@@ -803,7 +803,7 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                                     <td key={p.label} className="px-4 py-2 text-right whitespace-nowrap">
                                         {Object.entries(p.inflow_details || {}).map(([name, amount]: any) => (
                                             <div key={name} className="text-xs text-green-700">
-                                                {name}: +{amount.toLocaleString('ru-RU')}
+                                                {name}: +{Number(amount || 0).toLocaleString('ru-RU')}
                                             </div>
                                         ))}
                                     </td>
@@ -827,7 +827,7 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                                     <td key={p.label} className="px-4 py-2 text-right whitespace-nowrap">
                                         {Object.entries(p.outflow_details || {}).map(([name, amount]: any) => (
                                             <div key={name} className="text-xs text-red-700">
-                                                {name}: -{amount.toLocaleString('ru-RU')}
+                                                {name}: -{Number(amount || 0).toLocaleString('ru-RU')}
                                             </div>
                                         ))}
                                     </td>
@@ -838,7 +838,7 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                         <tr>
                             <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-white">Баланс</td>
                             {periods.map((p: any) => (
-                                <td key={p.label} className={`px-4 py-3 text-sm text-right font-medium whitespace-nowrap ${p.balance < 0 ? 'text-red-600 bg-red-50' : 'text-gray-900'}`}>{p.balance.toLocaleString('ru-RU')}</td>
+                                <td key={p.label} className={`px-4 py-3 text-sm text-right font-medium whitespace-nowrap ${p.balance < 0 ? 'text-red-600 bg-red-50' : 'text-gray-900'}`}>{Number(p?.balance || 0).toLocaleString('ru-RU')}</td>
                             ))}
                         </tr>
                     </tbody>
