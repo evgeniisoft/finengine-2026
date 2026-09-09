@@ -793,61 +793,16 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {/* Поступления */}
-                        <tr className="bg-green-50/50">
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Поступления</td>
-                            {periods.map((p: any) => (
-                                <td key={p.label} className="px-4 py-3 text-sm text-right text-green-600 whitespace-nowrap">
-                                    {p?.inflow > 0 ? '+' + Number(p.inflow || 0).toLocaleString('ru-RU') : ''}
-                                </td>
-                            ))}
-                        </tr>
-                        {/* Детализация поступлений */}
-                        {periods.some((p: any) => p.inflow > 0) && (
-                            <tr className="text-xs text-gray-500">
-                                <td className="px-4 py-2 pl-8 sticky left-0 bg-white">— по контрагентам</td>
-                                {periods.map((p: any) => (
-                                    <td key={p.label} className="px-4 py-2 text-right whitespace-nowrap">
-                                        {Object.entries(p.inflow_details || {}).map(([name, amount]: any) => (
-                                            <div key={name} className="text-xs text-green-700">
-                                                {name}: +{Number(amount || 0).toLocaleString('ru-RU')}
-                                            </div>
-                                        ))}
+                        {rows.map((row: any, rowIdx: number) => (
+                            <tr key={rowIdx} className="hover:bg-gray-50 cursor-pointer" onClick={() => onDrilldown && row.rowType && onDrilldown(row.id, row.rowType)}>
+                                <td className={`px-4 py-3 text-sm sticky left-0 bg-white ${row.bold ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{row.label}</td>
+                                {data.map((d: any, dataIdx: number) => (
+                                    <td key={dataIdx} className={`px-6 py-3 text-sm text-right whitespace-nowrap ${row.bold ? 'font-bold' : 'font-medium'} ${row.color}`}>
+                                        {Number(row.getValue(d) || 0).toLocaleString('ru-RU')} ₽
                                     </td>
                                 ))}
                             </tr>
-                        )}
-                        {/* Выбытия */}
-                        <tr>
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">Выбытия</td>
-                            {periods.map((p: any) => (
-                                <td key={p.label} className="px-4 py-3 text-sm text-right text-red-600 whitespace-nowrap">
-                                    {p.outflow > 0 ? '-' + p.outflow.toLocaleString('ru-RU') : ''}
-                                </td>
-                            ))}
-                        </tr>
-                        {/* Детализация выбытий */}
-                        {periods.some((p: any) => p.outflow > 0) && (
-                            <tr className="text-xs text-gray-500">
-                                <td className="px-4 py-2 pl-8 sticky left-0 bg-white">— по статьям</td>
-                                {periods.map((p: any) => (
-                                    <td key={p.label} className="px-4 py-2 text-right whitespace-nowrap">
-                                        {Object.entries(p.outflow_details || {}).map(([name, amount]: any) => (
-                                            <div key={name} className="text-xs text-red-700">
-                                                {name}: -{Number(amount || 0).toLocaleString('ru-RU')}
-                                            </div>
-                                        ))}
-                                    </td>
-                                ))}
-                            </tr>
-                        )}
-                        {/* Баланс */}
-                        <tr>
-                            <td className="px-4 py-3 text-sm font-semibold text-gray-900 sticky left-0 bg-white">Баланс</td>
-                            {periods.map((p: any) => (
-                                <td key={p.label} className={`px-4 py-3 text-sm text-right font-medium whitespace-nowrap ${p.balance < 0 ? 'text-red-600 bg-red-50' : 'text-gray-900'}`}>{Number(p?.balance || 0).toLocaleString('ru-RU')}</td>
-                            ))}
-                        </tr>
+                        ))}
                     </tbody>
                 </table>
             </div>
