@@ -210,8 +210,11 @@ export class MonthlyEngine {
           let expenseAmount = t.amount_rub;
 
           // Выделяем НДС для ОСНО
-          if (company?.vat_included && company?.vat_rate > 0) {
-            expenseAmount = expenseAmount / (1 + company.vat_rate);
+          const vatIncluded = String(company?.vat_included).toLowerCase() === 'true';
+          const vatRate = parseFloat(String(company?.vat_rate || '0'));
+
+          if (vatIncluded && vatRate > 0) {
+            expenseAmount = expenseAmount / (1 + vatRate);
           }
 
           expenses += expenseAmount;
@@ -228,8 +231,10 @@ export class MonthlyEngine {
         if (creditIsCash && !debitIsCash) {
           let cashOutflowAmount = t.amount_rub;
           // Выделяем НДС для ОСНО
-          if (company?.vat_included && company?.vat_rate > 0) {
-            cashOutflowAmount = cashOutflowAmount / (1 + company.vat_rate);
+          const vatIncluded = String(company?.vat_included).toLowerCase() === 'true';
+          const vatRate = parseFloat(String(company?.vat_rate || '0'));
+          if (vatIncluded && vatRate > 0) {
+            cashOutflowAmount = cashOutflowAmount / (1 + vatRate);
           }
           cashOut += cashOutflowAmount;
         }
