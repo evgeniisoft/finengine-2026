@@ -97,7 +97,12 @@ export async function GET(request: NextRequest) {
         });
 
         // ============ Итоги ============
-        const totalTime = results.reduce((sum, r) => sum + r.time_ms, 0);
+        // Сумма всех индивидуальных замеров (для диагностики)
+        const totalTime = results
+            .filter(r => r.type !== 'parallel_load')
+            .reduce((sum, r) => sum + r.time_ms, 0);
+
+        // Реальное время = время параллельной загрузки (как пользователь ощущает)
         const parallelTime = results.find(r => r.type === 'parallel_load')?.time_ms || totalTime;
         const slowest = [...results].sort((a, b) => b.time_ms - a.time_ms)[0];
 
