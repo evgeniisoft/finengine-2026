@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
             results,
             summary: {
                 total_time_ms: totalTime,
+                parallel_time_ms: parallelTime,
                 slowest: slowest,
                 recommendations: [
                     slowest.time_ms > 3000
