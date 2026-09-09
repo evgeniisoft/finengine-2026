@@ -170,7 +170,9 @@ export class TaxEngine {
       insuranceAmount = insurance.annual_contributions * periodFraction;
     }
 
-    const ndflAmount = (insurance.ndfl_annual || 0) * periodFraction;
+    const ndflAmount = company.has_employees || company.monthly_payroll > 0
+      ? (insurance.ndfl_annual || 0) * periodFraction
+      : 0;
     const totalPayrollCost = (insurance.total_payroll_cost || 0) * periodFraction;
 
     // Уменьшение УСН на взносы

@@ -218,10 +218,15 @@ export class MonthlyEngine {
 
         // ДДС: Выбытия (деньги ушли с денежного счёта)
         if (creditIsCash && !debitIsCash) {
-          cashOut += t.amount_rub;
+          let cashOutflowAmount = t.amount_rub;
+          // Выделяем НДС для ОСНО
+          if (company?.vat_included && company?.vat_rate > 0) {
+            cashOutflowAmount = cashOutflowAmount / (1 + company.vat_rate);
+          }
+          cashOut += cashOutflowAmount;
           // Детализируем выбытия по расходным счетам
           if (debitAccount.type === 'X') {
-            details[debitAccount.id] = (details[debitAccount.id] || 0) + t.amount_rub;
+            details[debitAccount.id] = (details[debitAccount.id] || 0) + cashOutflowAmount;
           }
         }
       }
@@ -265,9 +270,10 @@ export class MonthlyEngine {
       let taxOutflow = 0;
       if (taxCalc) {
         taxOutflow = taxCalc.income_tax_amount + taxCalc.insurance_amount + taxCalc.ndfl_amount + taxCalc.vat_to_pay;
-        if (reportType === 'cashflow') {
-          cashOut += taxOutflow;
-        }
+        // НЕ добавляем налоги к cashOut — они уже учтены в операциях
+        // if (reportType === 'cashflow') {
+        //     cashOut += taxOutflow;
+        // }
       }
 
       // Прибыль с учётом налогов
@@ -277,7 +283,11 @@ export class MonthlyEngine {
       }
 
       const startingBalanceForPeriod = runningBalance;
-      runningBalance += cashIn - cashOut;
+      if (reportType === 'cashflow') {
+        runningBalance += cashIn - cashOut - taxOutflow;
+      } else {
+        runningBalance += cashIn - cashOut;
+      }
 
       reports.push({
         period,
