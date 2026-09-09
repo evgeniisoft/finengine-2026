@@ -216,16 +216,24 @@ export default function DiagnosticsPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => loadDiagnostics(true)}
-            disabled={refreshing}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-          >
-            {refreshing && (
-              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
-            )}
-            {refreshing ? 'Проверка...' : 'Обновить'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => loadDiagnostics(true)}
+              disabled={refreshing}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              {refreshing && (
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+              )}
+              {refreshing ? 'Проверка...' : 'Обновить'}
+            </button>
+            <button
+              onClick={() => window.location.href = '/performance'}
+              className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 flex items-center gap-2"
+            >
+              Тест производительности
+            </button>
+          </div>
         </div>
 
         {/* Индекс здоровья */}
