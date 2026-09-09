@@ -71,6 +71,12 @@ export class MonthlyEngine {
       if (creditIsCash) runningBalance -= t.amount_rub;
     }
 
+    // Для balance: считаем начальные остатки по каждому счёту
+    let balanceDetails: { [accountId: string]: number } = {};
+    if (reportType === 'balance') {
+      balanceDetails = this.calculateBalanceDetails(beforePeriod, accounts);
+    }
+
     const reports: PeriodReport[] = [];
 
     for (const period of sortedPeriods) {
@@ -98,6 +104,79 @@ export class MonthlyEngine {
         );
       }
 
+      // ============ БАЛАНС ============
+      if (reportType === 'balance') {
+        // Копируем начальные остатки
+        for (const [accId, amount] of Object.entries(balanceDetails)) {
+          details[accId] = amount;
+        }
+
+        // Применяем операции периода
+        for (const t of periodTransactions) {
+          const debitAccount = accounts.find(a => a.id === t.debit_account_id);
+          const creditAccount = accounts.find(a => a.id === t.credit_account_id);
+
+          if (!debitAccount || !creditAccount) continue;
+
+          const debitIsCash = Boolean(debitAccount.is_cash_flow);
+          const creditIsCash = Boolean(creditAccount.is_cash_flow);
+
+          // Денежные счета
+          if (debitIsCash) {
+            details[debitAccount.id] = (details[debitAccount.id] || 0) + t.amount_rub;
+          }
+          if (creditIsCash) {
+            details[creditAccount.id] = (details[creditAccount.id] || 0) - t.amount_rub;
+          }
+
+          // Не денежные счета (Активы, Пассивы, Капитал)
+          if (!debitIsCash && debitAccount.type === 'A') {
+            details[debitAccount.id] = (details[debitAccount.id] || 0) + t.amount_rub;
+          }
+          if (!creditIsCash && creditAccount.type === 'A') {
+            details[creditAccount.id] = (details[creditAccount.id] || 0) - t.amount_rub;
+          }
+
+          if (!creditIsCash && creditAccount.type === 'L') {
+            details[creditAccount.id] = (details[creditAccount.id] || 0) + t.amount_rub;
+          }
+          if (!debitIsCash && debitAccount.type === 'L') {
+            details[debitAccount.id] = (details[debitAccount.id] || 0) - t.amount_rub;
+          }
+
+          if (!creditIsCash && creditAccount.type === 'E') {
+            details[creditAccount.id] = (details[creditAccount.id] || 0) + t.amount_rub;
+          }
+          if (!debitIsCash && debitAccount.type === 'E') {
+            details[debitAccount.id] = (details[debitAccount.id] || 0) - t.amount_rub;
+          }
+        }
+
+        // Обновляем balanceDetails для следующего периода
+        balanceDetails = { ...details };
+
+        // Для баланса: revenue/expenses/profit не нужны
+        const totalAssets = this.calculateTotalAssets(details, accounts);
+        const totalLiabilities = this.calculateTotalLiabilities(details, accounts);
+        const totalEquity = this.calculateTotalEquity(details, accounts);
+
+        reports.push({
+          period,
+          revenue: 0,
+          expenses: 0,
+          profit: totalAssets - totalLiabilities, // чистая позиция
+          cash_in: 0,
+          cash_out: 0,
+          tax_outflow: 0,
+          net_cash_flow: 0,
+          starting_balance: 0,
+          ending_balance: totalAssets,
+          details
+        });
+        continue;
+      }
+
+      // ============ P&L И CASH FLOW ============
       for (const t of periodTransactions) {
         const debitAccount = accounts.find(a => a.id === t.debit_account_id);
         const creditAccount = accounts.find(a => a.id === t.credit_account_id);
@@ -106,14 +185,20 @@ export class MonthlyEngine {
         const debitIsCash = Boolean(debitAccount.is_cash_flow);
         const creditIsCash = Boolean(creditAccount.is_cash_flow);
 
-        // Выручка без НДС (из taxEngine)
-        if (creditAccount.type === 'I') {
+        // Выручка
+        if (creditAccount.type === 'I' && creditAccount.activity_type === 'operating' &&
+          !creditAccount.id.startsWith('acc-in-invest-') && creditAccount.id !== 'acc-in-loan') {
           revenue += t.amount_rub;
           details[creditAccount.id] = (details[creditAccount.id] || 0) + t.amount_rub;
         }
 
-        // Расходы без НДС (из taxEngine)
-        if (debitAccount.type === 'X') {
+        // Расходы
+        if (debitAccount.type === 'X' && debitAccount.activity_type === 'operating' &&
+          !debitAccount.id.startsWith('acc-tax-') &&
+          !debitAccount.id.startsWith('acc-depreciation-') &&
+          debitAccount.id !== 'acc-out-capex' &&
+          !debitAccount.id.startsWith('acc-out-loan-') &&
+          debitAccount.id !== 'acc-out-dividends') {
           let expenseAmount = t.amount_rub;
 
           // Выделяем НДС для ОСНО
@@ -128,18 +213,21 @@ export class MonthlyEngine {
         // ДДС: Поступления (деньги пришли на денежный счёт)
         if (debitIsCash && !creditIsCash) {
           cashIn += t.amount_rub;
-          // Сохраняем в details по денежному счёту
           details[`in_${debitAccount.id}`] = (details[`in_${debitAccount.id}`] || 0) + t.amount_rub;
         }
 
         // ДДС: Выбытия (деньги ушли с денежного счёта)
         if (creditIsCash && !debitIsCash) {
           cashOut += t.amount_rub;
+          // Детализируем выбытия по расходным счетам
+          if (debitAccount.type === 'X') {
+            details[debitAccount.id] = (details[debitAccount.id] || 0) + t.amount_rub;
+          }
         }
       }
 
       // Если есть taxCalc — используем его данные для выручки и расходов
-      if (taxCalc) {
+      if (taxCalc && reportType === 'pnl') {
         revenue = taxCalc.revenue_without_vat;
         expenses = taxCalc.expenses_without_vat;
       }
@@ -172,16 +260,19 @@ export class MonthlyEngine {
           }
         }
       }
+
       // Налоговые выбытия за период
       let taxOutflow = 0;
       if (taxCalc) {
         taxOutflow = taxCalc.income_tax_amount + taxCalc.insurance_amount + taxCalc.ndfl_amount + taxCalc.vat_to_pay;
-        cashOut += taxOutflow;
+        if (reportType === 'cashflow') {
+          cashOut += taxOutflow;
+        }
       }
 
       // Прибыль с учётом налогов
       let profit = revenue - expenses;
-      if (taxCalc) {
+      if (taxCalc && reportType === 'pnl') {
         profit = taxCalc.profit_before_tax - taxCalc.income_tax_amount - taxCalc.insurance_amount - taxCalc.ndfl_amount;
       }
 
@@ -190,11 +281,11 @@ export class MonthlyEngine {
 
       reports.push({
         period,
-        revenue,
-        expenses,
-        profit,
-        cash_in: cashIn,
-        cash_out: cashOut,
+        revenue: reportType === 'pnl' ? revenue : 0,
+        expenses: reportType === 'pnl' ? expenses : 0,
+        profit: reportType === 'pnl' ? profit : 0,
+        cash_in: reportType === 'cashflow' ? cashIn : cashIn,
+        cash_out: reportType === 'cashflow' ? cashOut : cashOut,
         tax_outflow: taxOutflow,
         net_cash_flow: cashIn - cashOut,
         starting_balance: startingBalanceForPeriod,
@@ -317,6 +408,93 @@ export class MonthlyEngine {
     }
 
     return forecasts;
+  }
+  /**
+ * Расчёт остатков по счетам на начало периода (для баланса)
+ */
+  private calculateBalanceDetails(transactions: Transaction[], accounts: Account[]): { [accountId: string]: number } {
+    const details: { [accountId: string]: number } = {};
+
+    for (const t of transactions) {
+      const debitAccount = accounts.find(a => a.id === t.debit_account_id);
+      const creditAccount = accounts.find(a => a.id === t.credit_account_id);
+
+      if (!debitAccount || !creditAccount) continue;
+
+      const debitIsCash = Boolean(debitAccount.is_cash_flow);
+      const creditIsCash = Boolean(creditAccount.is_cash_flow);
+
+      // Денежные счета
+      if (debitIsCash) {
+        details[debitAccount.id] = (details[debitAccount.id] || 0) + t.amount_rub;
+      }
+      if (creditIsCash) {
+        details[creditAccount.id] = (details[creditAccount.id] || 0) - t.amount_rub;
+      }
+
+      // Не денежные счета
+      if (!debitIsCash && debitAccount.type === 'A') {
+        details[debitAccount.id] = (details[debitAccount.id] || 0) + t.amount_rub;
+      }
+      if (!creditIsCash && creditAccount.type === 'A') {
+        details[creditAccount.id] = (details[creditAccount.id] || 0) - t.amount_rub;
+      }
+
+      if (!creditIsCash && creditAccount.type === 'L') {
+        details[creditAccount.id] = (details[creditAccount.id] || 0) + t.amount_rub;
+      }
+      if (!debitIsCash && debitAccount.type === 'L') {
+        details[debitAccount.id] = (details[debitAccount.id] || 0) - t.amount_rub;
+      }
+
+      if (!creditIsCash && creditAccount.type === 'E') {
+        details[creditAccount.id] = (details[creditAccount.id] || 0) + t.amount_rub;
+      }
+      if (!debitIsCash && debitAccount.type === 'E') {
+        details[debitAccount.id] = (details[debitAccount.id] || 0) - t.amount_rub;
+      }
+    }
+
+    return details;
+  }
+
+  /**
+   * Расчёт итоговых активов
+   */
+  private calculateTotalAssets(details: { [accountId: string]: number }, accounts: Account[]): number {
+    let total = 0;
+    for (const account of accounts) {
+      if (account.type === 'A' || account.is_cash_flow) {
+        total += details[account.id] || 0;
+      }
+    }
+    return total;
+  }
+
+  /**
+   * Расчёт итоговых пассивов
+   */
+  private calculateTotalLiabilities(details: { [accountId: string]: number }, accounts: Account[]): number {
+    let total = 0;
+    for (const account of accounts) {
+      if (account.type === 'L') {
+        total += details[account.id] || 0;
+      }
+    }
+    return total;
+  }
+
+  /**
+   * Расчёт итогового капитала
+   */
+  private calculateTotalEquity(details: { [accountId: string]: number }, accounts: Account[]): number {
+    let total = 0;
+    for (const account of accounts) {
+      if (account.type === 'E') {
+        total += details[account.id] || 0;
+      }
+    }
+    return total;
   }
 }
 

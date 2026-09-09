@@ -68,7 +68,7 @@ export default function ReportsPage() {
 
             if (showPeriods) {
                 if (viewMode === 'consolidated') {
-                    const monthlyUrl = `/api/reports/monthly?period_start=${period.start}&period_end=${period.end}&period_type=${periodType}&report_type=${activeTab}`;
+                    const monthlyUrl = `/api/reports/monthly?period_start=${period.start}&period_end=${period.end}&period_type=${periodType}&report_type=${activeTab === 'pnl' ? 'pnl' : activeTab === 'cashflow' ? 'cashflow' : 'balance'}`;
                     const monthlyResponse = await fetch(monthlyUrl);
                     const monthlyResult = await monthlyResponse.json();
                     setMonthlyData(Array.isArray(monthlyResult.periods) ? monthlyResult.periods : []);
@@ -77,7 +77,7 @@ export default function ReportsPage() {
                     const companiesForMonthly = companiesData.length > 0 ? companiesData : await api.getAll('Companies');
                     const allMonthly: any[] = [];
                     for (const company of companiesForMonthly) {
-                        const monthlyUrl = `/api/reports/monthly?company_id=${company.id}&period_start=${period.start}&period_end=${period.end}&period_type=${periodType}&report_type=${activeTab}`;
+                        const monthlyUrl = `/api/reports/monthly?company_id=${company.id}&period_start=${period.start}&period_end=${period.end}&period_type=${periodType}&report_type=${activeTab === 'pnl' ? 'pnl' : activeTab === 'cashflow' ? 'cashflow' : 'balance'}`;
                         const monthlyResponse = await fetch(monthlyUrl);
                         const monthlyResult = await monthlyResponse.json();
                         const periods = Array.isArray(monthlyResult.periods) ? monthlyResult.periods : [];
@@ -661,8 +661,22 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
     });
 
     const cashAccounts = accounts.filter((a: any) => a.is_cash_flow === 'true' || a.is_cash_flow === true);
-    const incomeAccounts = accounts.filter((a: any) => a.type === 'I');
-    const expenseAccounts = accounts.filter((a: any) => a.type === 'X');
+    const incomeAccounts = accounts.filter((a: any) =>
+        a.type === 'I' &&
+        a.activity_type === 'operating' &&
+        !a.id.startsWith('acc-in-invest-') &&
+        a.id !== 'acc-in-loan'
+    );
+
+    const expenseAccounts = accounts.filter((a: any) =>
+        a.type === 'X' &&
+        a.activity_type === 'operating' &&
+        !a.id.startsWith('acc-tax-') &&
+        !a.id.startsWith('acc-depreciation-') &&
+        a.id !== 'acc-out-capex' &&
+        !a.id.startsWith('acc-out-loan-') &&
+        a.id !== 'acc-out-dividends'
+    );
 
     const getRows = () => {
         switch (type) {
@@ -693,7 +707,7 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
 
                 // Выбытия по расходным счетам
                 expenseAccounts.forEach((a: any) => rows.push({
-                    id: `out_${a.id}`,
+                    id: a.id,
                     label: `  ${a.name}`,
                     getValue: (d: any) => d.details?.[a.id] || 0,
                     color: 'text-red-600',
@@ -742,7 +756,14 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                     rowType: 'all'
                 }));
 
-                rows.push({ id: 'total_assets', label: 'Итого активы', getValue: (d: any) => d.total_assets || 0, color: 'text-gray-900', bold: true, rowType: 'all' });
+                const totalAssetsValue = (d: any) => {
+                    let total = 0;
+                    cashAccounts.forEach((a: any) => total += d.details?.[a.id] || 0);
+                    assetAccounts.forEach((a: any) => total += d.details?.[a.id] || 0);
+                    return total;
+                };
+
+                rows.push({ id: 'total_assets', label: 'Итого активы', getValue: totalAssetsValue, color: 'text-gray-900', bold: true, rowType: 'all' });
 
                 rows.push({ id: 'liab_header', label: 'ПАССИВЫ', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
 
@@ -756,7 +777,13 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                     rowType: 'all'
                 }));
 
-                rows.push({ id: 'total_liab', label: 'Итого пассивы', getValue: (d: any) => d.total_liabilities || 0, color: 'text-red-600', bold: true, rowType: 'all' });
+                const totalLiabValue = (d: any) => {
+                    let total = 0;
+                    liabilityAccounts.forEach((a: any) => total += d.details?.[a.id] || 0);
+                    return total;
+                };
+
+                rows.push({ id: 'total_liab', label: 'Итого пассивы', getValue: totalLiabValue, color: 'text-red-600', bold: true, rowType: 'all' });
 
                 rows.push({ id: 'equity_header', label: 'КАПИТАЛ', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
 
@@ -770,7 +797,7 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
                     rowType: 'all'
                 }));
 
-                rows.push({ id: 'equity', label: 'Нераспределённая прибыль', getValue: (d: any) => d.equity || 0, color: 'text-green-600', bold: true, rowType: 'all' });
+                rows.push({ id: 'equity_total', label: 'Итого капитал', getValue: (d: any) => d.profit || 0, color: 'text-green-600', bold: true, rowType: 'all' });
                 return rows;
             }
             default:
