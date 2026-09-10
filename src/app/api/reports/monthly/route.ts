@@ -72,7 +72,9 @@ export async function GET(request: NextRequest) {
           existing.cash_in += item.cash_in;
           existing.cash_out += item.cash_out;
           existing.net_cash_flow += item.net_cash_flow;
+          existing.starting_balance += item.starting_balance || 0;
           existing.ending_balance += item.ending_balance;
+          existing.tax_outflow += item.tax_outflow || 0;
 
           // Объединяем details
           for (const [accId, amount] of Object.entries(item.details)) {

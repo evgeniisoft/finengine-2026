@@ -201,23 +201,19 @@ export class MonthlyEngine {
           details[creditAccount.id] = (details[creditAccount.id] || 0) + t.amount_rub;
         }
 
-        // Расходы
-        if (debitAccount.type === 'X' && debitAccount.activity_type === 'operating' &&
+        // Расходы — только для P&L
+        if (reportType === 'pnl' && debitAccount.type === 'X' && debitAccount.activity_type === 'operating' &&
           !debitAccount.id.startsWith('acc-tax-') &&
           !debitAccount.id.startsWith('acc-depreciation-') &&
           debitAccount.id !== 'acc-out-capex' &&
           !debitAccount.id.startsWith('acc-out-loan-') &&
           debitAccount.id !== 'acc-out-dividends') {
           let expenseAmount = t.amount_rub;
-
-          // Выделяем НДС для ОСНО
           const vatIncluded = String(company?.vat_included).toLowerCase() === 'true';
           const vatRate = parseFloat(String(company?.vat_rate || '0'));
-
           if (vatIncluded && vatRate > 0) {
             expenseAmount = expenseAmount / (1 + vatRate);
           }
-
           expenses += expenseAmount;
           details[debitAccount.id] = (details[debitAccount.id] || 0) + expenseAmount;
         }
@@ -231,13 +227,17 @@ export class MonthlyEngine {
         // ДДС: Выбытия (деньги ушли с денежного счёта)
         if (creditIsCash && !debitIsCash) {
           let cashOutflowAmount = t.amount_rub;
-          // Выделяем НДС для ОСНО
           const vatIncluded = String(company?.vat_included).toLowerCase() === 'true';
           const vatRate = parseFloat(String(company?.vat_rate || '0'));
           if (vatIncluded && vatRate > 0) {
             cashOutflowAmount = cashOutflowAmount / (1 + vatRate);
           }
           cashOut += cashOutflowAmount;
+
+          // Для cashflow — записываем фактически оплаченное в details
+          if (reportType === 'cashflow' && debitAccount.type === 'X' && debitAccount.activity_type === 'operating') {
+            details[debitAccount.id] = (details[debitAccount.id] || 0) + cashOutflowAmount;
+          }
         }
       }
 
