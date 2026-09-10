@@ -18,6 +18,7 @@ export interface PeriodReport {
     [accountId: string]: number;
   };
 }
+
 export class MonthlyEngine {
 
   /**
@@ -172,7 +173,7 @@ export class MonthlyEngine {
           period,
           revenue: 0,
           expenses: 0,
-          profit: totalAssets - totalLiabilities, // чистая позиция
+          profit: totalAssets - totalLiabilities,
           cash_in: 0,
           cash_out: 0,
           tax_outflow: 0,
@@ -246,16 +247,17 @@ export class MonthlyEngine {
         expenses = taxCalc.expenses_without_vat;
       }
 
+      // Флаги для налогов
+      const hasEmployees = Boolean(company?.has_employees) || (company?.monthly_payroll || 0) > 0;
+      const monthNum = parseInt(period.substring(5, 7));
+      const isQuarterEnd = monthNum === 3 || monthNum === 6 || monthNum === 9 || monthNum === 12;
+
       // Записываем налоги в details ДЕТАЛИЗИРОВАННО
       if (taxCalc) {
         if (reportType === 'pnl' || reportType === 'cashflow') {
           // Ежемесячные налоги
           details['acc-tax-insurance'] = taxCalc.insurance_amount;
           details['acc-tax-ndfl'] = taxCalc.ndfl_amount;
-
-          // Квартальные налоги — только в последний месяц квартала
-          const monthNum = parseInt(period.substring(5, 7));
-          const isQuarterEnd = monthNum === 3 || monthNum === 6 || monthNum === 9 || monthNum === 12;
 
           if (isQuarterEnd) {
             details['acc-tax-vat'] = taxCalc.vat_to_pay;
@@ -274,23 +276,24 @@ export class MonthlyEngine {
           }
         }
 
-        // Для cashflow — детализация налоговых выбытий
+        // Для cashflow — детализация налоговых выбытий (только реально уплачиваемое за период)
         if (reportType === 'cashflow') {
-          details['tax_insurance'] = taxCalc.insurance_amount;
-          details['tax_ndfl'] = taxCalc.ndfl_amount;
-          details['tax_vat'] = taxCalc.vat_to_pay;
-          details['tax_income'] = taxCalc.income_tax_amount;
+          details['tax_insurance'] = hasEmployees ? taxCalc.insurance_amount : 0;
+          details['tax_ndfl'] = hasEmployees ? taxCalc.ndfl_amount : 0;
+          details['tax_vat'] = isQuarterEnd ? taxCalc.vat_to_pay : 0;
+          details['tax_income'] = isQuarterEnd ? taxCalc.income_tax_amount : 0;
         }
       }
 
-      // Налоговые выбытия за период
+      // Налоговые выбытия за период — только то, что реально уплачивается деньгами
       let taxOutflow = 0;
       if (taxCalc) {
-        taxOutflow = taxCalc.income_tax_amount + taxCalc.insurance_amount + taxCalc.ndfl_amount + taxCalc.vat_to_pay;
-        // НЕ добавляем налоги к cashOut — они уже учтены в операциях
-        // if (reportType === 'cashflow') {
-        //     cashOut += taxOutflow;
-        // }
+        const vatPayment = isQuarterEnd ? taxCalc.vat_to_pay : 0;
+        const incomeTaxPayment = isQuarterEnd ? taxCalc.income_tax_amount : 0;
+        const insurancePayment = hasEmployees ? taxCalc.insurance_amount : 0;
+        const ndflPayment = hasEmployees ? taxCalc.ndfl_amount : 0;
+
+        taxOutflow = insurancePayment + ndflPayment + vatPayment + incomeTaxPayment;
       }
 
       // Прибыль с учётом налогов
@@ -300,7 +303,11 @@ export class MonthlyEngine {
       }
 
       const startingBalanceForPeriod = runningBalance;
-      runningBalance += cashIn - cashOut;
+      if (reportType === 'cashflow') {
+        runningBalance += cashIn - cashOut - taxOutflow;
+      } else {
+        runningBalance += cashIn - cashOut;
+      }
 
       reports.push({
         period,
@@ -432,9 +439,10 @@ export class MonthlyEngine {
 
     return forecasts;
   }
+
   /**
- * Расчёт остатков по счетам на начало периода (для баланса)
- */
+   * Расчёт остатков по счетам на начало периода (для баланса)
+   */
   private calculateBalanceDetails(transactions: Transaction[], accounts: Account[]): { [accountId: string]: number } {
     const details: { [accountId: string]: number } = {};
 
