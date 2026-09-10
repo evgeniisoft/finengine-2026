@@ -377,7 +377,7 @@ export class MonthlyEngine {
       // Прибыль с учётом налогов
       let profit = revenue - expenses;
       if (taxCalc && reportType === 'pnl' && hasPeriodActivity) {
-        profit = taxCalc.profit_before_tax - taxCalc.income_tax_amount - taxCalc.insurance_amount - taxCalc.ndfl_amount;
+        profit = revenue - expenses - taxCalc.income_tax_amount - taxCalc.insurance_amount - taxCalc.ndfl_amount;
       }
 
       const startingBalanceForPeriod = runningBalance;
