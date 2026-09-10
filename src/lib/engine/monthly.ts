@@ -21,10 +21,6 @@ export interface PeriodReport {
 
 export class MonthlyEngine {
 
-  /**
-   * Разбивка по периодам (месяцы, недели, дни)
-   * С полным расчётом налогов
-   */
   getPeriodBreakdown(
     transactions: Transaction[],
     accounts: Account[],
@@ -121,7 +117,6 @@ export class MonthlyEngine {
             return creditAcc?.type === 'I';
           });
 
-          // Вычитаем налоги только если была реальная деятельность (выручка)
           if (hasRevenue) {
             monthsBeforeReport.push(monthKey);
           }
@@ -188,6 +183,9 @@ export class MonthlyEngine {
         );
       }
 
+      // Есть ли операции в периоде
+      const hasPeriodActivity = periodTransactions.length > 0;
+
       // ============ БАЛАНС ============
       if (reportType === 'balance') {
         // Копируем начальные остатки
@@ -213,7 +211,7 @@ export class MonthlyEngine {
             details[creditAccount.id] = (details[creditAccount.id] || 0) - t.amount_rub;
           }
 
-          // Не денежные счета (Активы, Пассивы, Капитал)
+          // Не денежные счета
           if (!debitIsCash && debitAccount.type === 'A') {
             details[debitAccount.id] = (details[debitAccount.id] || 0) + t.amount_rub;
           }
@@ -239,12 +237,11 @@ export class MonthlyEngine {
         // Обновляем balanceDetails для следующего периода
         balanceDetails = { ...details };
 
-        // Для баланса: revenue/expenses/profit не нужны
         const totalAssets = this.calculateTotalAssets(details, accounts);
         let totalLiabilities = this.calculateTotalLiabilities(details, accounts);
 
-        // Добавляем задолженность по налогам как обязательство
-        if (taxCalc) {
+        // Добавляем задолженность по налогам как обязательство (только если были операции)
+        if (taxCalc && hasPeriodActivity) {
           const taxLiability = taxCalc.income_tax_amount + taxCalc.insurance_amount + taxCalc.ndfl_amount + taxCalc.vat_to_pay;
           totalLiabilities += taxLiability;
           details['acc-tax-liability'] = taxLiability;
@@ -301,13 +298,13 @@ export class MonthlyEngine {
           details[debitAccount.id] = (details[debitAccount.id] || 0) + expenseAmount;
         }
 
-        // ДДС: Поступления (деньги пришли на денежный счёт)
+        // ДДС: Поступления
         if (debitIsCash && !creditIsCash) {
           cashIn += t.amount_rub;
           details[`in_${debitAccount.id}`] = (details[`in_${debitAccount.id}`] || 0) + t.amount_rub;
         }
 
-        // ДДС: Выбытия (деньги ушли с денежного счёта)
+        // ДДС: Выбытия
         if (creditIsCash && !debitIsCash) {
           let cashOutflowAmount = t.amount_rub;
           const vatIncluded = String(company?.vat_included).toLowerCase() === 'true';
@@ -317,14 +314,13 @@ export class MonthlyEngine {
           }
           cashOut += cashOutflowAmount;
 
-          // Для cashflow — записываем фактически оплаченное в details
           if (reportType === 'cashflow' && debitAccount.type === 'X' && debitAccount.activity_type === 'operating') {
             details[debitAccount.id] = (details[debitAccount.id] || 0) + cashOutflowAmount;
           }
         }
       }
 
-      // Если есть taxCalc — используем его данные для выручки и расходов
+      // P&L: перезаписываем revenue/expenses из taxCalc
       if (taxCalc && reportType === 'pnl') {
         revenue = taxCalc.revenue_without_vat;
         expenses = taxCalc.expenses_without_vat;
@@ -335,10 +331,9 @@ export class MonthlyEngine {
       const monthNum = parseInt(period.substring(5, 7));
       const isQuarterEnd = monthNum === 3 || monthNum === 6 || monthNum === 9 || monthNum === 12;
 
-      // Записываем налоги в details ДЕТАЛИЗИРОВАННО
-      if (taxCalc) {
+      // Записываем налоги в details
+      if (taxCalc && hasPeriodActivity) {
         if (reportType === 'pnl' || reportType === 'cashflow') {
-          // Ежемесячные налоги
           details['acc-tax-insurance'] = taxCalc.insurance_amount;
           details['acc-tax-ndfl'] = taxCalc.ndfl_amount;
 
@@ -359,7 +354,7 @@ export class MonthlyEngine {
           }
         }
 
-        // Для cashflow — детализация налоговых выбытий (только реально уплачиваемое за период)
+        // Для cashflow — детализация налоговых выбытий
         if (reportType === 'cashflow') {
           details['tax_insurance'] = hasEmployees ? taxCalc.insurance_amount : 0;
           details['tax_ndfl'] = hasEmployees ? taxCalc.ndfl_amount : 0;
@@ -368,9 +363,9 @@ export class MonthlyEngine {
         }
       }
 
-      // Налоговые выбытия за период — только то, что реально уплачивается деньгами
+      // Налоговые выбытия за период
       let taxOutflow = 0;
-      if (taxCalc) {
+      if (taxCalc && hasPeriodActivity) {
         const vatPayment = isQuarterEnd ? taxCalc.vat_to_pay : 0;
         const incomeTaxPayment = isQuarterEnd ? taxCalc.income_tax_amount : 0;
         const insurancePayment = hasEmployees ? taxCalc.insurance_amount : 0;
@@ -381,7 +376,7 @@ export class MonthlyEngine {
 
       // Прибыль с учётом налогов
       let profit = revenue - expenses;
-      if (taxCalc && reportType === 'pnl') {
+      if (taxCalc && reportType === 'pnl' && hasPeriodActivity) {
         profit = taxCalc.profit_before_tax - taxCalc.income_tax_amount - taxCalc.insurance_amount - taxCalc.ndfl_amount;
       }
 
@@ -410,9 +405,6 @@ export class MonthlyEngine {
     return reports;
   }
 
-  /**
-   * Получение даты начала периода
-   */
   private getPeriodStartDate(period: string, periodType: PeriodType): string {
     switch (periodType) {
       case 'monthly':
@@ -429,9 +421,6 @@ export class MonthlyEngine {
     }
   }
 
-  /**
-   * Получение даты конца периода
-   */
   private getPeriodEndDate(period: string, periodType: PeriodType): string {
     switch (periodType) {
       case 'monthly': {
@@ -451,9 +440,6 @@ export class MonthlyEngine {
     }
   }
 
-  /**
-   * Получение ключа периода
-   */
   private getPeriodKey(date: string, periodType: PeriodType): string {
     const [year, month, day] = date.split('-');
 
@@ -472,9 +458,6 @@ export class MonthlyEngine {
     }
   }
 
-  /**
-   * Получение номера недели
-   */
   private getWeekNumber(date: Date): number {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
     const dayNum = d.getUTCDay() || 7;
@@ -483,9 +466,6 @@ export class MonthlyEngine {
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   }
 
-  /**
-   * Прогноз кассовых разрывов
-   */
   forecastCashFlow(
     companyId: string,
     currentBalance: number,
@@ -523,9 +503,6 @@ export class MonthlyEngine {
     return forecasts;
   }
 
-  /**
-   * Расчёт остатков по счетам на начало периода (для баланса)
-   */
   private calculateBalanceDetails(transactions: Transaction[], accounts: Account[]): { [accountId: string]: number } {
     const details: { [accountId: string]: number } = {};
 
@@ -538,7 +515,6 @@ export class MonthlyEngine {
       const debitIsCash = Boolean(debitAccount.is_cash_flow);
       const creditIsCash = Boolean(creditAccount.is_cash_flow);
 
-      // Денежные счета
       if (debitIsCash) {
         details[debitAccount.id] = (details[debitAccount.id] || 0) + t.amount_rub;
       }
@@ -546,7 +522,6 @@ export class MonthlyEngine {
         details[creditAccount.id] = (details[creditAccount.id] || 0) - t.amount_rub;
       }
 
-      // Не денежные счета
       if (!debitIsCash && debitAccount.type === 'A') {
         details[debitAccount.id] = (details[debitAccount.id] || 0) + t.amount_rub;
       }
@@ -572,9 +547,6 @@ export class MonthlyEngine {
     return details;
   }
 
-  /**
-   * Расчёт итоговых активов
-   */
   private calculateTotalAssets(details: { [accountId: string]: number }, accounts: Account[]): number {
     let total = 0;
     for (const account of accounts) {
@@ -585,9 +557,6 @@ export class MonthlyEngine {
     return total;
   }
 
-  /**
-   * Расчёт итоговых пассивов
-   */
   private calculateTotalLiabilities(details: { [accountId: string]: number }, accounts: Account[]): number {
     let total = 0;
     for (const account of accounts) {
@@ -598,9 +567,6 @@ export class MonthlyEngine {
     return total;
   }
 
-  /**
-   * Расчёт итогового капитала
-   */
   private calculateTotalEquity(details: { [accountId: string]: number }, accounts: Account[]): number {
     let total = 0;
     for (const account of accounts) {
