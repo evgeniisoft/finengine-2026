@@ -63,23 +63,35 @@ export async function GET(request: NextRequest) {
 
       for (const item of allData) {
         if (!periodsMap.has(item.period)) {
-          periodsMap.set(item.period, { ...item });
-        } else {
-          const existing = periodsMap.get(item.period)!;
-          existing.revenue += item.revenue;
-          existing.expenses += item.expenses;
-          existing.profit += item.profit;
-          existing.cash_in += item.cash_in;
-          existing.cash_out += item.cash_out;
-          existing.net_cash_flow += item.net_cash_flow;
-          existing.starting_balance += item.starting_balance || 0;
-          existing.ending_balance += item.ending_balance;
-          existing.tax_outflow += item.tax_outflow || 0;
+          // Инициализируем аккумулятор нулями
+          periodsMap.set(item.period, {
+            period: item.period,
+            revenue: 0,
+            expenses: 0,
+            profit: 0,
+            cash_in: 0,
+            cash_out: 0,
+            net_cash_flow: 0,
+            starting_balance: 0,
+            ending_balance: 0,
+            tax_outflow: 0,
+            details: {}
+          });
+        }
+        const existing = periodsMap.get(item.period)!;
+        existing.revenue += item.revenue;
+        existing.expenses += item.expenses;
+        existing.profit += item.profit;
+        existing.cash_in += item.cash_in;
+        existing.cash_out += item.cash_out;
+        existing.net_cash_flow += item.net_cash_flow;
+        existing.starting_balance += item.starting_balance || 0;
+        existing.ending_balance += item.ending_balance;
+        existing.tax_outflow += item.tax_outflow || 0;
 
-          // Объединяем details
-          for (const [accId, amount] of Object.entries(item.details)) {
-            existing.details[accId] = (existing.details[accId] || 0) + (amount as number);
-          }
+        // Объединяем details
+        for (const [accId, amount] of Object.entries(item.details)) {
+          existing.details[accId] = (existing.details[accId] || 0) + (amount as number);
         }
       }
 
