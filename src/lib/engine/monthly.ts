@@ -337,12 +337,14 @@ export class MonthlyEngine {
         if (reportType === 'pnl') {
           details['acc-tax-insurance'] = taxCalc.insurance_amount;
           details['acc-tax-ndfl'] = taxCalc.ndfl_amount;
-          details['acc-tax-vat'] = taxCalc.vat_to_pay;
 
           if (company?.tax_system === 'USN_6' || company?.tax_system === 'USN_15') {
+            details['acc-tax-vat'] = 0; // УСН без НДС (в тесте)
             details['acc-tax-usn'] = taxCalc.income_tax_amount;
             details['acc-tax-profit'] = 0;
           } else if (company?.tax_system === 'OSNO') {
+            // Для ОСНО НДС не вычитается из прибыли — не показываем в P&L
+            details['acc-tax-vat'] = 0;
             details['acc-tax-usn'] = 0;
             details['acc-tax-profit'] = taxCalc.income_tax_amount;
           }

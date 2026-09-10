@@ -680,34 +680,33 @@ function MonthlyTableView({ data, type, periodType, accounts, onDrilldown, drill
 
     const getRows = () => {
         switch (type) {
-                        case 'pnl': {
+            case 'pnl': {
                 const rows: any[] = [];
                 incomeAccounts.forEach((a: any) => rows.push({ id: a.id, label: a.name, getValue: (d: any) => d.details?.[a.id] || 0, color: 'text-gray-900', bold: false, rowType: 'income' }));
                 rows.push({ id: 'total_income', label: 'Итого доходы', getValue: (d: any) => d.revenue || 0, color: 'text-gray-900', bold: true, rowType: 'all' });
                 expenseAccounts.forEach((a: any) => rows.push({ id: a.id, label: a.name, getValue: (d: any) => d.details?.[a.id] || 0, color: 'text-red-600', bold: false, rowType: 'expense' }));
                 rows.push({ id: 'total_expense', label: 'Итого расходы', getValue: (d: any) => d.expenses || 0, color: 'text-red-600', bold: true, rowType: 'all' });
-                
+
                 // Налоги
                 rows.push({ id: 'tax_header_pnl', label: 'Налоги', getValue: () => '', color: 'text-gray-900', bold: true, rowType: '' });
                 rows.push({ id: 'tax_insurance_pnl', label: '  Страховые взносы', getValue: (d: any) => d.details?.['acc-tax-insurance'] || 0, color: 'text-red-600', bold: false, rowType: 'expense' });
                 rows.push({ id: 'tax_ndfl_pnl', label: '  НДФЛ', getValue: (d: any) => d.details?.['acc-tax-ndfl'] || 0, color: 'text-red-600', bold: false, rowType: 'expense' });
                 rows.push({ id: 'tax_usn_pnl', label: '  Налог УСН', getValue: (d: any) => d.details?.['acc-tax-usn'] || 0, color: 'text-red-600', bold: false, rowType: 'expense' });
                 rows.push({ id: 'tax_profit_pnl', label: '  Налог на прибыль', getValue: (d: any) => d.details?.['acc-tax-profit'] || 0, color: 'text-red-600', bold: false, rowType: 'expense' });
-                rows.push({ id: 'tax_vat_pnl', label: '  НДС', getValue: (d: any) => d.details?.['acc-tax-vat'] || 0, color: 'text-red-600', bold: false, rowType: 'expense' });
-                rows.push({ 
-                    id: 'total_taxes_pnl', 
-                    label: 'Итого налоги', 
-                    getValue: (d: any) => 
-                        (d.details?.['acc-tax-insurance'] || 0) + 
-                        (d.details?.['acc-tax-ndfl'] || 0) + 
-                        (d.details?.['acc-tax-usn'] || 0) + 
-                        (d.details?.['acc-tax-profit'] || 0) + 
-                        (d.details?.['acc-tax-vat'] || 0), 
-                    color: 'text-red-600', 
-                    bold: true, 
-                    rowType: 'all' 
+                // НДС для ОСНО не вычитается из прибыли — не показываем
+                rows.push({
+                    id: 'total_taxes_pnl',
+                    label: 'Итого налоги',
+                    getValue: (d: any) =>
+                        (d.details?.['acc-tax-insurance'] || 0) +
+                        (d.details?.['acc-tax-ndfl'] || 0) +
+                        (d.details?.['acc-tax-usn'] || 0) +
+                        (d.details?.['acc-tax-profit'] || 0),
+                    color: 'text-red-600',
+                    bold: true,
+                    rowType: 'all'
                 });
-                
+
                 rows.push({ id: 'profit', label: 'Прибыль', getValue: (d: any) => d.profit || 0, color: 'text-green-600', bold: true, rowType: 'all' });
                 return rows;
             }
