@@ -84,7 +84,19 @@ export class MonthlyEngine {
         const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
         const monthKey = txDate.substring(0, 7);
         if (monthKey < firstPeriodMonth && !monthsBeforeReport.includes(monthKey)) {
-          monthsBeforeReport.push(monthKey);
+          // Проверяем, есть ли в этом месяце РЕАЛЬНАЯ выручка (счета типа 'I')
+          const hasRevenue = transactions.some(tr => {
+            if (tr.company_id !== companyId) return false;
+            const trDate = typeof tr.date === 'string' ? tr.date.split('T')[0] : String(tr.date || '').split('T')[0];
+            if (!trDate.startsWith(monthKey)) return false;
+            const creditAcc = accounts.find(a => a.id === tr.credit_account_id);
+            return creditAcc?.type === 'I';
+          });
+
+          // Вычитаем налоги только если была реальная деятельность (выручка)
+          if (hasRevenue) {
+            monthsBeforeReport.push(monthKey);
+          }
         }
       }
 
