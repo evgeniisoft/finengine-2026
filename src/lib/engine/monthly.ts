@@ -53,7 +53,35 @@ export class MonthlyEngine {
       periodsMap.get(periodKey)!.push(t);
     }
 
-    const sortedPeriods = Array.from(periodsMap.keys()).sort();
+    // Создаём ВСЕ периоды в диапазоне, даже если операций в периоде нет
+    const allPeriodsSet = new Set<string>(periodsMap.keys());
+    const startDate = new Date(periodStart);
+    const endDate = new Date(periodEnd);
+
+    if (periodType === 'monthly') {
+      const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      while (current <= endDate) {
+        const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+        allPeriodsSet.add(key);
+        current.setMonth(current.getMonth() + 1);
+      }
+    } else if (periodType === 'daily') {
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        allPeriodsSet.add(current.toISOString().split('T')[0]);
+        current.setDate(current.getDate() + 1);
+      }
+    } else if (periodType === 'weekly') {
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        const year = current.getFullYear();
+        const week = this.getWeekNumber(current);
+        allPeriodsSet.add(`${year}-W${String(week).padStart(2, '0')}`);
+        current.setDate(current.getDate() + 7);
+      }
+    }
+
+    const sortedPeriods = Array.from(allPeriodsSet).sort();
 
     // Начальный остаток — операции до periodStart
     const beforePeriod = transactions.filter(t => {
@@ -136,7 +164,7 @@ export class MonthlyEngine {
     const reports: PeriodReport[] = [];
 
     for (const period of sortedPeriods) {
-      const periodTransactions = periodsMap.get(period)!;
+      const periodTransactions = periodsMap.get(period) || [];
 
       // Определяем начало и конец периода
       const periodStartDate = this.getPeriodStartDate(period, periodType);

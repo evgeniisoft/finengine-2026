@@ -97,6 +97,16 @@ export async function GET(request: NextRequest) {
 
       data = Array.from(periodsMap.values())
         .sort((a, b) => a.period.localeCompare(b.period));
+
+      // Пересчитываем starting_balance/ending_balance для консолидированного отчёта
+      for (let i = 0; i < data.length; i++) {
+        if (i === 0) {
+          data[i].ending_balance = data[i].starting_balance + data[i].cash_in - data[i].cash_out - (data[i].tax_outflow || 0);
+        } else {
+          data[i].starting_balance = data[i - 1].ending_balance;
+          data[i].ending_balance = data[i].starting_balance + data[i].cash_in - data[i].cash_out - (data[i].tax_outflow || 0);
+        }
+      }
     }
 
     return NextResponse.json({
