@@ -273,6 +273,14 @@ export class MonthlyEngine {
             details['acc-tax-profit'] = 0;
           }
         }
+
+        // Для cashflow — детализация налоговых выбытий
+        if (reportType === 'cashflow') {
+          details['tax_insurance'] = taxCalc.insurance_amount;
+          details['tax_ndfl'] = taxCalc.ndfl_amount;
+          details['tax_vat'] = taxCalc.vat_to_pay;
+          details['tax_income'] = taxCalc.income_tax_amount;
+        }
       }
 
       // Налоговые выбытия за период
