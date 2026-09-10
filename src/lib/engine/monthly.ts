@@ -333,7 +333,23 @@ export class MonthlyEngine {
 
       // Записываем налоги в details
       if (taxCalc && hasPeriodActivity) {
-        if (reportType === 'pnl' || reportType === 'cashflow') {
+        // ===== P&L: начисление каждый месяц =====
+        if (reportType === 'pnl') {
+          details['acc-tax-insurance'] = taxCalc.insurance_amount;
+          details['acc-tax-ndfl'] = taxCalc.ndfl_amount;
+          details['acc-tax-vat'] = taxCalc.vat_to_pay;
+
+          if (company?.tax_system === 'USN_6' || company?.tax_system === 'USN_15') {
+            details['acc-tax-usn'] = taxCalc.income_tax_amount;
+            details['acc-tax-profit'] = 0;
+          } else if (company?.tax_system === 'OSNO') {
+            details['acc-tax-usn'] = 0;
+            details['acc-tax-profit'] = taxCalc.income_tax_amount;
+          }
+        }
+
+        // ===== Cash Flow: уплата по факту (квартальные только в конце квартала) =====
+        if (reportType === 'cashflow') {
           details['acc-tax-insurance'] = taxCalc.insurance_amount;
           details['acc-tax-ndfl'] = taxCalc.ndfl_amount;
 
@@ -352,10 +368,8 @@ export class MonthlyEngine {
             details['acc-tax-usn'] = 0;
             details['acc-tax-profit'] = 0;
           }
-        }
 
-        // Для cashflow — детализация налоговых выбытий
-        if (reportType === 'cashflow') {
+          // Детализация налоговых выбытий
           details['tax_insurance'] = hasEmployees ? taxCalc.insurance_amount : 0;
           details['tax_ndfl'] = hasEmployees ? taxCalc.ndfl_amount : 0;
           details['tax_vat'] = isQuarterEnd ? taxCalc.vat_to_pay : 0;
