@@ -72,6 +72,49 @@ export class MonthlyEngine {
       if (creditIsCash) runningBalance -= t.amount_rub;
     }
 
+    // Для cashflow — вычитаем налоги за все месяцы до ПЕРВОГО периода отчёта
+    if (reportType === 'cashflow' && company && sortedPeriods.length > 0) {
+      const firstPeriod = sortedPeriods[0];
+      const firstPeriodStart = this.getPeriodStartDate(firstPeriod, periodType);
+      const firstPeriodMonth = firstPeriodStart.substring(0, 7);
+
+      const monthsBeforeReport: string[] = [];
+      for (const t of transactions) {
+        if (t.company_id !== companyId) continue;
+        const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : String(t.date || '').split('T')[0];
+        const monthKey = txDate.substring(0, 7);
+        if (monthKey < firstPeriodMonth && !monthsBeforeReport.includes(monthKey)) {
+          monthsBeforeReport.push(monthKey);
+        }
+      }
+
+      for (const monthKey of monthsBeforeReport) {
+        const monthStart = `${monthKey}-01`;
+        const [y, m] = monthKey.split('-').map(Number);
+        const lastDay = new Date(y, m, 0).getDate();
+        const monthEnd = `${monthKey}-${String(lastDay).padStart(2, '0')}`;
+
+        const taxCalcBefore = taxEngine.calculateTax(
+          company,
+          transactions,
+          accounts,
+          monthStart,
+          monthEnd
+        );
+
+        const monthNum = m;
+        const isQuarterEndBefore = monthNum === 3 || monthNum === 6 || monthNum === 9 || monthNum === 12;
+        const hasEmployeesBefore = String(company?.has_employees).toLowerCase() === 'true' || (company?.monthly_payroll || 0) > 0;
+
+        const vatPayment = isQuarterEndBefore ? taxCalcBefore.vat_to_pay : 0;
+        const incomeTaxPayment = isQuarterEndBefore ? taxCalcBefore.income_tax_amount : 0;
+        const insurancePayment = hasEmployeesBefore ? taxCalcBefore.insurance_amount : 0;
+        const ndflPayment = hasEmployeesBefore ? taxCalcBefore.ndfl_amount : 0;
+
+        runningBalance -= (insurancePayment + ndflPayment + vatPayment + incomeTaxPayment);
+      }
+    }
+
     // Для balance: считаем начальные остатки по каждому счёту
     let balanceDetails: { [accountId: string]: number } = {};
     if (reportType === 'balance') {
@@ -314,8 +357,8 @@ export class MonthlyEngine {
         revenue: reportType === 'pnl' ? revenue : 0,
         expenses: reportType === 'pnl' ? expenses : 0,
         profit: reportType === 'pnl' ? profit : 0,
-        cash_in: reportType === 'cashflow' ? cashIn : cashIn,
-        cash_out: reportType === 'cashflow' ? cashOut : cashOut,
+        cash_in: cashIn,
+        cash_out: cashOut,
         tax_outflow: taxOutflow,
         net_cash_flow: cashIn - cashOut,
         starting_balance: startingBalanceForPeriod,
