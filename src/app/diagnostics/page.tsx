@@ -168,10 +168,15 @@ export default function DiagnosticsPage() {
     'reports': 'Согласованность отчётов'
   };
 
-  const healthScore = diagnostics
-    ? Math.round(((diagnostics.ok + diagnostics.warnings * 0.5) / diagnostics.total_checks) * 100)
-    : 0;
-
+  const healthScore = (() => {
+    if (!diagnostics) return 0;
+    const total = Number(diagnostics.total_checks) || 0;
+    if (total === 0) return 100;
+    const ok = Number(diagnostics.ok) || 0;
+    const warnings = Number(diagnostics.warnings) || 0;
+    const score = Math.round(((ok + warnings * 0.5) / total) * 100);
+    return isFinite(score) ? score : 0;
+  })();
   if (loading && !diagnostics) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -188,6 +193,9 @@ export default function DiagnosticsPage() {
   const checks = diagnostics.checks || [];
   const criticalChecks = checks.filter(c => c.severity === 'critical');
   const warningChecks = checks.filter(c => c.severity === 'warning');
+  const criticalCount = Number(diagnostics.critical) || criticalChecks.length;
+  const warningCount = Number(diagnostics.warnings) || warningChecks.length;
+  const okCount = Number(diagnostics.ok) || 0;
 
   const groupedByCategory = checks.reduce((groups: any, check) => {
     const category = check.category;
@@ -252,9 +260,9 @@ export default function DiagnosticsPage() {
             />
           </div>
           <div className="mt-3 flex gap-6 text-sm">
-            <span className="text-red-600 font-medium">{diagnostics.critical} критичных</span>
-            <span className="text-yellow-600 font-medium">{diagnostics.warnings} предупреждений</span>
-            <span className="text-green-600 font-medium">{diagnostics.ok} ОК</span>
+            <span className="text-red-600 font-medium">{criticalCount} критичных</span>
+            <span className="text-yellow-600 font-medium">{warningCount} предупреждений</span>
+            <span className="text-green-600 font-medium">{okCount} ОК</span>
           </div>
         </div>
       </div>
