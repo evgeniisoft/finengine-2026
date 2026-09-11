@@ -350,7 +350,7 @@ export class MonthlyEngine {
       const isQuarterEnd = monthNum === 3 || monthNum === 6 || monthNum === 9 || monthNum === 12;
 
       // Записываем налоги в details
-      if (taxCalc && hasPeriodActivity) {
+      if (taxCalc) {
         // ===== P&L: начисление каждый месяц =====
         if (reportType === 'pnl') {
           details['acc-tax-insurance'] = taxCalc.insurance_amount;
@@ -399,7 +399,7 @@ export class MonthlyEngine {
 
       // Налоговые выбытия за период
       let taxOutflow = 0;
-      if (taxCalc && hasPeriodActivity) {
+      if (taxCalc) {
         const vatPayment = isQuarterEnd ? taxCalc.vat_to_pay : 0;
         const incomeTaxPayment = isQuarterEnd ? taxCalc.income_tax_amount : 0;
         const insurancePayment = hasEmployees ? taxCalc.insurance_amount : 0;
@@ -410,7 +410,7 @@ export class MonthlyEngine {
 
       // Прибыль с учётом налогов
       let profit = revenue - expenses;
-      if (taxCalc && reportType === 'pnl' && hasPeriodActivity) {
+      if (taxCalc && reportType === 'pnl') {
         profit = revenue - expenses - taxCalc.income_tax_amount - taxCalc.insurance_amount - taxCalc.ndfl_amount;
       }
 

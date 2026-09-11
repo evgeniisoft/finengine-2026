@@ -149,21 +149,20 @@ export class TaxEngine {
 
       case 'USN_15':
         incomeTaxRate = parseFloat(this.settings['usn_15'] || '0.15');
-        // Годовой налог
-        const annualTaxBase = Math.max(0, annualRevenueBase - annualExpensesBase);
-        let annualIncomeTax15 = annualTaxBase * incomeTaxRate;
-        const annualMinimumTax = annualRevenueBase * parseFloat(this.settings['usn_min_tax'] || '0.01');
-        if (annualIncomeTax15 < annualMinimumTax) annualIncomeTax15 = annualMinimumTax;
-        // Для периода — пропорционально
-        incomeTaxAmount = isMonthlyPeriod ? annualIncomeTax15 * periodFraction : annualIncomeTax15;
+        const annualRev15 = revenueWithoutVAT / periodFraction;
+        const annualExp15 = expensesWithoutVAT / periodFraction;
+        const annualTaxBase15 = Math.max(0, annualRev15 - annualExp15);
+        let annualIncomeTax15 = annualTaxBase15 * incomeTaxRate;
+        const annualMinimumTax15 = annualRev15 * parseFloat(this.settings['usn_min_tax'] || '0.01');
+        if (annualIncomeTax15 < annualMinimumTax15) annualIncomeTax15 = annualMinimumTax15;
+        incomeTaxAmount = annualIncomeTax15 * periodFraction;
         break;
 
       case 'OSNO':
         incomeTaxRate = parseFloat(this.settings['profit_tax'] || '0.25');
-        // Годовой налог
-        const annualProfitTax = Math.max(0, annualProfitBase) * incomeTaxRate;
-        // Для периода — пропорционально
-        incomeTaxAmount = isMonthlyPeriod ? annualProfitTax * periodFraction : annualProfitTax;
+        const annualProfitOsno = profit / periodFraction;
+        const annualIncomeTaxOsno = Math.max(0, annualProfitOsno) * incomeTaxRate;
+        incomeTaxAmount = annualIncomeTaxOsno * periodFraction;
         break;
     }
 
@@ -486,10 +485,8 @@ export class TaxEngine {
     const endDate = new Date(periodEnd);
     const daysInPeriod = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
-    if (daysInPeriod <= 31) return 1 / 12;
-    if (daysInPeriod <= 92) return 1 / 4;
-    if (daysInPeriod <= 183) return 1 / 2;
-    return 1;
+    const fraction = daysInPeriod / 365;
+    return Math.min(1, Math.max(fraction, 1 / 365));
   }
   private getDateStr(date: any): string {
     if (!date) return '';
