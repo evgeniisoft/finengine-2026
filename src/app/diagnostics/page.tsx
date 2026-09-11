@@ -6,34 +6,39 @@ import FormattedDetails from './FormattedDetails';
 interface DiagnosticCheck {
   id: string;
   category: string;
+  level?: number;
   severity: 'critical' | 'warning' | 'ok' | 'info';
   name: string;
   count?: number;
   message: string;
   details?: any;
-  expected?: number;
-  actual?: number;
-  difference?: number;
+  comparison?: any;
+  entity?: any;
+  period?: any;
   recommendation?: string | null;
   auto_fix?: boolean;
   auto_fix_action?: string;
   auto_fix_data?: any[];
-  auto_fix_info?: {
-    title: string;
-    description: string;
-    impact: string;
-    risk: string;
-  };
+  auto_fix_info?: any;
+  display?: any;
 }
 
-interface DiagnosticsData {
-  timestamp: string;
+interface DiagnosticsSummary {
   total_checks: number;
   critical: number;
   warnings: number;
   ok: number;
+  info: number;
+  health_score: number;
+}
+
+interface DiagnosticsData {
+  timestamp: string;
   execution_time: number;
+  summary: DiagnosticsSummary;
   by_category: any;
+  by_level: any;
+  context: any;
   checks: DiagnosticCheck[];
 }
 
@@ -170,11 +175,13 @@ export default function DiagnosticsPage() {
 
   const healthScore = (() => {
     if (!diagnostics) return 0;
-    const total = Number(diagnostics.total_checks) || 0;
+    const s = diagnostics.summary || {};
+    const total = Number(s.total_checks) || 0;
     if (total === 0) return 100;
-    const ok = Number(diagnostics.ok) || 0;
-    const warnings = Number(diagnostics.warnings) || 0;
-    const score = Math.round(((ok + warnings * 0.5) / total) * 100);
+    const ok = Number(s.ok) || 0;
+    const info = Number(s.info) || 0;
+    const warnings = Number(s.warnings) || 0;
+    const score = Math.round(((ok + info * 0.7 + warnings * 0.3) / total) * 100);
     return isFinite(score) ? score : 0;
   })();
   if (loading && !diagnostics) {
@@ -193,9 +200,12 @@ export default function DiagnosticsPage() {
   const checks = diagnostics.checks || [];
   const criticalChecks = checks.filter(c => c.severity === 'critical');
   const warningChecks = checks.filter(c => c.severity === 'warning');
-  const criticalCount = Number(diagnostics.critical) || criticalChecks.length;
-  const warningCount = Number(diagnostics.warnings) || warningChecks.length;
-  const okCount = Number(diagnostics.ok) || 0;
+
+  const summary = diagnostics.summary || {};
+  const criticalCount = Number(summary.critical) || 0;
+  const warningCount = Number(summary.warnings) || 0;
+  const okCount = Number(summary.ok) || 0;
+  const infoCount = Number(summary.info) || 0;
 
   const groupedByCategory = checks.reduce((groups: any, check) => {
     const category = check.category;
@@ -285,7 +295,7 @@ export default function DiagnosticsPage() {
           className={`px-3 py-1.5 rounded-lg text-xs font-medium ${!showOnlyProblems ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
         >
-          Все проверки ({diagnostics.total_checks})
+          Все проверки ({summary.total_checks || checks.length})
         </button>
         <button
           onClick={() => {
