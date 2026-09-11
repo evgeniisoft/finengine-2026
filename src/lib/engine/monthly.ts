@@ -183,16 +183,10 @@ export class MonthlyEngine {
       let taxCalc: any = null;
       if (company) {
         if (periodType === 'monthly' && annualTaxCalc && periodStart.startsWith(annualTaxCalcYear)) {
-          // Для месячного периода — берём годовую 1/12
           taxCalc = {
             ...annualTaxCalc,
-            revenue_with_vat: annualTaxCalc.revenue_with_vat / 12,
-            revenue_without_vat: annualTaxCalc.revenue_without_vat / 12,
-            expenses_without_vat: annualTaxCalc.expenses_without_vat / 12,
-            profit_before_tax: annualTaxCalc.profit_before_tax / 12,
-            vat_amount: annualTaxCalc.vat_amount / 12,
-            outgoing_vat: annualTaxCalc.outgoing_vat / 12,
-            incoming_vat: annualTaxCalc.incoming_vat / 12,
+            // НЕ делим revenue/expenses — они реальные за месяц
+            // Делим только налоги
             vat_to_pay: annualTaxCalc.vat_to_pay / 12,
             income_tax_amount: annualTaxCalc.income_tax_amount / 12,
             insurance_amount: annualTaxCalc.insurance_amount / 12,
