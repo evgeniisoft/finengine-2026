@@ -1038,7 +1038,7 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
     const [days, setDays] = useState(30);
     const [currentBalance, setCurrentBalance] = useState<number>(0);
 
-    
+    const today = new Date().toISOString().split('T')[0];
 
     // Загружаем остаток через API баланса (как в Балансе)
     useEffect(() => {
