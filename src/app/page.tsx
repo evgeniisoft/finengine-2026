@@ -204,8 +204,8 @@ export default function Dashboard() {
     <div>
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Дашборд</h2>
-          <p className="text-gray-500 mt-1">Финансовое здоровье бизнеса • {periodLabel}</p>
+          <h2 className="text-2xl font-bold text-gray-900">Дашборд</h2>
+          <p className="text-gray-500 mt-1">Финансовое состяние бизнеса • {periodLabel}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => applyPeriod('today')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activePeriod === 'today' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Сегодня</button>
