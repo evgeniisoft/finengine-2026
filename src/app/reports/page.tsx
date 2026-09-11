@@ -1036,6 +1036,27 @@ function buildCalendarPeriod(label: string, periodTx: any[], accounts?: any[], c
 function CalendarView({ transactions, companies, companyId, accounts, counterparties, settings }: any) {
     const [showMode, setShowMode] = useState<'upcoming' | 'all'>('upcoming');
     const [days, setDays] = useState(30);
+    const [currentBalance, setCurrentBalance] = useState<number>(0);
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Загружаем остаток через API баланса (как в Балансе)
+    useEffect(() => {
+        const loadBalance = async () => {
+            try {
+                const url = `/api/reports?type=balance&period_start=${today}&period_end=${today}${companyId ? `&company_id=${companyId}` : ''}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                const reports = Array.isArray(data) ? data : [];
+                const totalCash = reports.reduce((s: number, r: any) => s + (r.report?.assets?.cash || 0), 0);
+                setCurrentBalance(totalCash);
+            } catch (e) {
+                console.error('Ошибка загрузки баланса:', e);
+                setCurrentBalance(0);
+            }
+        };
+        loadBalance();
+    }, [today, companyId]);
 
     const filteredTx = companyId
         ? transactions.filter((t: any) => t.company_id === companyId)
@@ -1050,27 +1071,7 @@ function CalendarView({ transactions, companies, companyId, accounts, counterpar
         ? companies.find((c: any) => c.id === companyId)?.name || ''
         : 'Консолидированный';
 
-    // Текущий остаток — из всех операций до сегодня
-    const today = new Date().toISOString().split('T')[0];
-    const pastTx = allTransactions.filter((t: any) => {
-        const txDate = typeof t.date === 'string' ? t.date.split('T')[0] : t.date;
-        return txDate < today;
-    });
-    // Начальные остатки — операции с equity
-    const initialBalance = pastTx
-        .filter((t: any) => t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact')
-        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
-
-    // Исключаем начальные остатки из прошлых операций
-    const pastTxWithoutInitial = pastTx.filter((t: any) =>
-        !(t.credit_account_id === 'acc-equity-001' && t.record_type === 'fact')
-    );
-
-    const currentBalance = initialBalance + pastTxWithoutInitial.reduce((balance: number, t: any) => {
-        if (t.type === 'income') return balance + parseFloat(t.amount || 0);
-        if (t.type === 'expense') return balance - parseFloat(t.amount || 0);
-        return balance;
-    }, 0);
+    // Остаток берётся из API баланса (см. useEffect выше)
 
     // Горизонт: текущий месяц + следующий месяц
     const now = new Date();
