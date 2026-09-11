@@ -37,7 +37,15 @@ export class MonthlyEngine {
       t.date >= periodStart &&
       t.date <= periodEnd
     );
-
+    // Годовой taxCalc (для месячных периодов — единый расчёт)
+    let annualTaxCalc: any = null;
+    let annualTaxCalcYear: string = '';
+    if (company && periodType === 'monthly') {
+      annualTaxCalcYear = periodStart.substring(0, 4);
+      const yearStart = `${annualTaxCalcYear}-01-01`;
+      const yearEnd = `${annualTaxCalcYear}-12-31`;
+      annualTaxCalc = taxEngine.calculateTax(company, transactions, accounts, yearStart, yearEnd);
+    }
     // Группируем по периодам
     const periodsMap = new Map<string, Transaction[]>();
 
@@ -174,13 +182,31 @@ export class MonthlyEngine {
       // Расчёт налогов для этого периода
       let taxCalc: any = null;
       if (company) {
-        taxCalc = taxEngine.calculateTax(
-          company,
-          transactions,
-          accounts,
-          periodStartDate,
-          periodEndDate
-        );
+        if (periodType === 'monthly' && annualTaxCalc && periodStart.startsWith(annualTaxCalcYear)) {
+          // Для месячного периода — берём годовую 1/12
+          taxCalc = {
+            ...annualTaxCalc,
+            revenue_with_vat: annualTaxCalc.revenue_with_vat / 12,
+            revenue_without_vat: annualTaxCalc.revenue_without_vat / 12,
+            expenses_without_vat: annualTaxCalc.expenses_without_vat / 12,
+            profit_before_tax: annualTaxCalc.profit_before_tax / 12,
+            vat_amount: annualTaxCalc.vat_amount / 12,
+            outgoing_vat: annualTaxCalc.outgoing_vat / 12,
+            incoming_vat: annualTaxCalc.incoming_vat / 12,
+            vat_to_pay: annualTaxCalc.vat_to_pay / 12,
+            income_tax_amount: annualTaxCalc.income_tax_amount / 12,
+            insurance_amount: annualTaxCalc.insurance_amount / 12,
+            ndfl_amount: annualTaxCalc.ndfl_amount / 12,
+          };
+        } else {
+          taxCalc = taxEngine.calculateTax(
+            company,
+            transactions,
+            accounts,
+            periodStartDate,
+            periodEndDate
+          );
+        }
       }
 
       // Есть ли операции в периоде
@@ -304,14 +330,9 @@ export class MonthlyEngine {
           details[`in_${debitAccount.id}`] = (details[`in_${debitAccount.id}`] || 0) + t.amount_rub;
         }
 
-        // ДДС: Выбытия
+        // ДДС: Выбытия — для cashflow НДС НЕ вычитается (кассовый метод)
         if (creditIsCash && !debitIsCash) {
-          let cashOutflowAmount = t.amount_rub;
-          const vatIncluded = String(company?.vat_included).toLowerCase() === 'true';
-          const vatRate = parseFloat(String(company?.vat_rate || '0'));
-          if (vatIncluded && vatRate > 0) {
-            cashOutflowAmount = cashOutflowAmount / (1 + vatRate);
-          }
+          const cashOutflowAmount = t.amount_rub;
           cashOut += cashOutflowAmount;
 
           if (reportType === 'cashflow' && debitAccount.type === 'X' && debitAccount.activity_type === 'operating') {

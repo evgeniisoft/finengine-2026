@@ -132,23 +132,38 @@ export class TaxEngine {
     let incomeTaxRate = 0;
     let incomeTaxAmount = 0;
 
+    // Годовая база (для месячных периодов)
+    const isMonthlyPeriod = periodFraction < 1;
+    const annualRevenueBase = isMonthlyPeriod ? revenueWithoutVAT / periodFraction : revenueWithoutVAT;
+    const annualExpensesBase = isMonthlyPeriod ? expensesWithoutVAT / periodFraction : expensesWithoutVAT;
+    const annualProfitBase = isMonthlyPeriod ? profit / periodFraction : profit;
+
     switch (company.tax_system) {
       case 'USN_6':
         incomeTaxRate = parseFloat(this.settings['usn_6'] || '0.06');
-        incomeTaxAmount = revenueWithoutVAT * incomeTaxRate;
+        // Годовой налог = годовая выручка × 6%
+        const annualIncomeTax = annualRevenueBase * incomeTaxRate;
+        // Для периода — пропорционально
+        incomeTaxAmount = isMonthlyPeriod ? annualIncomeTax * periodFraction : annualIncomeTax;
         break;
 
       case 'USN_15':
         incomeTaxRate = parseFloat(this.settings['usn_15'] || '0.15');
-        const taxBase = Math.max(0, revenueWithoutVAT - expensesWithoutVAT);
-        incomeTaxAmount = taxBase * incomeTaxRate;
-        const minimumTax = revenueWithoutVAT * parseFloat(this.settings['usn_min_tax'] || '0.01');
-        if (incomeTaxAmount < minimumTax) incomeTaxAmount = minimumTax;
+        // Годовой налог
+        const annualTaxBase = Math.max(0, annualRevenueBase - annualExpensesBase);
+        let annualIncomeTax15 = annualTaxBase * incomeTaxRate;
+        const annualMinimumTax = annualRevenueBase * parseFloat(this.settings['usn_min_tax'] || '0.01');
+        if (annualIncomeTax15 < annualMinimumTax) annualIncomeTax15 = annualMinimumTax;
+        // Для периода — пропорционально
+        incomeTaxAmount = isMonthlyPeriod ? annualIncomeTax15 * periodFraction : annualIncomeTax15;
         break;
 
       case 'OSNO':
         incomeTaxRate = parseFloat(this.settings['profit_tax'] || '0.25');
-        incomeTaxAmount = Math.max(0, profit) * incomeTaxRate;
+        // Годовой налог
+        const annualProfitTax = Math.max(0, annualProfitBase) * incomeTaxRate;
+        // Для периода — пропорционально
+        incomeTaxAmount = isMonthlyPeriod ? annualProfitTax * periodFraction : annualProfitTax;
         break;
     }
 
