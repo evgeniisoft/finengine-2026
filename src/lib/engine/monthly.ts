@@ -297,8 +297,15 @@ export class MonthlyEngine {
         // Выручка
         if (creditAccount.type === 'I' && creditAccount.activity_type === 'operating' &&
           !creditAccount.id.startsWith('acc-in-invest-') && creditAccount.id !== 'acc-in-loan') {
-          revenue += t.amount_rub;
-          details[creditAccount.id] = (details[creditAccount.id] || 0) + t.amount_rub;
+          let revenueAmount = t.amount_rub;
+          // Для ОСНО выделяем НДС
+          const vatIncluded = String(company?.vat_included).toLowerCase() === 'true';
+          const vatRate = parseFloat(String(company?.vat_rate || '0'));
+          if (vatIncluded && vatRate > 0) {
+            revenueAmount = revenueAmount / (1 + vatRate);
+          }
+          revenue += revenueAmount;
+          details[creditAccount.id] = (details[creditAccount.id] || 0) + revenueAmount;
         }
 
         // Расходы — только для P&L
@@ -335,11 +342,7 @@ export class MonthlyEngine {
         }
       }
 
-      // P&L: перезаписываем revenue/expenses из taxCalc
-      if (taxCalc && reportType === 'pnl') {
-        revenue = taxCalc.revenue_without_vat;
-        expenses = taxCalc.expenses_without_vat;
-      }
+      // P&L: revenue/expenses уже посчитаны из операций месяца (не перезаписываем)
 
       // Флаги для налогов
       const hasEmployees = Boolean(company?.has_employees) || (company?.monthly_payroll || 0) > 0;
