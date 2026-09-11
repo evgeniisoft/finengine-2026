@@ -10,6 +10,9 @@ interface DiagnosticCheck {
   severity: 'critical' | 'warning' | 'ok' | 'info';
   name: string;
   count?: number;
+  expected?: number | string;
+  actual?: number | string;
+  difference?: number;
   message: string;
   details?: any;
   comparison?: any;
