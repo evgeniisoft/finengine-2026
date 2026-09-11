@@ -205,7 +205,69 @@ export async function POST(request: NextRequest) {
           errors: errors.slice(0, 10),
         });
       }
+      // ========== Очистка orphan parent_id ==========
+      case 'clear_orphan_parents': {
+        const accountIds = data || [];
+        const accounts = await repo.getAll('Accounts');
+        const validIds = new Set(accounts.map((a: any) => a.id));
+        let updated = 0;
+        const errors: string[] = [];
 
+        for (const accId of accountIds) {
+          try {
+            const acc = accounts.find((a: any) => a.id === accId);
+            if (!acc) continue;
+            if (!acc.parent_id) continue;
+            if (validIds.has(acc.parent_id)) continue;
+
+            await repo.update('Accounts', accId, { parent_id: '' });
+            updated++;
+          } catch (e: any) {
+            errors.push(`${accId}: ${e.message}`);
+          }
+        }
+
+        await logAudit(repo, userEmail, 'clear_orphan_parents', 'Accounts', '', {
+          updated,
+          errors: errors.slice(0, 10),
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: `Очищено ${updated} parent_id`,
+          updated,
+          errors: errors.slice(0, 10),
+        });
+      }
+
+      // ========== Назначение групп ==========
+      case 'assign_default_group': {
+        const items = data || [];
+        let updated = 0;
+        const errors: string[] = [];
+
+        for (const item of items) {
+          try {
+            const groupName = item.type === 'I' ? 'ДОХОДЫ' : 'ОПЕРАЦИОННЫЕ РАСХОДЫ';
+            await repo.update('Accounts', item.id, { group_name: groupName });
+            updated++;
+          } catch (e: any) {
+            errors.push(`${item.id}: ${e.message}`);
+          }
+        }
+
+        await logAudit(repo, userEmail, 'assign_default_group', 'Accounts', '', {
+          updated,
+          errors: errors.slice(0, 10),
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: `Назначено ${updated} групп`,
+          updated,
+          errors: errors.slice(0, 10),
+        });
+      }
       default:
         return NextResponse.json({ success: false, error: 'Неизвестное действие: ' + action }, { status: 400 });
     }
