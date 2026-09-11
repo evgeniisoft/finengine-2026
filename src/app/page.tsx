@@ -195,7 +195,7 @@ export default function Dashboard() {
         <p className="text-xs text-gray-500">{label}</p>
         <span className="text-gray-400 text-xs">{expandedPanels[id] ? '▲' : '▼'}</span>
       </div>
-      <p className={`text-2xl font-bold mt-1 ${color}`}>{typeof value === 'number' ? value.toLocaleString('ru-RU') : value} {suffix}</p>
+      <p className={`text-xl font-bold mt-1 ${color}`}>{typeof value === 'number' ? value.toLocaleString('ru-RU') : value} {suffix}</p>
       {expandedPanels[id] && <div className="mt-3 pt-3 border-t border-gray-100">{children}</div>}
     </div>
   );
@@ -204,7 +204,7 @@ export default function Dashboard() {
     <div>
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Дашборд</h2>
+          <h2 className="text-xl font-bold text-gray-900">Дашборд</h2>
           <p className="text-gray-500 mt-1">Финансовое здоровье бизнеса • {periodLabel}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
